@@ -1,0 +1,5 @@
+.logout-button {
+  color: rgba(255, 255, 255, 0.9); /* Adjust this to ensure readable white text */
+  /* or you could use: */
+  color: #FFFFFF;
+} 

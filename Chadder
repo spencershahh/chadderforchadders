@@ -1,0 +1,115 @@
+# Chadder.ai Web App Blueprint
+
+## Overview
+Chadder.ai is a modern web application designed to help users discover, interact with, and support their favorite Twitch streamers. The platform offers a curated list of streamers with features such as live status, viewer counts, and game categories. Users can engage with streamers through the web app and participate in a voting system to support their favorite channels.
+
+## Core Features
+
+1. **Streamer Discovery:**
+   - Users can browse a curated list of streamers.
+   - Sorting options include alphabetical order, viewers (high to low/low to high).
+   - Clickable streamer cards redirect users to the dedicated stream page.
+
+2. **Live Streaming Integration:**
+   - Twitch API integration to fetch real-time stream details.
+   - Embedded Twitch player for live stream viewing.
+   - Streamer profile images fetched from Twitch API.
+
+3. **Voting System:**
+   - Users can vote for their favorite streamers using credits.
+   - Monthly allocated credits and additional credits available for purchase.
+   - Weekly leaderboard resets with all-time votes tracked.
+
+4. **User Authentication and Subscription:**
+   - User management via Memberstack.
+   - Subscription plans offering different voting credits.
+   - Stripe integration for payment processing.
+
+5. **Responsive UI/UX:**
+   - Clean, dark-themed interface inspired by Twitch.
+   - Responsive design ensuring seamless experience across devices.
+   - Hover effects and interactive elements for better user engagement.
+
+## Tech Stack
+
+### Frontend:
+- **React (Vite)**: Modern framework for fast frontend development.
+- **TailwindCSS**: Styling and responsive design.
+- **Framer**: Splash page hosting and animations.
+- **Vercel**: Hosting the frontend.
+
+### Backend:
+- **Supabase**: Database and authentication.
+- **Heroku**: Backend hosting if needed.
+- **Node.js & Express.js**: Backend server for API calls.
+
+### APIs & Services:
+- **Twitch API**: Fetching stream data, profile images, and viewer counts.
+- **Memberstack**: User authentication and subscription management.
+- **Stripe**: Payment processing.
+
+## Web App Structure
+
+### 1. Discover Page
+- Displays streamer cards sorted based on selected criteria.
+- Clickable cards navigate to individual stream pages.
+
+### 2. Stream Page
+- Twitch stream embedded.
+- Live chat integration.
+- Voting options and user engagement.
+
+### 3. Profile Page
+- User account details and subscription status.
+- Credit balance tracking.
+
+### 4. Leaderboard Page
+- Shows top-voted streamers for the week and all-time.
+- Encourages community engagement.
+
+## Deployment Process
+1. **Frontend Deployment:**
+   - Vercel deployment linked to GitHub.
+   - Continuous deployment enabled.
+
+2. **Backend Deployment:**
+   - Heroku used for the backend (if required).
+   - API environment variables configured securely.
+
+## Environment Variables
+Ensure the following variables are set in the `.env` file:
+
+```env
+VITE_TWITCH_CLIENT_ID=your_client_id
+VITE_TWITCH_ACCESS_TOKEN=your_access_token
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_KEY=your_supabase_key
+```
+
+## How It Works
+
+1. **User visits Discover Page:**
+   - Streamer list is fetched from the Twitch API.
+   - User can click on a streamer to visit the stream page.
+
+2. **On Stream Page:**
+   - Twitch embed loads the stream.
+   - Chatbox is displayed alongside the stream.
+   - Users can vote using their credits.
+
+3. **Voting System:**
+   - Votes are deducted from the user's balance.
+   - Weekly leaderboard rankings are updated.
+
+4. **User Authentication:**
+   - Users sign up via Memberstack.
+   - Subscription plans determine monthly credit allocations.
+
+## Future Enhancements
+- Adding a search function to find streamers quickly.
+- Enhancing profile pages with more details.
+- Introducing AI-based stream recommendations.
+
+## Conclusion
+Chadder.ai aims to provide a seamless and engaging experience for discovering and supporting Twitch streamers. By integrating Twitch API with user-friendly features and an interactive UI, the platform ensures a smooth experience for both casual viewers and dedicated fans.
+
