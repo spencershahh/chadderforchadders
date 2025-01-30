@@ -1,0 +1,50 @@
+I'll create a simple README.md file with common Git commands and workflows:
+)
+bash
+git init # Initialize a new git repository
+git remote add origin URL # Connect to GitHub repository
+Changes
+bash
+git pull origin main # Get latest changes from GitHub
+Changes
+bash
+git status # See which files have changed
+git diff # See the actual changes in files
+GitHub
+bash
+git add . # Stage all changes
+OR
+git add filename # Stage specific file
+git commit -m "Your message here" # Commit changes with a message
+git push origin main # Push changes to GitHub
+:
+bash
+git commit --amend -m "New message"
+:
+bash
+git checkout -- filename
+:
+bash
+git checkout -b new-branch-name
+:
+bash
+git checkout branch-name
+:
+bash
+git pull origin main
+git push origin main
+:
+bash
+git push -f origin main
+:
+bash
+git reset --soft HEAD~1
+!
+
+
+
+
+
+git remote add origin https://github.com/spencershahh/chadderforchadders.git
+git branch -M main
+git push -u origin main
