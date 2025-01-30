@@ -255,28 +255,53 @@ const Discover = () => {
   return (
     <div className="discover-container">
       <div className="discover-header">
-        <h1>Discover Streamers</h1>
-        <p>Find streamers, join the conversation, and vote for your favorites!</p>
+        <h1 style={{ 
+          fontSize: 'clamp(2rem, 8vw, 3rem)',
+          textAlign: 'center',
+          margin: '1rem 0'
+        }}>Discover Streamers</h1>
+        <p style={{
+          fontSize: 'clamp(0.9rem, 4vw, 1.1rem)',
+          textAlign: 'center',
+          padding: '0 1rem'
+        }}>Find streamers, join the conversation, and vote for your favorites!</p>
 
-        <div className="stats-container">
-          <div className="stats-wrapper">
-            <div className="stat-item">
-              <span className="stat-number">{streamers.filter(s => s.type === "live").length}</span>
-              <span className="stat-label">LIVE NOW</span>
+        <div className="stats-container" style={{ padding: '0 1rem' }}>
+          <div className="stats-wrapper" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+            gap: '1rem',
+            width: '100%',
+            maxWidth: '600px',
+            margin: '1rem auto'
+          }}>
+            <div className="stat-item" style={{ textAlign: 'center' }}>
+              <span className="stat-number" style={{ fontSize: 'clamp(1.2rem, 5vw, 1.5rem)' }}>
+                {streamers.filter(s => s.type === "live").length}
+              </span>
+              <span className="stat-label" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
+                LIVE NOW
+              </span>
             </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <span className="stat-number">{streamers.length}</span>
-              <span className="stat-label">TOTAL STREAMERS</span>
+            <div className="stat-item" style={{ textAlign: 'center' }}>
+              <span className="stat-number" style={{ fontSize: 'clamp(1.2rem, 5vw, 1.5rem)' }}>
+                {streamers.length}
+              </span>
+              <span className="stat-label" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
+                TOTAL STREAMERS
+              </span>
             </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item prize-pool">
-              <span className="stat-number">
+            <div className="stat-item prize-pool" style={{ textAlign: 'center' }}>
+              <span className="stat-number" style={{ fontSize: 'clamp(1.2rem, 5vw, 1.5rem)' }}>
                 <span className="currency">$</span>
                 {totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span className="stat-label">PRIZE POOL</span>
-              <div className="prize-pool-timer">{timeUntilPayout}</div>
+              <span className="stat-label" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
+                PRIZE POOL
+              </span>
+              <div className="prize-pool-timer" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
+                {timeUntilPayout}
+              </div>
             </div>
           </div>
         </div>
@@ -380,48 +405,81 @@ const Discover = () => {
             </div>
           </div>
         )}
-        <div className="search-controls" style={{ marginTop: '2rem' }}>
-          <div className="search-bar" style={{ gap: '1rem', display: 'flex' }}>
+        <div className="search-controls" style={{ 
+          marginTop: '1rem',
+          padding: '0 1rem'
+        }}>
+          <div className="search-bar" style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            width: '100%',
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
             <input
               type="text"
               className="search-input"
               placeholder="Search streamers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.8rem',
+                fontSize: '1rem'
+              }}
             />
-            <select
-              className="sort-select"
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-            >
-              <option value="viewers-high">Viewers (High)</option>
-              <option value="viewers-low">Viewers (Low)</option>
-              <option value="alphabetical">Alphabetical</option>
-              <option value="popular">Most Popular</option>
-            </select>
-          </div>
-          
-          <div className="toggle-wrapper">
-            <div 
-              className="toggle-switch" 
-              data-state={streamersFilter === 'online' ? 'online' : 'all'}
-              onClick={() => setStreamersFilter(streamersFilter === 'online' ? 'all' : 'online')}
-            >
-              <div className="toggle-switch-inner">
-                <span className={`toggle-option ${streamersFilter === 'online' ? 'active' : ''}`}>
-                  Online
-                </span>
-                <span className={`toggle-option ${streamersFilter === 'all' ? 'active' : ''}`}>
-                  All
-                </span>
-                <div className="toggle-slider" />
+            <div style={{ 
+              display: 'flex',
+              gap: '0.5rem',
+              width: '100%'
+            }}>
+              <select
+                className="sort-select"
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '0.8rem',
+                  fontSize: '0.9rem'
+                }}
+              >
+                <option value="viewers-high">Viewers (High)</option>
+                <option value="viewers-low">Viewers (Low)</option>
+                <option value="alphabetical">Alphabetical</option>
+                <option value="popular">Most Popular</option>
+              </select>
+              
+              <div className="toggle-switch" 
+                style={{
+                  minWidth: '120px',
+                  height: '40px'
+                }}
+                data-state={streamersFilter === 'online' ? 'online' : 'all'}
+                onClick={() => setStreamersFilter(streamersFilter === 'online' ? 'all' : 'online')}
+              >
+                <div className="toggle-switch-inner">
+                  <span className={`toggle-option ${streamersFilter === 'online' ? 'active' : ''}`}>
+                    Online
+                  </span>
+                  <span className={`toggle-option ${streamersFilter === 'all' ? 'active' : ''}`}>
+                    All
+                  </span>
+                  <div className="toggle-slider" />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="streamer-grid">
+      <div className="streamer-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '1rem',
+        padding: '1rem',
+        width: '100%'
+      }}>
         {sortedStreamers.length > 0 ? (
           sortedStreamers.map((streamer) => (
             <div
@@ -483,32 +541,18 @@ const Discover = () => {
       }} />
 
       <div className="nomination-section" style={{
-        background: 'rgba(20, 20, 20, 0.7)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '12px',
-        padding: '2rem',
-        margin: '0 auto 4rem',
-        maxWidth: '800px',
-        border: '1px solid rgba(145, 71, 255, 0.2)',
-        boxShadow: '0 4px 24px rgba(145, 71, 255, 0.1)',
+        padding: '1.5rem 1rem',
+        margin: '1rem'
       }}>
         <h2 style={{ 
-          marginBottom: '1.5rem', 
-          color: '#fff',
-          textAlign: 'center',
-          fontSize: '2rem',
-          background: 'linear-gradient(90deg, #9147ff, #6441a5)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
+          fontSize: 'clamp(1.5rem, 6vw, 2rem)',
+          marginBottom: '1rem'
         }}>
           Nominate a Streamer
         </h2>
         <p style={{
-          textAlign: 'center',
-          color: '#a8a8a8',
-          marginBottom: '2rem',
-          maxWidth: '600px',
-          margin: '0 auto 2rem',
+          fontSize: 'clamp(0.9rem, 4vw, 1rem)',
+          marginBottom: '1.5rem'
         }}>
           Know an amazing streamer who should be part of our community? 
           Nominate them by submitting their Twitch channel URL below.
