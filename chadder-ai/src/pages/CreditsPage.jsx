@@ -206,7 +206,8 @@ const CreditsPage = () => {
 
       if (userError || !userData?.stripe_customer_id) return null;
 
-      const response = await fetch(`http://localhost:3001/subscriptions/${userData.stripe_customer_id}`);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/subscriptions/${userData.stripe_customer_id}`);
       const { subscriptions } = await response.json();
       
       if (subscriptions && subscriptions.length > 0) {
