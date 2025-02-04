@@ -30,15 +30,24 @@ const app = express();
 
 // Add proper CORS configuration
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://chadderai.vercel.app',
-    'https://chadder.ai',
-    'https://chadderforchadders.onrender.com',
-    process.env.VITE_APP_URL,
-    // Add your Vercel preview URLs
-    /\.vercel\.app$/
-  ].filter(Boolean),
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if(!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'https://chadderai.vercel.app',
+      'https://chadder.ai',
+      'https://chadderforchadders.onrender.com'
+    ];
+    
+    // Allow all vercel.app subdomains
+    if(origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST'],
   credentials: true
 }));
