@@ -33,8 +33,8 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://chadderal.vercel.app',
-    process.env.VITE_APP_URL // fallback to environment variable
-  ].filter(Boolean),  // removes any undefined/null values
+    'https://chadder.ai'  // Add your production domain
+  ],
   methods: ['GET', 'POST'],
   credentials: true
 }));
