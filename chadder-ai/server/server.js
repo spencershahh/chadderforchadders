@@ -32,9 +32,10 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://chadderal.vercel.app',
-    'https://chadder.ai'  // Add your production domain
-  ],
+    'https://chadderai.vercel.app',
+    'https://chadder.ai',
+    process.env.VITE_APP_URL
+  ].filter(Boolean),
   methods: ['GET', 'POST'],
   credentials: true
 }));

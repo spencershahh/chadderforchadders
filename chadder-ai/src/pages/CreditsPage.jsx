@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import CheckoutForm from '../components/CheckoutForm';
 import { toast } from 'react-hot-toast';
 import { UpgradeDialog } from '../components/UpgradeDialog';
+import AuthModal from '../components/AuthModal';
 import styles from './CreditsPage.module.css';
 
 const CreditsPage = () => {
@@ -17,6 +18,9 @@ const CreditsPage = () => {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState({ show: false });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingPackageId, setPendingPackageId] = useState(null);
+  const [isPendingSubscription, setIsPendingSubscription] = useState(false);
 
   const subscriptionPackages = [
     {
@@ -78,7 +82,12 @@ const CreditsPage = () => {
     
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw new Error('Please log in to purchase credits');
+      if (authError || !user) {
+        setPendingPackageId(packageId);
+        setIsPendingSubscription(isSubscription);
+        setShowAuthModal(true);
+        return;
+      }
 
       const selectedPkg = isSubscription 
         ? subscriptionPackages.find(pkg => pkg.id === packageId)
@@ -99,22 +108,55 @@ const CreditsPage = () => {
     }
   };
 
-  const handleCustomPurchase = () => {
+  const handleCustomPurchase = async () => {
     if (!customAmount || customAmount < 2) {
       toast.error('Minimum amount is $2');
       return;
     }
 
-    const votes = calculateCustomCredits(customAmount);
-    setSelectedAmount(Number(customAmount));
-    setSelectedCredits(votes);
-    setSelectedPackage({
-      id: 'custom',
-      name: 'Custom Amount',
-      price: Number(customAmount),
-      votes: votes
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        setShowAuthModal(true);
+        return;
+      }
+
+      const votes = calculateCustomCredits(customAmount);
+      setSelectedAmount(Number(customAmount));
+      setSelectedCredits(votes);
+      setSelectedPackage({
+        id: 'custom',
+        name: 'Custom Amount',
+        price: Number(customAmount),
+        votes: votes
+      });
+      setShowPayment(true);
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+    }
+  };
+
+  const handleLogin = () => {
+    navigate('/login', { 
+      state: { 
+        returnTo: '/credits',
+        pendingPackageId,
+        isPendingSubscription 
+      } 
     });
-    setShowPayment(true);
+    setShowAuthModal(false);
+  };
+
+  const handleSignup = () => {
+    navigate('/signup', { 
+      state: { 
+        returnTo: '/credits',
+        pendingPackageId,
+        isPendingSubscription 
+      } 
+    });
+    setShowAuthModal(false);
   };
 
   const calculateCustomCredits = (amount) => {
@@ -374,6 +416,17 @@ const CreditsPage = () => {
           }}
         />
       )}
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => {
+          setShowAuthModal(false);
+          setPendingPackageId(null);
+          setIsPendingSubscription(false);
+        }}
+        onLogin={handleLogin}
+        onSignup={handleSignup}
+      />
     </div>
   );
 };

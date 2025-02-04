@@ -44,8 +44,10 @@ const CheckoutForm = ({ amount, credits, selectedTier, onSuccess, onClose }) => 
     setError(null);
 
     try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
       // Test server connection first
-      const testResponse = await fetch('http://localhost:3001/test');
+      const testResponse = await fetch(`${API_URL}/test`);
       if (!testResponse.ok) {
         throw new Error('Server not responding');
       }
@@ -69,7 +71,7 @@ const CheckoutForm = ({ amount, credits, selectedTier, onSuccess, onClose }) => 
       }
 
       // Create subscription
-      const response = await fetch('http://localhost:3001/create-subscription', {
+      const response = await fetch(`${API_URL}/create-subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
