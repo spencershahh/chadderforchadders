@@ -34,7 +34,10 @@ app.use(cors({
     'http://localhost:5173',
     'https://chadderai.vercel.app',
     'https://chadder.ai',
-    process.env.VITE_APP_URL
+    'https://chadderforchadders.onrender.com',
+    process.env.VITE_APP_URL,
+    // Add your Vercel preview URLs
+    /\.vercel\.app$/
   ].filter(Boolean),
   methods: ['GET', 'POST'],
   credentials: true
