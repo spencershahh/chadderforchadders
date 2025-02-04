@@ -15,81 +15,13 @@ body, html, #root {
   overflow-x: hidden;
 }
 
-/* ===========================
-   🌐 Navbar Styles
-=========================== */
-.navbar {
-  width: 100%;
-  height: 70px;
-  background: rgba(24, 24, 27, 0.9);
-  backdrop-filter: blur(10px);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-}
-
-.navbar-logo {
-  font-size: 1.8rem;
-  font-weight: bold;
-}
-
-.navbar-logo a {
-  text-decoration: none;
-  color: #efeff1;
-}
-
-.navbar-logo span {
-  color: #9147ff;
-}
-
-.navbar-links {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.nav-item {
-  padding: 0.6rem 1rem;
-  color: #efeff1;
-  text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  font-weight: 500;
+.app-container {
+  min-height: 100vh;
   position: relative;
 }
 
-.nav-item:hover {
-  background: rgba(145, 71, 255, 0.1);
-  color: #9147ff;
-}
-
-.nav-item.active {
-  background: rgba(145, 71, 255, 0.15);
-  color: #9147ff;
-}
-
-.signup-button {
-  background: #9147ff;
-  color: white !important;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.signup-button:hover {
-  background: #772ce8;
-  transform: translateY(-1px);
-}
-
-/* Remove .credits from navbar (unused) */
-.navbar .credits {
-  display: none;
+.main-content {
+  min-height: calc(100vh - 70px);
 }
 
 /* ===========================
@@ -98,47 +30,68 @@ body, html, #root {
 .stream-page {
   max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 1rem;
   color: #efeff1;
   background-color: #0e0e10;
-  min-height: calc(100vh - 60px); /* Subtract navbar height */
-  padding-bottom: 100px;
+  min-height: calc(100vh - 70px);
 }
 
 .stream-title {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.5rem 0 1rem;
+  text-align: left;
+  padding: 0 0.5rem;
+  color: #efeff1;
 }
 
 .stream-layout {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 1.5rem;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 1rem;
   width: 100%;
-  max-width: 1600px;
+  max-width: 1800px;
   margin: 0 auto;
   background-color: transparent;
 }
 
 .stream-video-container {
-  flex: 3;
   width: 100%;
-  max-width: 75%;
+  max-width: 100%;
   aspect-ratio: 16 / 9;
   background: #1f1f23;
   border-radius: 8px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
 .stream-chat-container {
-  flex: 1;
-  min-height: 500px;
+  width: 100%;
+  height: 600px;
   border-radius: 8px;
   overflow: hidden;
+  background: #18181b;
+}
+
+@media (min-width: 1024px) {
+  .stream-layout {
+    flex-direction: row;
+  }
+
+  .stream-video-container {
+    flex: 3;
+    max-width: 75%;
+  }
+
+  .stream-chat-container {
+    flex: 1;
+    height: calc(100vh - 180px);
+    min-height: 600px;
+    position: sticky;
+    top: 80px;
+  }
 }
 
 .stream-chat-container iframe {
@@ -1287,39 +1240,75 @@ body, html, #root {
   content: none;
 }
 
+/* Credits Page Header Styles */
 .credits-header {
   text-align: center;
-  margin-bottom: 4rem;
+  padding: 4rem 1rem;
+  margin-bottom: 3rem;
   position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.header-content {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .credits-badge {
-  background: linear-gradient(135deg, #9147ff, #772ce8);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: bold;
   display: inline-block;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+  background: rgba(145, 71, 255, 0.2);
+  color: #9147ff;
+  padding: 0.5rem 1.5rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 10px rgba(145, 71, 255, 0.2);
 }
 
 .credits-header h1 {
-  font-size: 2.8rem;
-  color: #efeff1;
-  margin-bottom: 1rem;
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
   font-weight: 800;
-  background: linear-gradient(135deg, #efeff1 0%, #9147ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+  text-align: center;
+  width: 100%;
 }
 
 .credits-header p {
+  font-size: clamp(1rem, 3vw, 1.2rem);
   color: #adadb8;
-  font-size: 1.1rem;
   max-width: 600px;
   margin: 0 auto;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .credits-header {
+    padding: 3rem 1rem;
+    margin-bottom: 2rem;
+    min-height: 250px;
+  }
+  
+  .credits-header h1 {
+    font-size: 2.2rem;
+  }
+  
+  .credits-header p {
+    font-size: 1rem;
+    padding: 0 1rem;
+  }
 }
 
 .pricing-container {
@@ -2501,15 +2490,15 @@ body, html, #root {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(24, 24, 27, 0.95);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(145, 71, 255, 0.2);
+  background: #18181b;
   padding: 1rem;
-  z-index: 100;
-  box-shadow: 
-    0 -8px 32px rgba(0, 0, 0, 0.4),
-    0 -4px 16px rgba(145, 71, 255, 0.15);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
   transition: transform 0.3s ease;
+}
+
+.floating-vote-container.collapsed {
+  transform: translateY(calc(100% - 40px));
 }
 
 /* Collapse toggle button */
@@ -2683,3 +2672,400 @@ body, html, #root {
 .leaderboard-info-card {
   margin-bottom: 5rem; /* Add space below the card */
 }
+
+/* Add after the existing .settings-section styles (around line 505) */
+
+.credits-info {
+  background: rgba(31, 31, 35, 0.7);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.current-credits {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.subscription-info {
+  background: rgba(145, 71, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(145, 71, 255, 0.2);
+}
+
+.subscription-actions {
+  margin-top: 1.5rem;
+}
+
+.cancel-subscription-button {
+  background: rgba(255, 68, 68, 0.1);
+  color: #ff4444;
+  border: 1px solid #ff4444;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.cancel-subscription-button:hover {
+  background: rgba(255, 68, 68, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2);
+}
+
+.credits-button {
+  display: inline-block;
+  background: #9147ff;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: center;
+}
+
+.credits-button:hover {
+  background: #772ce8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+}
+
+.help-text {
+  color: #adadb8;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+/* Update the loading spinner styles (around line 200, near other button styles) */
+
+.loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spinner-icon {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  font-size: 0.8em;
+}
+
+@keyframes spin {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Update purchase button styles to maintain consistent width */
+.purchase-btn {
+  /* ... existing styles ... */
+  min-width: 160px; /* Add this to prevent button width changes */
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.subscription-btn {
+  /* ... existing styles ... */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add after existing credits-info styles */
+
+.credits-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.package-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.package-badge.free {
+  background: rgba(255, 255, 255, 0.1);
+  color: #adadb8;
+}
+
+.package-badge.bronze {
+  background: rgba(205, 127, 50, 0.2);
+  color: #cd7f32;
+}
+
+.package-badge.silver {
+  background: rgba(192, 192, 192, 0.2);
+  color: #c0c0c0;
+}
+
+.package-badge.gold {
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+}
+
+.credits-details {
+  background: rgba(31, 31, 35, 0.5);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.credits-details p {
+  margin: 0.5rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.cancellation-notice {
+  color: #ff4444;
+  font-weight: 500;
+}
+
+/* Remove any conflicting navbar styles from App.css */
+.navbar .navbar-menu {
+  background: #1f1f23;
+  border: 1px solid rgba(145, 71, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 0.5rem;
+  min-width: 220px;
+}
+
+.navbar .navbar-menu a,
+.navbar .navbar-menu button {
+  color: #efeff1;
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease;
+}
+
+/* Update Discover page styles */
+.discover-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.discover-header {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.discover-header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.discover-header p {
+  color: #adadb8;
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.stats-container {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+.prize-pool {
+  background: rgba(145, 71, 255, 0.1);
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: center;
+  min-width: 200px;
+}
+
+.search-controls {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.search-bar {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(31, 31, 35, 0.6);
+  border: 1px solid rgba(145, 71, 255, 0.2);
+  border-radius: 8px;
+  color: #efeff1;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .discover-header h1 {
+    font-size: 2rem;
+    padding: 0 1rem;
+  }
+
+  .discover-header p {
+    padding: 0 1rem;
+    font-size: 1rem;
+  }
+
+  .stats-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 1rem;
+  }
+
+  .prize-pool {
+    width: 100%;
+  }
+
+  .search-controls {
+    padding: 0 1rem;
+  }
+
+  .filter-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .sort-select,
+  .filter-tag {
+    width: 100%;
+  }
+}
+
+/* Streamer grid improvements */
+.streamer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem;
+  margin-top: 2rem;
+}
+
+.streamer-card {
+  background: rgba(31, 31, 35, 0.6);
+  border: 1px solid rgba(145, 71, 255, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .streamer-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+    gap: 1rem;
+  }
+}
+
+/* Add these styles near the top, after the global styles */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: #0e0e10;
+  z-index: 1000;
+  border-bottom: 1px solid rgba(145, 71, 255, 0.2);
+}
+
+/* Mobile menu styles */
+.navbar-mobile-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: rgba(24, 24, 27, 0.98);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  min-width: 200px;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(145, 71, 255, 0.2);
+  z-index: 1000;
+  padding: 0.5rem 0;
+  margin: 0 0.5rem;
+}
+
+.navbar-mobile-menu a,
+.navbar-mobile-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  color: #efeff1;
+  text-decoration: none;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.navbar-mobile-menu a:hover,
+.navbar-mobile-menu button:hover {
+  background: rgba(145, 71, 255, 0.15);
+  color: #fff;
+}
+
+.navbar-mobile-menu a:active,
+.navbar-mobile-menu button:active {
+  background: rgba(145, 71, 255, 0.2);
+}
+
+/* Add a subtle separator between menu items */
+.navbar-mobile-menu a:not(:last-child),
+.navbar-mobile-menu button:not(:last-child) {
+  border-bottom: 1px solid rgba(145, 71, 255, 0.1);
+}
+
+/* Update main-content to account for fixed navbar */
+.main-content {
+  padding-top: 70px;
+  min-height: calc(100vh - 70px);
+  position: relative;
+  z-index: 1;
+}
+

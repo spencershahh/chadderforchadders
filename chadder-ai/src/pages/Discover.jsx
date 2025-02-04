@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchStreamers } from "../api/twitch";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import styles from './Discover.module.css';
 
 const Discover = () => {
   const [user, setUser] = useState(null);
@@ -16,6 +17,7 @@ const Discover = () => {
   const [nominationUrl, setNominationUrl] = useState('');
   const [nominationStatus, setNominationStatus] = useState('');
   const navigate = useNavigate();
+  const nominationSectionRef = useRef(null);
 
   // Get user's preferences or default values
   const getUserPreferences = () => {
@@ -37,23 +39,17 @@ const Discover = () => {
   const OFFLINE_THUMBNAIL = "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg";
   const DEFAULT_PROFILE_IMAGE = "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png";
 
-  const calculateDonationBomb = (votes) => {
-    const WACP = 0.0725; // Fixed WACP value
-    const totalCredits = votes.reduce((sum, vote) => sum + vote.vote_amount, 0);
-    return (totalCredits * WACP * 0.55).toFixed(2);
-  };
-
   const fetchTotalDonations = async () => {
     try {
       const { data, error } = await supabase
-        .from('votes')
-        .select('*');
-      
+        .rpc('calculate_weekly_donation_bomb');
+
       if (error) throw error;
-      const donationBomb = calculateDonationBomb(data);
-      setTotalDonations(parseFloat(donationBomb));
+      
+      setTotalDonations(data || 0);
     } catch (error) {
       console.error('Error fetching total donations:', error);
+      setTotalDonations(0);
     }
   };
 
@@ -139,12 +135,12 @@ const Discover = () => {
     try {
       const { data: votes, error } = await supabase
         .from("votes")
-        .select("streamer, vote_amount");
+        .select("streamer, amount");
 
       if (error) throw error;
 
       return votes.reduce((acc, vote) => {
-        acc[vote.streamer] = (acc[vote.streamer] || 0) + vote.vote_amount;
+        acc[vote.streamer] = (acc[vote.streamer] || 0) + vote.amount;
         return acc;
       }, {});
     } catch (error) {
@@ -252,54 +248,65 @@ const Discover = () => {
     }
   };
 
-  return (
-    <div className="discover-container">
-      <div className="discover-header">
-        <h1 style={{ 
-          fontSize: 'clamp(2rem, 8vw, 3rem)',
-          textAlign: 'center',
-          margin: '1rem 0'
-        }}>Discover Streamers</h1>
-        <p style={{
-          fontSize: 'clamp(0.9rem, 4vw, 1.1rem)',
-          textAlign: 'center',
-          padding: '0 1rem'
-        }}>Find streamers, join the conversation, and vote for your favorites!</p>
+  // Add subscription listener in useEffect
+  useEffect(() => {
+    // Listen for subscription revenue changes
+    const subscriptionSubscription = supabase
+      .channel('subscriptions-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscription_revenue'
+        },
+        () => {
+          fetchTotalDonations();
+        }
+      )
+      .subscribe();
 
-        <div className="stats-container" style={{ padding: '0 1rem' }}>
-          <div className="stats-wrapper" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-            gap: '1rem',
-            width: '100%',
-            maxWidth: '600px',
-            margin: '1rem auto'
-          }}>
-            <div className="stat-item" style={{ textAlign: 'center' }}>
-              <span className="stat-number" style={{ fontSize: 'clamp(1.2rem, 5vw, 1.5rem)' }}>
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(subscriptionSubscription);
+    };
+  }, []);
+
+  const scrollToNomination = () => {
+    nominationSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  return (
+    <div className={styles.discoverContainer}>
+      <div className={styles.discoverHeader}>
+        <h1 className={styles.discoverTitle}>
+          Discover Streamers
+        </h1>
+        <p className={styles.discoverSubtitle}>
+          Find streamers, join the conversation, and vote for your favorites!
+        </p>
+
+        <div className={styles.statsContainer}>
+          <div className={styles.statsGrid}>
+            <div className={styles.statItem}>
+              <span className={styles.statNumber}>
                 {streamers.filter(s => s.type === "live").length}
               </span>
-              <span className="stat-label" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
-                LIVE NOW
-              </span>
+              <span className={styles.statLabel}>LIVE NOW</span>
             </div>
-            <div className="stat-item" style={{ textAlign: 'center' }}>
-              <span className="stat-number" style={{ fontSize: 'clamp(1.2rem, 5vw, 1.5rem)' }}>
+            <div className={styles.statItem}>
+              <span className={styles.statNumber}>
                 {streamers.length}
               </span>
-              <span className="stat-label" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
-                TOTAL STREAMERS
-              </span>
+              <span className={styles.statLabel}>TOTAL STREAMERS</span>
             </div>
-            <div className="stat-item prize-pool" style={{ textAlign: 'center' }}>
-              <span className="stat-number" style={{ fontSize: 'clamp(1.2rem, 5vw, 1.5rem)' }}>
-                <span className="currency">$</span>
+            <div className={`${styles.statItem} ${styles.prizePool}`}>
+              <span className={styles.statNumber}>
+                <span className={styles.currency}>$</span>
                 {totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span className="stat-label" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
-                PRIZE POOL
-              </span>
-              <div className="prize-pool-timer" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.9rem)' }}>
+              <span className={styles.statLabel}>PRIZE POOL</span>
+              <div className={styles.prizePoolTimer} aria-label="Time until payout">
                 {timeUntilPayout}
               </div>
             </div>
@@ -308,141 +315,59 @@ const Discover = () => {
 
         {topStreamer && (
           <div 
-            className="top-streamer-card"
+            className={styles.topStreamerCard}
             onClick={() => navigate(`/stream/${topStreamer.user_login}`)}
             role="button"
             tabIndex={0}
-            style={{
-              background: 'rgba(20, 20, 20, 0.7)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '12px',
-              padding: '16px',
-              cursor: 'pointer',
-              border: '1px solid rgba(145, 71, 255, 0.2)',
-              transition: 'all 0.2s ease',
-              maxWidth: '400px',
-              margin: '20px auto',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              boxShadow: '0 0 20px rgba(145, 71, 255, 0.15)',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 0 30px rgba(145, 71, 255, 0.3)',
-                border: '1px solid rgba(145, 71, 255, 0.4)'
-              }
-            }}
+            aria-label={`View ${topStreamer.user_name}'s stream`}
           >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '1rem',
-              color: '#9147ff',
-              fontWeight: '600',
-              marginBottom: '12px'
-            }}>
-              <span>🏆</span>
-              <span style={{
-                background: 'linear-gradient(90deg, #9147ff, #6441a5)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>Top Streamer This Week</span>
+            <div className={styles.topStreamerBadge}>
+              <span>🏆 Top Streamer This Week</span>
             </div>
 
             <img 
               src={topStreamer.profile_image_url} 
               alt={`${topStreamer.user_name} profile`} 
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                border: '2px solid #9147ff',
-                marginBottom: '8px',
-                boxShadow: '0 0 15px rgba(145, 71, 255, 0.3)'
-              }}
+              className={styles.topStreamerProfileImage}
+              loading="lazy"
             />
             
-            <h3 style={{
-              margin: '0 0 4px 0',
-              fontSize: '1.2rem',
-              color: '#fff',
-              fontWeight: '600'
-            }}>{topStreamer.user_name}</h3>
-            
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              color: '#a8a8a8',
-              fontSize: '0.9rem'
-            }}>
-              <span style={{ 
-                color: '#9147ff', 
-                fontWeight: 'bold',
-                background: 'rgba(145, 71, 255, 0.1)',
-                padding: '4px 8px',
-                borderRadius: '4px'
-              }}>
-                {topStreamer.weeklyVotes} votes
-              </span>
-              {topStreamer.type === "live" && (
-                <>
-                  <span>•</span>
-                  <span style={{
-                    background: '#ff0000',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '0.8rem',
-                    color: 'white'
-                  }}>LIVE</span>
-                  <span>•</span>
-                  <span>{topStreamer.viewer_count?.toLocaleString()} viewers</span>
-                </>
-              )}
+            <div className={styles.topStreamerInfo}>
+              <h3 className={styles.topStreamerName}>{topStreamer.user_name}</h3>
+              
+              <div className={styles.topStreamerStats}>
+                <span className={styles.votesBadge}>
+                  {topStreamer.weeklyVotes} votes
+                </span>
+                {topStreamer.type === "live" && (
+                  <>
+                    <span className={styles.liveBadge}>LIVE</span>
+                    <span className={styles.viewerCount}>
+                      {topStreamer.viewer_count?.toLocaleString()} viewers
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
-        <div className="search-controls" style={{ 
-          marginTop: '1rem',
-          padding: '0 1rem'
-        }}>
-          <div className="search-bar" style={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-            width: '100%',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
+
+        <div className={styles.searchControls}>
+          <div className={styles.searchWrapper}>
             <input
               type="text"
-              className="search-input"
+              className={styles.searchInput}
               placeholder="Search streamers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.8rem',
-                fontSize: '1rem'
-              }}
+              aria-label="Search streamers"
             />
-            <div style={{ 
-              display: 'flex',
-              gap: '0.5rem',
-              width: '100%'
-            }}>
+            <div className={styles.filterControls}>
               <select
-                className="sort-select"
+                className={styles.sortSelect}
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: '0.8rem',
-                  fontSize: '0.9rem'
-                }}
+                aria-label="Sort streamers"
               >
                 <option value="viewers-high">Viewers (High)</option>
                 <option value="viewers-low">Viewers (Low)</option>
@@ -450,169 +375,136 @@ const Discover = () => {
                 <option value="popular">Most Popular</option>
               </select>
               
-              <div className="toggle-switch" 
-                style={{
-                  minWidth: '120px',
-                  height: '40px'
-                }}
-                data-state={streamersFilter === 'online' ? 'online' : 'all'}
+              <div 
+                className={`${styles.toggleSwitch} ${streamersFilter === 'online' ? styles.online : styles.all}`}
                 onClick={() => setStreamersFilter(streamersFilter === 'online' ? 'all' : 'online')}
+                role="button"
+                tabIndex={0}
+                aria-label="Toggle online streamers"
               >
-                <div className="toggle-switch-inner">
-                  <span className={`toggle-option ${streamersFilter === 'online' ? 'active' : ''}`}>
+                <div className={styles.toggleSwitchInner}>
+                  <span className={`${styles.toggleOption} ${streamersFilter === 'online' ? styles.active : ''}`}>
                     Online
                   </span>
-                  <span className={`toggle-option ${streamersFilter === 'all' ? 'active' : ''}`}>
+                  <span className={`${styles.toggleOption} ${streamersFilter === 'all' ? styles.active : ''}`}>
                     All
                   </span>
-                  <div className="toggle-slider" />
+                  <div className={styles.toggleSlider} />
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        <button 
+          onClick={scrollToNomination}
+          className={styles.nominateButton}
+          aria-label="Go to nominate streamer section"
+        >
+          Nominate a Streamer
+        </button>
       </div>
 
-      <div className="streamer-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '1rem',
-        padding: '1rem',
-        width: '100%'
-      }}>
+      <div className={styles.streamersSection}>
+        <h2 className={styles.streamersTitle}>
+          Featured Streamers
+        </h2>
+        <p className={styles.streamersSubtitle}>
+          Watch and support your favorite content creators
+        </p>
+      </div>
+
+      <div className={styles.streamerGrid}>
         {sortedStreamers.length > 0 ? (
           sortedStreamers.map((streamer) => (
             <div
               key={streamer.id}
-              className="streamer-card"
+              className={styles.streamerCard}
               onClick={() => handleCardClick(streamer.user_name)}
               role="button"
-              tabIndex="0"
+              tabIndex={0}
+              aria-label={`View ${streamer.user_name}'s stream`}
             >
-              <div className="thumbnail-wrapper">
-                {streamer.type === "live" && <span className="live-badge">LIVE</span>}
+              <div className={styles.thumbnailWrapper}>
+                {streamer.type === "live" && (
+                  <span className={styles.liveBadge} aria-label="Live">LIVE</span>
+                )}
                 <img
                   src={streamer.type === "live" ? 
                     streamer.thumbnail_url.replace("{width}", "320").replace("{height}", "180") : 
                     OFFLINE_THUMBNAIL
                   }
-                  alt={streamer.user_name}
-                  className="streamer-thumbnail"
+                  alt={`${streamer.user_name}'s stream thumbnail`}
+                  className={styles.streamerThumbnail}
+                  loading="lazy"
                 />
               </div>
-              <div className="streamer-card-content">
+              <div className={styles.streamerCardContent}>
                 <img
-                  src={streamer.profile_image_url}
+                  src={streamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
                   alt={`${streamer.user_name}'s profile`}
-                  className="streamer-profile-image"
-                  onError={(e) => {
-                    e.target.src = "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png";
-                  }}
+                  className={styles.streamerProfileImage}
+                  loading="lazy"
                 />
-                <div className="streamer-info">
-                  <div className="streamer-title">
+                <div className={styles.streamerInfo}>
+                  <div className={styles.streamerTitle}>
                     {streamer.type === "live" ? streamer.title : "Offline"}
                   </div>
-                  <div className="viewer-count">
+                  <div className={styles.viewerCount}>
                     {streamer.type === "live" ? 
                       `${streamer.viewer_count?.toLocaleString() || "0"} viewers` : 
                       "Currently Offline"
                     }
                   </div>
-                  <div className="game-name">{streamer.game_name || "No Game Selected"}</div>
-                  <div className="streamer-name">@{streamer.user_name}</div>
+                  <div className={styles.gameName}>{streamer.game_name || "No Game Selected"}</div>
+                  <div className={styles.streamerName}>@{streamer.user_name}</div>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="no-results">
+          <div className={styles.noResults}>
             <p>No streamers found</p>
-            <span className="no-results-subtitle">Try adjusting your search or filters</span>
+            <span className={styles.noResultsSubtitle}>Try adjusting your search or filters</span>
           </div>
         )}
       </div>
 
-      <div style={{
-        width: '100%',
-        height: '2px',
-        background: 'linear-gradient(90deg, transparent, rgba(145, 71, 255, 0.5), transparent)',
-        margin: '4rem 0 2rem',
-      }} />
+      <div className={styles.sectionDivider} />
 
-      <div className="nomination-section" style={{
-        padding: '1.5rem 1rem',
-        margin: '1rem'
-      }}>
-        <h2 style={{ 
-          fontSize: 'clamp(1.5rem, 6vw, 2rem)',
-          marginBottom: '1rem'
-        }}>
+      <div className={styles.nominationSection} ref={nominationSectionRef}>
+        <h2 className={styles.nominationTitle}>
           Nominate a Streamer
         </h2>
-        <p style={{
-          fontSize: 'clamp(0.9rem, 4vw, 1rem)',
-          marginBottom: '1.5rem'
-        }}>
+        <p className={styles.nominationSubtitle}>
           Know an amazing streamer who should be part of our community? 
           Nominate them by submitting their Twitch channel URL below.
         </p>
-        <form onSubmit={handleNomination} style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '1rem',
-          maxWidth: '500px',
-          margin: '0 auto',
-        }}>
+        <form onSubmit={handleNomination} className={styles.nominationForm}>
           <input
             type="text"
             value={nominationUrl}
             onChange={(e) => setNominationUrl(e.target.value)}
             placeholder="Enter Twitch channel URL (e.g., https://twitch.tv/username)"
-            style={{
-              padding: '1rem',
-              borderRadius: '8px',
-              border: '1px solid rgba(145, 71, 255, 0.3)',
-              background: 'rgba(0, 0, 0, 0.2)',
-              color: '#fff',
-              fontSize: '1rem',
-              width: '100%',
-              transition: 'all 0.2s ease',
-            }}
+            className={styles.nominationInput}
+            aria-label="Streamer URL"
           />
           <button
             type="submit"
-            style={{
-              padding: '1rem',
-              borderRadius: '8px',
-              background: 'linear-gradient(90deg, #9147ff, #6441a5)',
-              color: '#fff',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '1rem',
-              transition: 'all 0.2s ease',
-              ':hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(145, 71, 255, 0.3)',
-              }
-            }}
+            className={styles.nominationSubmit}
+            aria-label="Submit nomination"
           >
             Submit Nomination
           </button>
           {nominationStatus && (
-            <div style={{
-              padding: '1rem',
-              borderRadius: '8px',
-              background: nominationStatus.includes('Error') || nominationStatus.includes('already') 
-                ? 'rgba(255, 0, 0, 0.1)' 
-                : 'rgba(0, 255, 0, 0.1)',
-              color: nominationStatus.includes('Error') || nominationStatus.includes('already')
-                ? '#ff4444'
-                : '#44ff44',
-              textAlign: 'center',
-              fontSize: '0.9rem',
-            }}>
+            <div 
+              className={`${styles.nominationStatus} ${
+                nominationStatus.includes('Error') || nominationStatus.includes('already') 
+                  ? styles.error 
+                  : styles.success
+              }`}
+              role="alert"
+            >
               {nominationStatus}
             </div>
           )}

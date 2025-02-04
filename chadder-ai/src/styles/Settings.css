@@ -1,0 +1,105 @@
+.subscriptions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.subscription-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #1f1f23;
+  border-radius: 8px;
+  border: 1px solid #303036;
+}
+
+.subscription-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.subscription-plan {
+  font-weight: 600;
+  color: #efeff1;
+}
+
+.subscription-price {
+  color: #9147ff;
+}
+
+.subscription-status {
+  font-size: 0.9rem;
+  color: #adadb8;
+}
+
+.cancel-subscription-button {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid #ff4444;
+  color: #ff4444;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-subscription-button:hover {
+  background: #ff4444;
+  color: white;
+}
+
+.subscription-info {
+  background: #1f1f23;
+  border-radius: 8px;
+  border: 1px solid #303036;
+  padding: 1.5rem;
+}
+
+.subscription-info-row {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 1rem;
+}
+
+.subscription-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.subscription-label {
+  font-weight: 700;
+  color: #efeff1;
+  width: 140px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+.subscription-value {
+  color: #adadb8;
+  font-size: 1rem;
+}
+
+.subscription-value.active {
+  color: #00ff00;
+}
+
+.subscription-value.pogchamp {
+  color: #9147ff;
+  font-weight: 600;
+}
+
+.prize-pool-contribution {
+  background: #2f2f35;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+  border-left: 4px solid #9147ff;
+}
+
+.prize-pool-amount {
+  color: #9147ff;
+  font-weight: 600;
+  font-size: 1.1em;
+}

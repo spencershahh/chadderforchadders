@@ -4,6 +4,9 @@ import { supabase } from "./supabaseClient";
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlowEffect from './components/GlowEffect';
+import Navbar from './components/Navbar';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
 // Pages
 import Discover from "./pages/Discover";
@@ -16,6 +19,15 @@ import Login from "./pages/Login";
 import CreditsPage from './pages/CreditsPage';
 
 import "./App.css";
+
+console.log('Stripe Key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+if (!stripeKey) {
+  console.error('Stripe publishable key is missing!');
+}
+
+const stripePromise = loadStripe(stripeKey);
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -42,53 +54,35 @@ const App = () => {
     setUser(null);
   };
 
+  if (!stripeKey) {
+    return <div>Error: Stripe key not configured</div>;
+  }
+
   return (
-    <Router>
-      <div className="app-container">
-        <Toaster position="top-right" />
-        <GlowEffect />
-        <nav className="navbar">
-          <div className="navbar-logo">
-            <Link to="/">chadder.<span>ai</span></Link>
+    <Elements stripe={stripePromise}>
+      <Router>
+        <div className="app-container">
+          <Toaster position="top-right" />
+          <GlowEffect />
+          <Navbar user={user} onLogout={handleLogout} />
+          <div className="main-content">
+            <Routes>
+              <Route path="/" element={<Discover />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="/credits" element={<CreditsPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/stream/:username" element={<StreamPage />} />
+            </Routes>
           </div>
-          <div className="navbar-links">
-            <Link to="/" className="nav-item">Discover</Link>
-            <Link to="/leaderboard" className="nav-item">Leaderboard</Link>
-            <Link to="/credits" className="nav-item">Credits</Link>
-            <Link to="/settings" className="nav-item">Settings</Link>
-            {user ? (
-              <button 
-                onClick={handleLogout} 
-                className="nav-item logout-button"
-                style={{ color: '#FFFFFF' }}
-              >
-                Logout
-              </button>
-            ) : (
-              <>
-                <Link to="/login" className="nav-item">Login</Link>
-                <Link to="/signup" className="nav-item signup-button">Sign Up</Link>
-              </>
-            )}
-          </div>
-        </nav>
-        <div className="main-content">
-          <Routes>
-            <Route path="/" element={<Discover />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/credits" element={<CreditsPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/stream/:username" element={<StreamPage />} />
-          </Routes>
         </div>
-      </div>
-    </Router>
+      </Router>
+    </Elements>
   );
 };
 

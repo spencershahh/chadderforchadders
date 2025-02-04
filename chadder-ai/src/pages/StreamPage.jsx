@@ -8,7 +8,9 @@ const StreamPage = () => {
   const { username } = useParams();
   const normalizedUsername = username.toLowerCase();
   const [voteStats, setVoteStats] = useState({ today: 0, week: 0, allTime: 0 });
-  const [credits, setCredits] = useState({ monthly: 0, additional: 0 });
+  const [credits, setCredits] = useState({
+    available: 0
+  });
   const [selectedAmount, setSelectedAmount] = useState(5);
   const [userIp, setUserIp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -46,7 +48,23 @@ const StreamPage = () => {
 
     initializePage();
 
-    // Set up real-time subscription for votes
+    // Set up real-time subscriptions
+    const subscriptionSubscription = supabase
+      .channel('subscriptions-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscription_revenue'
+        },
+        () => {
+          fetchTotalDonations();
+        }
+      )
+      .subscribe();
+
+    // Add real-time subscription for votes
     const votesSubscription = supabase
       .channel('votes-channel')
       .on(
@@ -54,19 +72,19 @@ const StreamPage = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'votes'
+          table: 'votes',
+          filter: `streamer=eq.${normalizedUsername}`
         },
         () => {
-          // Refresh data when votes change
-          fetchVoteStats();
-          fetchTotalDonations();
           fetchTopSupporters();
+          fetchVoteStats();
         }
       )
       .subscribe();
 
-    // Cleanup subscription on unmount
+    // Cleanup subscriptions on unmount
     return () => {
+      supabase.removeChannel(subscriptionSubscription);
       supabase.removeChannel(votesSubscription);
     };
   }, [normalizedUsername]);
@@ -74,20 +92,21 @@ const StreamPage = () => {
   const calculateDonationBomb = (votes) => {
     const WACP = 0.0725; // Fixed WACP value
     const totalCredits = votes.reduce((sum, vote) => sum + vote.vote_amount, 0);
-    return (totalCredits * WACP * 0.55).toFixed(2);
+    const voteDonations = totalCredits * WACP;
+    return (voteDonations * 0.55).toFixed(2); // 55% of all revenue goes to prize pool
   };
 
   const fetchTotalDonations = async () => {
     try {
       const { data, error } = await supabase
-        .from('votes')
-        .select('*');
-      
+        .rpc('calculate_weekly_donation_bomb');
+
       if (error) throw error;
-      const donationBomb = calculateDonationBomb(data);
-      setTotalDonations(parseFloat(donationBomb));
+      
+      setTotalDonations(data || 0);
     } catch (error) {
       console.error('Error fetching total donations:', error);
+      setTotalDonations(0);
     }
   };
 
@@ -168,44 +187,16 @@ const StreamPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("Please log in to continue.");
 
-      // First check if user exists
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: userData, error: checkError } = await supabase
         .from("users")
-        .select("monthly_credits, additional_credits")
-        .eq("id", user.id);
+        .select("credits, subscription_tier, subscription_status")
+        .eq("id", user.id)
+        .single();
 
       if (checkError) throw checkError;
 
-      // If no user found, create one
-      if (!existingUser || existingUser.length === 0) {
-        const { data: newUser, error: insertError } = await supabase
-          .from("users")
-          .insert([
-            {
-              id: user.id,
-              email: user.email,
-              monthly_credits: 0,
-              additional_credits: 0,
-              created_at: new Date().toISOString()
-            }
-          ])
-          .select("monthly_credits, additional_credits")
-          .single();
-
-        if (insertError) throw insertError;
-        
-        setCredits({
-          monthly: newUser.monthly_credits || 0,
-          additional: newUser.additional_credits || 0,
-        });
-        return;
-      }
-
-      // Use the first user record if multiple exist (shouldn't happen after cleanup)
-      const userData = existingUser[0];
       setCredits({
-        monthly: userData.monthly_credits || 0,
-        additional: userData.additional_credits || 0,
+        available: userData.credits || 0
       });
     } catch (err) {
       console.error("Error fetching user credits:", err.message);
@@ -217,7 +208,7 @@ const StreamPage = () => {
     try {
       const { data, error } = await supabase
         .from("votes")
-        .select("vote_amount, created_at")
+        .select("amount, created_at")
         .eq("streamer", normalizedUsername);
 
       if (error) throw error;
@@ -231,9 +222,9 @@ const StreamPage = () => {
 
       data.forEach((vote) => {
         const voteDate = new Date(vote.created_at);
-        allTimeVotes += vote.vote_amount;
-        if (voteDate >= startOfToday) todayVotes += vote.vote_amount;
-        if (voteDate >= startOfWeek) weekVotes += vote.vote_amount;
+        allTimeVotes += vote.amount;
+        if (voteDate >= startOfToday) todayVotes += vote.amount;
+        if (voteDate >= startOfWeek) weekVotes += vote.amount;
       });
 
       setVoteStats({ today: todayVotes, week: weekVotes, allTime: allTimeVotes });
@@ -306,26 +297,24 @@ const StreamPage = () => {
       const { data, error } = await supabase
         .from('votes')
         .select(`
-          vote_amount,
-          users (
-            display_name
-          )
+          amount,
+          username
         `)
         .eq('streamer', normalizedUsername)
-        .order('vote_amount', { ascending: false });
+        .order('amount', { ascending: false });
 
       if (error) throw error;
 
-      // Group votes by display_name and sum amounts
+      // Group votes by username and sum amounts
       const aggregatedVotes = data.reduce((acc, vote) => {
-        const displayName = vote.users?.display_name || 'Anonymous';
-        acc[displayName] = (acc[displayName] || 0) + vote.vote_amount;
+        const displayName = vote.username || 'Anonymous';
+        acc[displayName] = (acc[displayName] || 0) + vote.amount;
         return acc;
       }, {});
 
       // Convert to array and sort
       const sortedSupporters = Object.entries(aggregatedVotes)
-        .map(([displayName, amount]) => ({ username: displayName, amount }))
+        .map(([username, amount]) => ({ username, amount }))
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 5);
 
@@ -341,35 +330,8 @@ const StreamPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("Please log in to continue.");
 
-      // First try to get the streamer, if not exists then create them
-      let { data: streamerData, error: streamerError } = await supabase
-        .from('streamers')
-        .select('id')
-        .eq('username', normalizedUsername)
-        .single();
-
-      // If streamer doesn't exist, create them
-      if (!streamerData) {
-        const { data: newStreamer, error: createError } = await supabase
-          .from('streamers')
-          .insert([
-            {
-              username: normalizedUsername,
-              name: username,  // original username with case preserved
-              votes: 0,
-              created_at: new Date().toISOString()
-            }
-          ])
-          .select()
-          .single();
-
-        if (createError) throw new Error("Failed to create streamer profile");
-        streamerData = newStreamer;
-      }
-
       // Check if user has enough credits
-      const totalCredits = credits.monthly + credits.additional;
-      if (totalCredits < selectedAmount) {
+      if (credits.available < selectedAmount) {
         setShowCreditsModal(true);
         setIsVoting(false);
         return;
@@ -384,44 +346,29 @@ const StreamPage = () => {
 
       const displayName = userData?.display_name || 'Anonymous';
 
-      // Create the vote with display_name
+      // Create the vote
       const { error: voteError } = await supabase
         .from("votes")
         .insert([
           {
             user_id: user.id,
-            streamer_id: streamerData.id,
-            vote_amount: selectedAmount,
-            vote_ip: userIp,
-            vote_type: 'monthly',
-            vote_status: 'success',
-            vote_date: new Date().toISOString(),
-            created_at: new Date().toISOString(),
             streamer: normalizedUsername,
-            username: displayName // Use display_name instead of email
+            amount: selectedAmount,
+            vote_type: 'regular',
+            vote_status: 'success',
+            vote_ip: userIp,
+            username: displayName,
+            created_at: new Date().toISOString()
           },
         ]);
 
       if (voteError) throw voteError;
 
-      // Update user's credits (use monthly credits first)
-      let remainingAmount = selectedAmount;
-      let newMonthlyCredits = credits.monthly;
-      let newAdditionalCredits = credits.additional;
-
-      if (remainingAmount <= credits.monthly) {
-        newMonthlyCredits -= remainingAmount;
-      } else {
-        remainingAmount -= credits.monthly;
-        newMonthlyCredits = 0;
-        newAdditionalCredits -= remainingAmount;
-      }
-
+      // Update user's credits
       const { error: updateError } = await supabase
         .from("users")
         .update({
-          monthly_credits: newMonthlyCredits,
-          additional_credits: newAdditionalCredits,
+          credits: credits.available - selectedAmount
         })
         .eq("id", user.id);
 
@@ -429,15 +376,15 @@ const StreamPage = () => {
 
       // Update local state
       setCredits({
-        monthly: newMonthlyCredits,
-        additional: newAdditionalCredits,
+        available: credits.available - selectedAmount
       });
+      
       await fetchVoteStats();
       setErrorMessage("");
 
       // After successful vote
       setVoteSuccess(true);
-      setTimeout(() => setVoteSuccess(false), 2000); // Reset after 2 seconds
+      setTimeout(() => setVoteSuccess(false), 2000);
     } catch (err) {
       setErrorMessage(err.message);
       console.error("Vote error:", err);
@@ -463,20 +410,17 @@ const StreamPage = () => {
   };
 
   return (
-    <div className="stream-page glow-background">
+    <div className="stream-page">
       <h2 className="stream-title">Watching {username}&apos;s Stream</h2>
       
       <div className="stream-layout">
         <div className="stream-video-container">
-          <div id="twitch-embed"></div>
+          <div id="twitch-embed" style={{ width: '100%', height: '100%' }}></div>
         </div>
 
         <div className="stream-right-container">
-          <div className="stream-chat-container">
-            <iframe
-              src={`https://www.twitch.tv/embed/${username}/chat?parent=localhost`}
-              title={`${username} chat`}
-            ></iframe>
+          <div className="stream-chat-container" id="twitch-chat">
+            {/* Chat will be injected here by setupTwitchChatEmbed */}
           </div>
         </div>
       </div>
@@ -502,7 +446,10 @@ const StreamPage = () => {
           <h3>🏆 Top Supporters</h3>
           <div className="supporters-list">
             {topSupporters.map((supporter, index) => (
-              <div key={supporter.username} className="supporter-item">
+              <div 
+                key={`${supporter.username}-${supporter.amount}-${Date.now()}`} 
+                className="supporter-item animate-update"
+              >
                 <span className="rank">#{index + 1}</span>
                 <span className="username">{supporter.username}</span>
                 <span className="amount">{supporter.amount} 🪙</span>
@@ -549,15 +496,14 @@ const StreamPage = () => {
         >
           {isVotePaneCollapsed ? '↑' : '↓'}
         </button>
+
         <div className="vote-options">
-          <h3 className="vote-title">Select Vote Amount:</h3>
+          <h3 className="vote-title">Vote for {username}</h3>
           <div className="vote-buttons">
             {[5, 25, 50, 100, 200].map((amount) => (
               <button
                 key={amount}
-                className={`vote-amount-button ${
-                  selectedAmount === amount ? "selected" : ""
-                }`}
+                className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
                 onClick={() => {
                   setSelectedAmount(amount);
                   setCustomAmount('');
@@ -594,11 +540,11 @@ const StreamPage = () => {
 
           <p className="credit-balance">
             {isVoting ? (
-              `Processing... Current Balance: ${credits.monthly} 🪙 Monthly | ${credits.additional} 🪙 Additional`
+              `Processing... Current Balance: ${credits.available} 🪙`
             ) : errorMessage ? (
               `Error: ${errorMessage}`
             ) : (
-              `Monthly Balance: ${credits.monthly} 🪙 | Additional Balance: ${credits.additional} 🪙`
+              `Available Credits: ${credits.available} 🪙`
             )}
           </p>
         </div>
@@ -608,7 +554,7 @@ const StreamPage = () => {
         isOpen={showCreditsModal}
         onClose={() => setShowCreditsModal(false)}
         requiredAmount={selectedAmount}
-        currentCredits={credits.monthly + credits.additional}
+        currentCredits={credits.available}
         onPurchase={handlePurchaseCredits}
       />
     </div>

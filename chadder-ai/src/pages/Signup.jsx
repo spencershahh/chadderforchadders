@@ -62,9 +62,9 @@ const Signup = () => {
       // Insert the user into the 'users' table (corrected table name)
       if (user) {
         const { error: dbError } = await supabase
-          .from("users") // <-- Use "users" as the table name
+          .from("users")
           .insert({
-            id: user.id, // Match your column name in the `users` table
+            id: user.id,
             email: user.email,
             display_name: displayName,
             tier: "free",
@@ -77,10 +77,11 @@ const Signup = () => {
           return;
         }
 
+        // Show single notification and navigate
         toast.success('Signup successful! Please check your email to confirm.', {
           duration: 5000,
+          onClose: () => navigate("/login")
         });
-        navigate("/login");
       }
     } catch (err) {
       console.error("Unexpected error:", err.message);

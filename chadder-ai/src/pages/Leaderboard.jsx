@@ -13,8 +13,8 @@ const Leaderboard = () => {
   const [weeklyWinners, setWeeklyWinners] = useState([]);
   const [totalDonations, setTotalDonations] = useState(0);
   const [supportersData, setSupportersData] = useState([]);
-
-  const STREAMER_PAYOUT_PERCENTAGE = 0.55; // Streamers get 55% of votes
+  const SUBSCRIPTION_PRICE = 5.00; // Weekly subscription price
+  const STREAMER_PAYOUT_PERCENTAGE = 0.55; // Streamers get 55% of votes and subscriptions
 
   useEffect(() => {
     fetchLeaderboard();
@@ -23,58 +23,18 @@ const Leaderboard = () => {
     fetchTotalDonations();
     fetchSupportersLeaderboard();
     
-    // Set up real-time subscription for votes
-    const votesSubscription = supabase
-      .channel('votes-channel')
+    // Only listen for subscription revenue changes
+    const subscriptionSubscription = supabase
+      .channel('subscriptions-channel')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'votes'
+          table: 'subscription_revenue'
         },
-        (payload) => {
-          // Instead of fetching entire leaderboard, update specific values
-          if (payload.eventType === 'INSERT') {
-            const vote = payload.new;
-            const voteDate = new Date(vote.created_at);
-            const today = new Date();
-            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-            const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-
-            setData(currentData => {
-              // Find if streamer exists in current data
-              const streamerIndex = currentData.findIndex(item => item.name === vote.streamer);
-              
-              if (streamerIndex === -1) {
-                // If streamer doesn't exist, add new entry
-                return [...currentData, {
-                  name: vote.streamer,
-                  today: voteDate >= startOfToday ? vote.vote_amount : 0,
-                  week: voteDate >= startOfWeek ? vote.vote_amount : 0,
-                  allTime: vote.vote_amount
-                }];
-              }
-
-              // Create new array to trigger re-render
-              const newData = [...currentData];
-              const streamer = newData[streamerIndex];
-
-              // Update vote counts with animation
-              streamer.allTime += vote.vote_amount;
-              if (voteDate >= startOfToday) {
-                streamer.today += vote.vote_amount;
-              }
-              if (voteDate >= startOfWeek) {
-                streamer.week += vote.vote_amount;
-              }
-
-              return newData;
-            });
-
-            // Update total donations
-            setTotalDonations(current => current + (vote.vote_amount * STREAMER_PAYOUT_PERCENTAGE));
-          }
+        () => {
+          fetchTotalDonations();
         }
       )
       .subscribe();
@@ -82,12 +42,17 @@ const Leaderboard = () => {
     // Update countdown timer every second
     const timer = setInterval(() => {
       updateTimeUntilReset();
+      // If it's the start of a new week, refresh donation calculations
+      const now = new Date();
+      if (now.getDay() === 0 && now.getHours() === 0 && now.getMinutes() === 0) {
+        fetchTotalDonations();
+      }
     }, 1000);
 
     // Cleanup subscriptions on component unmount
     return () => {
       clearInterval(timer);
-      supabase.removeChannel(votesSubscription);
+      supabase.removeChannel(subscriptionSubscription);
     };
   }, []);
 
@@ -137,24 +102,25 @@ const Leaderboard = () => {
     }
   };
 
-  const calculateDonationBomb = (votes) => {
-    const WACP = 0.0725; // Weekly Average Credit Price
-    const totalCredits = votes.reduce((sum, vote) => sum + vote.vote_amount, 0);
-    return (totalCredits * WACP * STREAMER_PAYOUT_PERCENTAGE).toFixed(2);
-  };
-
   const fetchTotalDonations = async () => {
     try {
       const { data, error } = await supabase
-        .from('votes')
-        .select('*');
-      
+        .rpc('calculate_weekly_donation_bomb');
+
       if (error) throw error;
-      const donationBomb = calculateDonationBomb(data);
-      setTotalDonations(parseFloat(donationBomb));
+      
+      setTotalDonations(data || 0);
     } catch (error) {
       console.error('Error fetching total donations:', error);
+      setTotalDonations(0);
     }
+  };
+
+  const getStartOfWeek = () => {
+    const today = new Date();
+    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+    startOfWeek.setHours(0, 0, 0, 0);
+    return startOfWeek.toISOString();
   };
 
   const fetchSupportersLeaderboard = async () => {
@@ -162,7 +128,7 @@ const Leaderboard = () => {
       const { data: votes, error } = await supabase
         .from("votes")
         .select(`
-          vote_amount,
+          amount,
           created_at,
           users (
             display_name
@@ -183,12 +149,12 @@ const Leaderboard = () => {
           acc[displayName] = { today: 0, week: 0, allTime: 0 };
         }
 
-        acc[displayName].allTime += vote.vote_amount;
+        acc[displayName].allTime += vote.amount;
         if (voteDate >= startOfToday) {
-          acc[displayName].today += vote.vote_amount;
+          acc[displayName].today += vote.amount;
         }
         if (voteDate >= startOfWeek) {
-          acc[displayName].week += vote.vote_amount;
+          acc[displayName].week += vote.amount;
         }
 
         return acc;
@@ -218,7 +184,7 @@ const Leaderboard = () => {
 
       const { data: votes, error } = await supabase
         .from('votes')
-        .select('vote_amount, streamer, created_at');
+        .select('amount, streamer, created_at');
 
       if (error) {
         setError(error.message);
@@ -238,12 +204,12 @@ const Leaderboard = () => {
           };
         }
 
-        acc[vote.streamer].allTime += vote.vote_amount;
+        acc[vote.streamer].allTime += vote.amount;
         if (voteDate >= startOfToday) {
-          acc[vote.streamer].today += vote.vote_amount;
+          acc[vote.streamer].today += vote.amount;
         }
         if (voteDate >= startOfWeek) {
-          acc[vote.streamer].week += vote.vote_amount;
+          acc[vote.streamer].week += vote.amount;
         }
 
         return acc;
@@ -513,7 +479,7 @@ const Leaderboard = () => {
                     {new Date(winner.week_ending).toLocaleDateString()}
                   </span>
                   <span className="winner-amount">
-                    ${(winner.vote_amount * STREAMER_PAYOUT_PERCENTAGE / 100).toFixed(2)}
+                    ${(winner.amount * STREAMER_PAYOUT_PERCENTAGE / 100).toFixed(2)}
                   </span>
                 </div>
               </Link>

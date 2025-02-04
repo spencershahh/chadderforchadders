@@ -1,0 +1,126 @@
+.upgrade-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.upgrade-dialog {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 560px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.upgrade-dialog h2 {
+  text-align: center;
+  color: #fff;
+  margin-bottom: 24px;
+}
+
+.plan-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.current-plan, .new-plan {
+  text-align: center;
+  padding: 16px;
+}
+
+.plan-label {
+  font-size: 0.9em;
+  color: #888;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.upgrade-arrow {
+  color: #8b5cf6;
+  font-size: 24px;
+}
+
+.credits {
+  color: #8b5cf6;
+  font-weight: 500;
+}
+
+.price {
+  color: #888;
+  font-size: 0.9em;
+}
+
+.benefits {
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.benefits h4 {
+  color: #8b5cf6;
+  margin-bottom: 12px;
+}
+
+.benefits ul {
+  list-style: none;
+  padding: 0;
+}
+
+.benefits li {
+  margin-bottom: 8px;
+  padding-left: 24px;
+  position: relative;
+}
+
+.benefits li:before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #8b5cf6;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.cancel-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+}
+
+.confirm-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: #8b5cf6;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.confirm-button:hover {
+  background: #7c3aed;
+}
+
+.cancel-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+} 

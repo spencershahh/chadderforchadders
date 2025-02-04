@@ -1,0 +1,92 @@
+.payment-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.payment-modal {
+  background: #18181b;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.checkout-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.checkout-form h3 {
+  color: #efeff1;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-element-container {
+  padding: 1rem;
+  background: #1f1f23;
+  border: 1px solid #303036;
+  border-radius: 8px;
+}
+
+/* Stripe Elements custom styling */
+.StripeElement {
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.StripeElement--focus {
+  outline: 1px solid #9147ff;
+}
+
+.checkout-form button {
+  background: #9147ff;
+  color: white;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkout-form button:hover:not(:disabled) {
+  background: #772ce8;
+}
+
+.checkout-form button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #ff4444;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.close-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: #efeff1;
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.close-button:hover {
+  color: #9147ff;
+} 

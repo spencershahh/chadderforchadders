@@ -1,105 +1,78 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import CheckoutForm from '../components/CheckoutForm';
+import { toast } from 'react-hot-toast';
+import { UpgradeDialog } from '../components/UpgradeDialog';
+import styles from './CreditsPage.module.css';
 
 const CreditsPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [customAmount, setCustomAmount] = useState('');
   const navigate = useNavigate();
-  const [billingPeriod, setBillingPeriod] = useState('monthly');
-
-  const creditPackages = [
-    {
-      id: 0,
-      name: 'Coin Purse',
-      credits: 10,
-      price: 2,
-      popular: false,
-      features: ['10 credits'],
-      description: 'Try it out!',
-    },
-    { 
-      id: 1, 
-      name: 'Small Pouch',
-      credits: 40, 
-      price: 5, 
-      popular: false,
-      features: ['40 credits'],
-      description: 'A starter pack of credits', 
-    },
-    { 
-      id: 2, 
-      name: 'Pog Stash',
-      credits: 150, 
-      price: 10, 
-      popular: true,
-      features: ['150 credits'],
-      description: 'Most popular power-up'
-    },
-    { 
-      id: 3, 
-      name: 'Treasure Chest',
-      credits: 350, 
-      price: 20, 
-      popular: false,
-      features: ['350 credits'],
-      description: 'For the chat champions'
-    },
-    { 
-      id: 4, 
-      name: 'Big Bag',
-      credits: 2500, 
-      price: 100, 
-      popular: false,
-      features: ['2500 credits'],
-      description: 'Ultimate chat arsenal'
-    },
-    { 
-      id: 5, 
-      name: 'Psycho',
-      credits: 30000, 
-      price: 1000, 
-      popular: false,
-      features: ['30000 credits'],
-      description: 'Legendary tier wealth'
-    },
-  ];
+  const [showPayment, setShowPayment] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState(null);
+  const [selectedCredits, setSelectedCredits] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState({ show: false });
 
   const subscriptionPackages = [
     {
-      id: 'sub1',
+      id: 'pog',
       name: 'Pog',
-      credits: 25,
-      monthlyCredits: 100,
       price: 3,
-      popular: false,
-      features: ['100 credits monthly (25 weekly)', 'Auto-renewal', 'Cancel anytime'],
+      period: 'weekly',
+      votes: 100,
+      votesPerWeek: 25,
+      votesPerDollar: 33.3,
       description: 'Perfect for casual viewers',
+      features: [
+        '100 votes monthly (25 weekly)',
+        'Access to streamer list',
+        'Weekly donation pool participation',
+        'Cancel anytime'
+      ],
+      popular: false
     },
     {
-      id: 'sub2',
+      id: 'pogchamp',
       name: 'Pogchamp',
-      credits: 50,
-      monthlyCredits: 200,
       price: 5,
-      popular: true,
-      features: ['200 credits monthly (50 weekly)', 'Auto-renewal', 'Cancel anytime'],
+      period: 'weekly',
+      votes: 200,
+      votesPerWeek: 50,
+      votesPerDollar: 40.0,
       description: 'Best value for active chatters',
+      features: [
+        '200 votes monthly (50 weekly)',
+        'Access to streamer list',
+        'Weekly donation pool participation',
+        'Cancel anytime'
+      ],
+      popular: true
     },
     {
-      id: 'sub3',
+      id: 'poggers',
       name: 'Poggers',
-      credits: 100,
-      monthlyCredits: 400,
       price: 7,
-      popular: false,
-      features: ['400 credits monthly (100 weekly)', 'Auto-renewal', 'Cancel anytime'],
+      period: 'weekly',
+      votes: 400,
+      votesPerWeek: 100,
+      votesPerDollar: 57.1,
       description: 'For the true community leaders',
-    },
+      features: [
+        '400 votes monthly (100 weekly)',
+        'Access to streamer list',
+        'Weekly donation pool participation',
+        'Cancel anytime'
+      ],
+      popular: false
+    }
   ];
 
-  const handlePurchase = async (package_id) => {
+  const handlePurchase = async (packageId, isSubscription = false) => {
     setLoading(true);
     setError('');
     
@@ -107,249 +80,302 @@ const CreditsPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw new Error('Please log in to purchase credits');
 
-      // Here you would integrate with your payment processor
-      // For now, we'll just show an alert
-      alert('Payment processing will be implemented soon!');
+      const selectedPkg = isSubscription 
+        ? subscriptionPackages.find(pkg => pkg.id === packageId)
+        : oneTimePackages.find(pkg => pkg.id === packageId);
+
+      if (!selectedPkg) throw new Error('Invalid package');
+
+      setShowPayment(true);
+      setSelectedAmount(selectedPkg.price);
+      setSelectedCredits(selectedPkg.votes);
+      setSelectedPackage(selectedPkg);
       
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubscription = async (package_id) => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw new Error('Please log in to subscribe');
-
-      // Here you would integrate with your subscription payment processor
-      alert('Subscription processing will be implemented soon!');
-      
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  const handleCustomPurchase = () => {
+    if (!customAmount || customAmount < 2) {
+      toast.error('Minimum amount is $2');
+      return;
     }
-  };
 
-  const calculateValuePerDollar = (credits, price) => {
-    return (credits / price).toFixed(1);
-  };
-
-  const toggleBillingPeriod = (period) => {
-    setBillingPeriod(period);
-  };
-
-  const calculatePackageDonationBomb = (credits, price) => {
-    const stripeFee = price * 0.029 + 0.30;
-    const netRevenue = price - stripeFee;
-    const wacp = netRevenue / credits;
-    const estimatedUsedCredits = credits * 0.5;
-    const donationBomb = estimatedUsedCredits * wacp * 0.55;
-    return donationBomb.toFixed(2);
+    const votes = calculateCustomCredits(customAmount);
+    setSelectedAmount(Number(customAmount));
+    setSelectedCredits(votes);
+    setSelectedPackage({
+      id: 'custom',
+      name: 'Custom Amount',
+      price: Number(customAmount),
+      votes: votes
+    });
+    setShowPayment(true);
   };
 
   const calculateCustomCredits = (amount) => {
     if (!amount || amount <= 0) return 0;
-    
-    // Convert amount to number and round to 2 decimal places
     const value = Number(parseFloat(amount).toFixed(2));
+    
+    if (value >= 100) return Math.floor(value * 15);
+    if (value >= 50) return Math.floor(value * 13);
+    if (value >= 25) return Math.floor(value * 11);
+    if (value >= 10) return Math.floor(value * 10);
+    return Math.floor(value * 8);
+  };
 
-    // Tiered credit calculation
-    if (value >= 1000) {
-      return Math.floor(value * 30); // Dragon Hoard tier (30 credits/$)
-    } else if (value >= 100) {
-      return Math.floor(value * 25); // Loot Vault tier (25 credits/$)
-    } else if (value >= 20) {
-      return Math.floor(value * 17.5); // Treasure Chest tier (17.5 credits/$)
-    } else if (value >= 10) {
-      return Math.floor(value * 15); // Pog Stash tier (15 credits/$)
-    } else if (value >= 5) {
-      return Math.floor(value * 8); // Small Pouch tier (8 credits/$)
-    } else {
-      return Math.floor(value * 5); // Coin Purse tier (5 credits/$)
+  const handlePaymentSuccess = async () => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw new Error('Please log in to continue');
+
+      if (selectedPackage.period) {
+        const { error: renewalError } = await supabase.rpc('process_subscription_renewal', {
+          p_user_id: user.id,
+          p_subscription_tier: selectedPackage.id
+        });
+
+        if (renewalError) throw renewalError;
+      }
+
+      setShowPayment(false);
+      toast.success('Purchase successful!');
+      
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      toast.error('Error processing payment');
     }
   };
 
-  const renderPricingHeader = (pkg) => (
-    <div className="pricing-header">
-      <h3>{pkg.name}</h3>
-      <p className="package-description">{pkg.description}</p>
-      <div className="price">
-        <span className="currency">$</span>
-        <span className="amount">{pkg.price}</span>
-        {pkg.monthlyCredits && <span className="period">/w</span>}
-      </div>
-      <div className="credits-amount">
-        {pkg.monthlyCredits ? (
-          <div className="credits-breakdown">
-            <span className="monthly-credits">{pkg.monthlyCredits} Credits Monthly</span>
-            <span className="weekly-credits">({pkg.credits} credits weekly)</span>
-          </div>
-        ) : (
-          <span>{pkg.credits} Credits</span>
-        )}
-      </div>
-      <div className="value-indicator">
-        {calculateValuePerDollar(pkg.monthlyCredits || pkg.credits, pkg.price)} credits per $1
-      </div>
-    </div>
-  );
+  const fetchCurrentSubscription = async () => {
+    try {
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser) throw new Error("Please log in to continue.");
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("stripe_customer_id")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (userError || !userData?.stripe_customer_id) return null;
+
+      const response = await fetch(`http://localhost:3001/subscriptions/${userData.stripe_customer_id}`);
+      const { subscriptions } = await response.json();
+      
+      if (subscriptions && subscriptions.length > 0) {
+        // Get the tier from metadata
+        return subscriptions[0].metadata.tier;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching subscription:", err);
+      return null;
+    }
+  };
+
+  const handleSubscription = async (packageId) => {
+    try {
+      const currentTier = await fetchCurrentSubscription();
+      
+      if (currentTier === packageId) {
+        toast.error("You already have this subscription tier!");
+        return;
+      }
+
+      const selected = subscriptionPackages.find(pkg => pkg.id === packageId);
+      if (!selected) {
+        toast.error("Invalid subscription package");
+        return;
+      }
+
+      // Get user data
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Please log in to continue.");
+
+      // Update user's subscription status
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          subscription_tier: packageId,
+          subscription_status: 'active',
+          last_credit_distribution: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // If there's a current subscription, show upgrade dialog
+      if (currentTier) {
+        const currentPlan = subscriptionPackages.find(pkg => pkg.id === currentTier);
+        if (!currentPlan) {
+          toast.error("Error loading current plan");
+          return;
+        }
+        setShowUpgradeDialog({
+          show: true,
+          currentPlan,
+          newPlan: selected
+        });
+        return;
+      }
+
+      // For new subscriptions
+      setSelectedPackage(selected);
+      setShowPayment(true);
+    } catch (err) {
+      console.error("Subscription error:", err);
+      setError(err.message);
+      toast.error(err.message);
+    }
+  };
+
+  const handleUpgradeClick = (newPlan) => {
+    try {
+      // Find current plan using currentSubscription state
+      const currentPlan = subscriptionPackages.find(pkg => pkg.id === currentSubscription);
+      
+      if (!currentPlan) {
+        toast.error('Error loading current plan');
+        return;
+      }
+
+      setShowUpgradeDialog({
+        show: true,
+        currentPlan: {
+          name: currentPlan.name,
+          votes: currentPlan.votes,
+          price: currentPlan.price,
+          votesPerDollar: currentPlan.votesPerDollar
+        },
+        newPlan: {
+          name: newPlan.name,
+          votes: newPlan.votes,
+          price: newPlan.price,
+          votesPerDollar: newPlan.votesPerDollar
+        }
+      });
+    } catch (err) {
+      console.error('Error in handleUpgradeClick:', err);
+      toast.error('Failed to process upgrade');
+    }
+  };
+
+  const handleUpgradeConfirm = async (newPlan) => {
+    setSelectedPackage(newPlan);
+    setShowPayment(true);
+  };
+
+  const calculateValuePerDollar = (votes, price) => {
+    return (votes / price).toFixed(1);
+  };
+
+  const calculatePackageDonationBomb = (votes, price) => {
+    const stripeFee = price * 0.029 + 0.30;
+    const netRevenue = price - stripeFee;
+    return (netRevenue * 0.55).toFixed(2); // 55% of net revenue goes to prize pool
+  };
+
+  const handleClosePayment = () => {
+    setShowPayment(false);
+  };
+
+  useEffect(() => {
+    const loadCurrentSubscription = async () => {
+      const tier = await fetchCurrentSubscription();
+      setCurrentSubscription(tier);
+    };
+    
+    loadCurrentSubscription();
+  }, []);
 
   return (
-    <div className="credits-page">
-      <div className={`credits-page ${billingPeriod}-view`}>
-        <div className="credits-header">
-          <span className="credits-badge">CREDITS</span>
-          <h1>Power Up Your Experience</h1>
-          <p>Choose between monthly subscriptions or one-time purchases</p>
-        </div>
-
-        <section className="subscription-section">
-          <h2 className="section-title">Weekly Subscriptions</h2>
-          <p className="section-description">Get credits automatically every week</p>
-          
-          <div className="pricing-container">
-            {subscriptionPackages.map((pkg) => (
-              <div 
-                key={pkg.id} 
-                className={`pricing-card subscription ${pkg.popular ? 'popular' : ''} ${pkg.period}`}
-              >
-                {pkg.popular && (
-                  <div className="popular-tag">
-                    <span>MOST POPULAR</span>
-                  </div>
-                )}
-                
-                {renderPricingHeader(pkg)}
-
-                <div className="pricing-features">
-                  <ul>
-                    {pkg.features.map((feature, index) => (
-                      <li key={index}>
-                        <span className="feature-check">✓</span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <button 
-                  className={`purchase-btn subscription-btn ${pkg.popular ? 'popular-btn' : ''}`}
-                  onClick={() => handleSubscription(pkg.id)}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="loading-spinner">Processing...</span>
-                  ) : (
-                    <>Subscribe Now</>
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="section-divider">
-          <span className="divider-text">OR</span>
-        </div>
-
-        <section className="one-time-section">
-          <h2 className="section-title">One-Time Packages</h2>
-          <p className="section-description">Purchase credits as needed</p>
-          
-          <div className="pricing-container">
-            {creditPackages.map((pkg) => (
-              <div 
-                key={pkg.id} 
-                className={`pricing-card ${pkg.popular ? 'popular' : ''}`}
-              >
-                {pkg.popular && (
-                  <div className="popular-tag">
-                    <span>MOST POPULAR</span>
-                  </div>
-                )}
-                
-                {renderPricingHeader(pkg)}
-
-                <div className="pricing-features">
-                  <ul>
-                    {pkg.features.map((feature, index) => (
-                      <li key={index}>
-                        <span className="feature-check">✓</span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <button 
-                  className={`purchase-btn ${pkg.popular ? 'popular-btn' : ''}`}
-                  onClick={() => handlePurchase(pkg.id)}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="loading-spinner">Processing...</span>
-                  ) : (
-                    <>Get {pkg.credits} Credits</>
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="custom-amount-section">
-            <h3>Custom Amount</h3>
-            <div className="custom-amount-calculator">
-              <div className="input-wrapper">
-                <span className="currency-symbol">$</span>
-                <input
-                  type="number"
-                  min="2"
-                  step="1"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="custom-amount-input"
-                />
-              </div>
-              <div className="credits-preview">
-                {customAmount && customAmount >= 2 ? (
-                  <>
-                    <span className="credits-icon">🪙</span>
-                    <span className="credits-amount">
-                      {calculateCustomCredits(customAmount)} Credits
-                    </span>
-                  </>
-                ) : (
-                  <span className="min-amount-notice">
-                    Minimum amount is $2
-                  </span>
-                )}
-              </div>
-              <button
-                className="purchase-btn"
-                onClick={() => handlePurchase('custom')}
-                disabled={loading || !customAmount || customAmount < 2}
-              >
-                {loading ? (
-                  <span className="loading-spinner">Processing...</span>
-                ) : (
-                  <>Get Credits</>
-                )}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {error && <div className="error-message">{error}</div>}
+    <div className={styles.creditsPage}>
+      <div className={styles.header}>
+        <h1 className={styles.headerTitle}>Weekly Voting Power</h1>
+        <p className={styles.headerSubtitle}>
+          Subscribe to gain voting power, access exclusive streamer lists, and contribute to weekly donation pools
+        </p>
       </div>
+
+      <div className={styles.pricingGrid}>
+        {subscriptionPackages.map((pkg) => (
+          <div 
+            key={pkg.id}
+            className={`${styles.pricingCard} ${pkg.popular ? styles.popular : ''}`}
+          >
+            {pkg.popular && (
+              <div className={styles.popularBadge}>MOST POPULAR</div>
+            )}
+            <h3 className={styles.cardTitle}>{pkg.name}</h3>
+            <p className={styles.cardDescription}>{pkg.description}</p>
+            
+            <div className={styles.priceContainer}>
+              <div className={styles.price}>
+                <span className={styles.currency}>$</span>
+                {pkg.price}
+                <span className={styles.period}>/w</span>
+              </div>
+              <div className={styles.creditsAmount}>
+                {pkg.votes} Votes Monthly
+              </div>
+              <div className={styles.creditsDetails}>
+                ({pkg.votesPerWeek} votes weekly)
+              </div>
+              <div className={styles.creditsPerDollar}>
+                {pkg.votesPerDollar.toFixed(1)} votes per $1
+              </div>
+            </div>
+
+            <div className={styles.featuresList}>
+              {pkg.features.map((feature, index) => (
+                <div key={index} className={styles.featureItem}>
+                  <span className={styles.featureIcon}>✓</span>
+                  {feature}
+                </div>
+              ))}
+            </div>
+
+            <button
+              className={styles.actionButton}
+              onClick={() => handlePurchase(pkg.id, true)}
+              disabled={loading}
+            >
+              {loading ? 'Processing...' : 'Subscribe Now'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {error && <div className={styles.error}>{error}</div>}
+
+      {showPayment && selectedPackage && (
+        <CheckoutForm 
+          amount={selectedAmount}
+          credits={selectedCredits}
+          selectedTier={selectedPackage.id}
+          onSuccess={handlePaymentSuccess}
+          onClose={handleClosePayment}
+        />
+      )}
+
+      {showUpgradeDialog.show && (
+        <UpgradeDialog
+          currentPlan={showUpgradeDialog.currentPlan}
+          newPlan={showUpgradeDialog.newPlan}
+          onCancel={() => setShowUpgradeDialog({ show: false })}
+          onConfirm={() => {
+            handlePurchase(showUpgradeDialog.newPlan.id, true);
+            setShowUpgradeDialog({ show: false });
+          }}
+        />
+      )}
     </div>
   );
 };
 
-export default CreditsPage; 
+export default CreditsPage;

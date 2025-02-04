@@ -1,0 +1,354 @@
+.creditsPage {
+  min-height: calc(100vh - 70px);
+  background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(20, 20, 20, 0.98) 100%);
+  padding: 1rem;
+  width: 100%;
+}
+
+.creditsHeader {
+  text-align: center;
+  padding: 3rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.headerContent {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.creditsBadge {
+  background: linear-gradient(90deg, #9147ff, #6441a5);
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 1.5rem;
+}
+
+.headerContent h1 {
+  font-size: clamp(2.5rem, 7vw, 3.5rem);
+  font-weight: bold;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #fff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.2;
+}
+
+.headerContent p {
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  color: #a8a8a8;
+  margin-bottom: 2rem;
+}
+
+.subscriptionSection,
+.oneTimeSection {
+  padding: 3rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  font-size: clamp(2rem, 6vw, 2.5rem);
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #fff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sectionDescription {
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  color: #a8a8a8;
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.pricingContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.sectionDivider {
+  position: relative;
+  text-align: center;
+  margin: 4rem 0;
+}
+
+.dividerText {
+  background: #0e0e10;
+  padding: 0 1rem;
+  color: #a8a8a8;
+  font-size: 1.2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.sectionDivider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(145, 71, 255, 0.3), transparent);
+  z-index: 0;
+}
+
+.customAmountSection {
+  max-width: 600px;
+  margin: 4rem auto;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(145, 71, 255, 0.15), rgba(100, 65, 165, 0.1));
+  border: 1px solid rgba(145, 71, 255, 0.3);
+  border-radius: 24px;
+  text-align: center;
+}
+
+.customAmountSection h3 {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  margin-bottom: 2rem;
+  background: linear-gradient(90deg, #fff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.customAmountCalculator {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.inputWrapper {
+  position: relative;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.currencySymbol {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9147ff;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.customAmountInput {
+  width: 100%;
+  padding: 1rem 1rem 1rem 2.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.creditsPreview {
+  font-size: 1.2rem;
+  color: #a8a8a8;
+}
+
+.creditsIcon {
+  margin-right: 0.5rem;
+}
+
+.minAmountNotice {
+  color: #ff4444;
+  font-size: 0.9rem;
+}
+
+.subscriptionPrice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 2rem 0;
+}
+
+.subscriptionPrice .currency {
+  font-size: clamp(2rem, 6vw, 3rem);
+  color: #9147ff;
+  font-weight: bold;
+}
+
+.subscriptionPrice .amount {
+  font-size: clamp(3.5rem, 8vw, 4.5rem);
+  color: #9147ff;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.subscriptionPrice .period {
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  color: #a8a8a8;
+  margin-left: 0.5rem;
+  align-self: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.subscriptionTitle {
+  font-size: clamp(2.5rem, 7vw, 3.5rem);
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #fff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subscriptionSubtitle {
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
+  color: #a8a8a8;
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.subscriptionCard {
+  background: linear-gradient(135deg, rgba(145, 71, 255, 0.15), rgba(100, 65, 165, 0.1));
+  border: 1px solid rgba(145, 71, 255, 0.3);
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  margin: 2rem auto;
+  max-width: 500px;
+  text-align: center;
+}
+
+.subscriptionName {
+  font-size: clamp(2rem, 6vw, 2.5rem);
+  font-weight: bold;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #fff, #e0e0e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subscriptionDescription {
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  color: #a8a8a8;
+  margin-bottom: 2rem;
+}
+
+.creditsAmount {
+  font-size: clamp(2rem, 5vw, 2.5rem);
+  color: #9147ff;
+  font-weight: bold;
+  margin: 2rem 0;
+}
+
+.creditsDetails {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  color: #a8a8a8;
+  margin: 0.5rem 0;
+}
+
+.subscriptionFeatures {
+  text-align: left;
+  margin: 2rem 0;
+  padding: 0 1rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.25rem 0;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  color: #e0e0e0;
+}
+
+.featureItem svg {
+  color: #9147ff;
+  font-size: 1.5em;
+}
+
+.subscribeButton {
+  width: 100%;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #9147ff, #6441a5);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: clamp(1.1rem, 3vw, 1.3rem);
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2rem;
+}
+
+.subscribeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(145, 71, 255, 0.3);
+  background: linear-gradient(90deg, #8034ff, #5f3da0);
+}
+
+@media (max-width: 768px) {
+  .creditsHeader {
+    padding: 2rem 1rem;
+  }
+
+  .pricingContainer {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 0.5rem;
+  }
+
+  .customAmountSection {
+    margin: 2rem 1rem;
+    padding: 1.5rem;
+  }
+
+  .subscriptionSection,
+  .oneTimeSection {
+    padding: 2rem 1rem;
+  }
+
+  .subscriptionCard {
+    margin: 1.5rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .subscriptionFeatures {
+    padding: 0;
+  }
+
+  .featureItem {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .creditsHeader {
+    padding: 1.5rem 1rem;
+  }
+
+  .headerContent h1 {
+    font-size: clamp(2rem, 6vw, 2.5rem);
+  }
+
+  .customAmountInput {
+    font-size: 1.2rem;
+  }
+}
+
+/* Add hover effect for subscription cards */
+.subscriptionCard {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.subscriptionCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(145, 71, 255, 0.2);
+} 

@@ -21,9 +21,9 @@ const Settings = () => {
     }
   });
 
+  // Update state to match new schema
   const [credits, setCredits] = useState({
-    monthly: 0,
-    additional: 0
+    regular: 0
   });
 
   // Add new state for delete account modal
@@ -32,33 +32,64 @@ const Settings = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState(1);
 
-  // Fetch credits from Supabase
+  // Add this new state
+  const [subscription, setSubscription] = useState(null);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
+
+  const fetchUserData = async () => {
+    setIsLoadingSubscriptions(true);
+    try {
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser) throw new Error("Please log in to continue.");
+
+      // Get all user data in one query
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select(`
+          stripe_customer_id,
+          tier,
+          subscription_tier,
+          subscription_status,
+          last_credit_distribution,
+          credits
+        `)
+        .eq("id", currentUser.id)
+        .single();
+
+      if (userError) throw userError;
+      if (!userData) throw new Error("User data not found");
+
+      // Update subscription state
+      setSubscription({
+        tier: userData.subscription_tier || userData.tier || 'free',
+        status: userData.subscription_status || (userData.stripe_customer_id ? 'active' : 'inactive'),
+        lastDistribution: userData.last_credit_distribution,
+        nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
+      });
+
+      // Update credits state
+      setCredits({
+        regular: userData.credits || 0
+      });
+
+    } catch (err) {
+      console.error("Error fetching user data:", err.message);
+      toast.error("Failed to load user data");
+    } finally {
+      setIsLoadingSubscriptions(false);
+    }
+  };
+
+  // Single useEffect for data fetching and polling
   useEffect(() => {
-    const fetchUserCredits = async () => {
-      try {
-        const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-        if (authError || !currentUser) throw new Error("Please log in to continue.");
-
-        const { data, error: userError } = await supabase
-          .from("users")
-          .select("monthly_credits, additional_credits")
-          .eq("id", currentUser.id)
-          .single();
-
-        if (userError) throw userError;
-        if (!data) throw new Error("User data not found.");
-
-        setCredits({
-          monthly: data.monthly_credits || 0,
-          additional: data.additional_credits || 0,
-        });
-      } catch (err) {
-        console.error("Error fetching user credits:", err.message);
-        toast.error("Failed to load credits");
-      }
-    };
-
-    fetchUserCredits();
+    // Initial fetch
+    fetchUserData();
+    
+    // Set up polling with a longer interval (30 seconds instead of 10)
+    const pollInterval = setInterval(fetchUserData, 30000);
+    
+    // Cleanup
+    return () => clearInterval(pollInterval);
   }, []);
 
   const handleSubmit = async (e) => {
@@ -139,92 +170,118 @@ const Settings = () => {
     }
   };
 
-  const DeleteAccountModal = () => (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        {deleteStep === 1 && (
-          <>
-            <h2 className="modal-title">Delete Account</h2>
-            <div className="modal-message">
-              <p>Are you sure you want to delete your account? This action:</p>
-              <ul style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
-                <li>Cannot be undone</li>
-                <li>Will delete all your data</li>
-                <li>Will remove all your credits</li>
-                <li>Will cancel any active subscriptions</li>
-              </ul>
-            </div>
-            <div className="modal-buttons">
-              <button 
-                className="modal-button secondary"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="modal-button primary"
-                onClick={() => setDeleteStep(2)}
-              >
-                Continue
-              </button>
-            </div>
-          </>
-        )}
+  // Add this new function to handle cancellation
+  const handleCancelSubscription = async (subscriptionId) => {
+    try {
+      const response = await fetch('http://localhost:3001/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId })
+      });
 
-        {deleteStep === 2 && (
-          <>
-            <h2 className="modal-title">Confirm Deletion</h2>
-            <div className="modal-message">
-              <p>To confirm deletion, please enter your email address:</p>
-              <p className="user-email">{user?.email}</p>
-              <input
-                type="email"
-                value={deleteConfirmEmail}
-                onChange={(e) => setDeleteConfirmEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="form-input"
-                style={{ marginTop: '1rem' }}
-              />
-            </div>
-            <div className="modal-buttons">
-              <button 
-                className="modal-button secondary"
-                onClick={() => {
-                  setDeleteStep(1);
-                  setDeleteConfirmEmail('');
-                }}
-              >
-                Back
-              </button>
-              <button 
-                className="modal-button danger"
-                onClick={handleDeleteAccount}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Account'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
+      if (!response.ok) throw new Error('Failed to cancel subscription');
+
+      toast.success('Subscription will be cancelled at the end of the billing period');
+      // Refresh subscription
+      fetchUserData();
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      toast.error(error.message);
+    }
+  };
+
+  const getNextDistributionDate = (lastDistribution) => {
+    if (!lastDistribution) return 'Not available';
+    
+    const lastDate = new Date(lastDistribution);
+    const nextDate = new Date(lastDate);
+    nextDate.setDate(lastDate.getDate() + 7); // Add 7 days
+    
+    // If next distribution is in the past, calculate from now
+    if (nextDate < new Date()) {
+      nextDate.setDate(new Date().getDate() + 7);
+    }
+    
+    return nextDate.toLocaleDateString();
+  };
+
+  const getWeekRange = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Get Sunday
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Get Saturday
+    
+    return {
+      start: startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      end: endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    };
+  };
+
+  // Calculate weekly contribution based on subscription tier
+  const calculateWeeklyContribution = (tier) => {
+    const contributions = {
+      'pogchamp': 2.75, // 55% of $5
+      'gigachad': 5.50, // 55% of $10
+      'free': 0
+    };
+    return contributions[tier] || 0;
+  };
 
   return (
     <div className="settings-container">
       <h1 className="settings-header">Settings</h1>
 
-      {/* Credits Section */}
-      <div className="settings-section">
-        <h2 className="settings-section-header">Your Credits</h2>
-        <div className="credits-info">
-          <p>Monthly Credits: {credits.monthly} 🪙</p>
-          <p>Additional Credits: {credits.additional} 🪙</p>
-          <Link to="/credits" className="credits-button">
-            Get More Credits 🪙
-          </Link>
+      {/* Credits Display */}
+      <section className="settings-section">
+        <h2>Your Credits</h2>
+        <div className="credits-display">
+          <div>
+            <h3>Available Credits</h3>
+            <p>{credits.regular}</p>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Subscription Display */}
+      <section className="settings-section">
+        <h2>Subscription</h2>
+        {isLoadingSubscriptions ? (
+          <p>Loading subscription details...</p>
+        ) : subscription ? (
+          <div className="subscription-info">
+            <div className="subscription-info-row">
+              <span className="subscription-label">Current Tier:</span>
+              <span className={`subscription-value ${subscription.tier}`}>
+                {subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)}
+              </span>
+            </div>
+            
+            <div className="subscription-info-row">
+              <span className="subscription-label">Status:</span>
+              <span className={`subscription-value ${subscription.status}`}>
+                {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+              </span>
+            </div>
+
+            {subscription.status === 'active' && (
+              <>
+                <div className="prize-pool-contribution">
+                  <div className="subscription-info-row">
+                    <span className="subscription-label">Active Week:</span>
+                    <span className="subscription-value">
+                      {getWeekRange().start} - {getWeekRange().end}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <p>No subscription found</p>
+        )}
+      </section>
 
       <form onSubmit={handleSubmit}>
         {/* Account Section */}
@@ -285,7 +342,16 @@ const Settings = () => {
           <div className="settings-button-group">
             <button
               type="button"
-              onClick={() => {/* Add password change handler */}}
+              onClick={async () => {
+                try {
+                  const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+                  if (error) throw error;
+                  toast.success('Password reset email sent. Please check your inbox.');
+                } catch (error) {
+                  console.error('Error sending reset email:', error);
+                  toast.error('Failed to send reset email: ' + error.message);
+                }
+              }}
               className="secondary-button"
             >
               Change Password
@@ -313,21 +379,89 @@ const Settings = () => {
             </p>
           </div>
         </section>
-
-        {/* Submit Button */}
-        <div style={{ textAlign: 'right', marginTop: '2rem' }}>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="settings-button"
-          >
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
       </form>
 
-      {/* Delete Account Modal */}
-      {showDeleteModal && <DeleteAccountModal />}
+      {/* Delete Account Modal - Moved outside the main form */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target.className === 'modal-overlay') {
+            setShowDeleteModal(false);
+          }
+        }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            {deleteStep === 1 && (
+              <div>
+                <h2 className="modal-title">Delete Account</h2>
+                <div className="modal-message">
+                  <p>Are you sure you want to delete your account? This action:</p>
+                  <ul style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
+                    <li>Cannot be undone</li>
+                    <li>Will delete all your data</li>
+                    <li>Will remove all your credits</li>
+                    <li>Will cancel any active subscriptions</li>
+                  </ul>
+                </div>
+                <div className="modal-buttons">
+                  <button 
+                    type="button"
+                    className="modal-button secondary"
+                    onClick={() => setShowDeleteModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="button"
+                    className="modal-button primary"
+                    onClick={() => setDeleteStep(2)}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deleteStep === 2 && (
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleDeleteAccount();
+              }}>
+                <h2 className="modal-title">Confirm Deletion</h2>
+                <div className="modal-message">
+                  <p>To confirm deletion, please enter your email address:</p>
+                  <p className="user-email">{user?.email}</p>
+                  <input
+                    type="text"
+                    value={deleteConfirmEmail}
+                    onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="form-input"
+                    style={{ marginTop: '1rem' }}
+                  />
+                </div>
+                <div className="modal-buttons">
+                  <button 
+                    type="button"
+                    className="modal-button secondary"
+                    onClick={() => {
+                      setDeleteStep(1);
+                      setDeleteConfirmEmail('');
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button 
+                    type="submit"
+                    className="modal-button danger"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete Account'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
