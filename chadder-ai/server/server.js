@@ -30,7 +30,11 @@ const app = express();
 
 // Add proper CORS configuration
 app.use(cors({
-  origin: 'http://localhost:5173',  // your frontend dev server
+  origin: [
+    'http://localhost:5173',
+    'https://chadderal.vercel.app',
+    process.env.VITE_APP_URL // fallback to environment variable
+  ].filter(Boolean),  // removes any undefined/null values
   methods: ['GET', 'POST'],
   credentials: true
 }));
