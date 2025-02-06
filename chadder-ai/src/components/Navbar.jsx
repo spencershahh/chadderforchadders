@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 import './Navbar.css';
-import { supabase } from '../lib/supabase';
 
 const Navbar = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
