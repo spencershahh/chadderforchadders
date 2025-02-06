@@ -17,6 +17,7 @@ import StreamPage from "./pages/StreamPage";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import CreditsPage from './pages/CreditsPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 import "./App.css";
 
@@ -31,17 +32,42 @@ const stripePromise = loadStripe(stripeKey);
 
 const App = () => {
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data } = await supabase.auth.getSession();
       setUser(data?.session?.user || null);
+      
+      if (data?.session?.user) {
+        // Check if user is admin
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_admin')
+          .eq('id', data.session.user.id)
+          .single();
+        
+        setIsAdmin(!!userData?.is_admin);
+      }
     };
 
     fetchUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user || null);
+      
+      if (session?.user) {
+        // Check if user is admin
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_admin')
+          .eq('id', session.user.id)
+          .single();
+        
+        setIsAdmin(!!userData?.is_admin);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => {
@@ -69,15 +95,34 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Discover />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              } />
-              <Route path="/credits" element={<CreditsPage />} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute user={user}>
+                    <Profile user={user} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute user={user}>
+                    <Settings user={user} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/credits" element={<CreditsPage user={user} />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/stream/:username" element={<StreamPage />} />
+              <Route path="/stream/:username" element={<StreamPage user={user} />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute user={user}>
+                    {isAdmin ? <AdminDashboard /> : <div>Access Denied</div>}
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </div>
         </div>
