@@ -3,6 +3,7 @@ import { fetchStreamers } from "../api/twitch";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import styles from './Discover.module.css';
+import { FaLock } from 'react-icons/fa';
 
 const Discover = () => {
   const [user, setUser] = useState(null);
@@ -18,6 +19,9 @@ const Discover = () => {
   const [nominationStatus, setNominationStatus] = useState('');
   const navigate = useNavigate();
   const nominationSectionRef = useRef(null);
+
+  const FREE_STREAMER_LIMIT = 5;
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Get user's preferences or default values
   const getUserPreferences = () => {
@@ -276,6 +280,53 @@ const Discover = () => {
     nominationSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleAuthPrompt = () => {
+    setShowAuthModal(true);
+  };
+
+  const renderStreamerCard = (streamer, index) => {
+    const isLocked = !user && index >= FREE_STREAMER_LIMIT;
+    const votes = streamerVotes[streamer.user_login] || 0;
+
+    return (
+      <div 
+        key={streamer.user_id}
+        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''}`}
+        onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(streamer.user_login)}
+      >
+        <div className={styles.thumbnailWrapper}>
+          <img
+            className={styles.streamerThumbnail}
+            src={streamer.thumbnail_url || OFFLINE_THUMBNAIL}
+            alt={`${streamer.user_name}'s stream`}
+          />
+          {streamer.type === "live" && <span className={styles.liveBadge}>LIVE</span>}
+        </div>
+        <div className={styles.streamerCardContent}>
+          <img
+            className={styles.streamerProfileImage}
+            src={streamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
+            alt={`${streamer.user_name}'s profile`}
+          />
+          <div className={styles.streamerInfo}>
+            <h3 className={styles.streamerName}>{streamer.user_name}</h3>
+            {streamer.type === "live" && (
+              <span className={styles.viewerCount}>{streamer.viewer_count} viewers</span>
+            )}
+            <span className={styles.gameName}>{streamer.game_name}</span>
+            {votes > 0 && <span className={styles.votesBadge}>{votes} votes this week</span>}
+          </div>
+        </div>
+        {isLocked && (
+          <div className={styles.lockOverlay} onClick={handleAuthPrompt}>
+            <FaLock className={styles.lockIcon} />
+            <p className={styles.lockMessage}>Create an account to view more streamers</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={styles.discoverContainer}>
       <div className={styles.discoverHeader}>
@@ -412,62 +463,19 @@ const Discover = () => {
         <p className={styles.streamersSubtitle}>
           Watch and support your favorite content creators
         </p>
+        {!user && (
+          <div className={styles.gatedContentMessage}>
+            <h3>Want to see more amazing streamers?</h3>
+            <p>Create a free account to unlock our full catalog of talented streamers and join our community!</p>
+            <button className={styles.signUpButton} onClick={handleAuthPrompt}>
+              Sign Up Now
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={styles.streamerGrid}>
-        {sortedStreamers.length > 0 ? (
-          sortedStreamers.map((streamer) => (
-            <div
-              key={streamer.id}
-              className={styles.streamerCard}
-              onClick={() => handleCardClick(streamer.user_name)}
-              role="button"
-              tabIndex={0}
-              aria-label={`View ${streamer.user_name}'s stream`}
-            >
-              <div className={styles.thumbnailWrapper}>
-                {streamer.type === "live" && (
-                  <span className={styles.liveBadge} aria-label="Live">LIVE</span>
-                )}
-                <img
-                  src={streamer.type === "live" ? 
-                    streamer.thumbnail_url.replace("{width}", "320").replace("{height}", "180") : 
-                    OFFLINE_THUMBNAIL
-                  }
-                  alt={`${streamer.user_name}'s stream thumbnail`}
-                  className={styles.streamerThumbnail}
-                  loading="lazy"
-                />
-              </div>
-              <div className={styles.streamerCardContent}>
-                <img
-                  src={streamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
-                  alt={`${streamer.user_name}'s profile`}
-                  className={styles.streamerProfileImage}
-                  loading="lazy"
-                />
-                <div className={styles.streamerInfo}>
-                  <div className={styles.streamerTitle}>
-                    {streamer.type === "live" ? streamer.title : "Offline"}
-                  </div>
-                  <div className={styles.viewerCount}>
-                    {streamer.type === "live" ? 
-                      `${streamer.viewer_count?.toLocaleString() || "0"} viewers` : 
-                      "Currently Offline"
-                    }
-                  </div>
-                  <div className={styles.gameName}>{streamer.game_name || "No Game Selected"}</div>
-                  <div className={styles.streamerName}>@{streamer.user_name}</div>
-                </div>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className={styles.noResults}>
-            <p>No streamers found</p>
-            <span className={styles.noResultsSubtitle}>Try adjusting your search or filters</span>
-          </div>
-        )}
+        {sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))}
       </div>
 
       <div className={styles.sectionDivider} />

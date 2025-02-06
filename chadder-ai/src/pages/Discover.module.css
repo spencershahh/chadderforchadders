@@ -248,6 +248,7 @@
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
+  position: relative;
   transition: all 0.2s ease;
   border: 1px solid rgba(145, 71, 255, 0.2);
   height: 100%;
@@ -991,4 +992,80 @@
   .streamersSection {
     padding: 1.5rem 1rem;
   }
+}
+
+/* Gated Content Styles */
+.lockedCard {
+  position: relative;
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.lockOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: all;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.lockIcon {
+  font-size: 2rem;
+  color: #9147ff;
+  margin-bottom: 1rem;
+}
+
+.lockMessage {
+  color: white;
+  text-align: center;
+  font-size: 1.1rem;
+  padding: 0 1rem;
+  font-weight: 500;
+}
+
+.gatedContentMessage {
+  text-align: center;
+  padding: 2rem;
+  margin: 2rem auto;
+  max-width: 600px;
+  background: rgba(145, 71, 255, 0.1);
+  border-radius: 16px;
+  border: 1px solid rgba(145, 71, 255, 0.2);
+}
+
+.gatedContentMessage h3 {
+  color: #9147ff;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.gatedContentMessage p {
+  color: #a8a8a8;
+  margin-bottom: 1.5rem;
+}
+
+.signUpButton {
+  background: #9147ff;
+  color: white;
+  padding: 0.8rem 2rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.signUpButton:hover {
+  background: #7a2bff;
+  transform: translateY(-2px);
 } 
