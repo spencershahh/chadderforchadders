@@ -4,6 +4,26 @@
   background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(20, 20, 20, 0.98) 100%);
   padding: 70px 1rem 2rem;
   width: 100%;
+  position: relative;
+  overflow: hidden;
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+}
+
+/* Mouse Glow Effect */
+.discoverContainer::before {
+  content: '';
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(145, 71, 255, 0.15), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  left: var(--mouse-x);
+  top: var(--mouse-y);
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  transition: all 0.05s ease;
 }
 
 .discoverHeader {
@@ -317,20 +337,39 @@
 }
 
 .viewerCount {
+  display: block;
   color: #a8a8a8;
   font-size: 0.9rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .gameName {
+  display: block;
   color: #9147ff;
   font-size: 0.9rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .streamerName {
-  color: #a8a8a8;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.votesBadge {
+  display: inline-block;
+  background: rgba(145, 71, 255, 0.15);
+  color: #9147ff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid rgba(145, 71, 255, 0.3);
+  white-space: nowrap;
 }
 
 /* Media Queries */
