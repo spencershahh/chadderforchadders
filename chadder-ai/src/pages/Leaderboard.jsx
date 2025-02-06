@@ -180,38 +180,43 @@ const Leaderboard = () => {
       setLoading(true);
       setError(null);
       
-      // Get the start of the current week
       const startOfWeek = getStartOfWeek();
       
-      console.log('Fetching leaderboard data...');
-      const { data: leaderboardData, error: leaderboardError } = await supabase
+      console.log('Fetching leaderboard data...', startOfWeek);
+      
+      // First, get the vote counts
+      const { data: voteData, error: voteError } = await supabase
         .from('votes')
-        .select(`
-          streamer_username,
-          count(*),
-          users (
-            username,
-            avatar_url
-          )
-        `)
-        .gte('created_at', startOfWeek)
-        .group_by('streamer_username, users.username, users.avatar_url');
+        .select('streamer, created_at')
+        .gte('created_at', startOfWeek);
 
-      if (leaderboardError) {
-        console.error('Error fetching leaderboard:', leaderboardError);
+      if (voteError) {
+        console.error('Error fetching votes:', voteError);
         setError('Failed to load leaderboard data. Please try again later.');
         return;
       }
 
-      console.log('Leaderboard data received:', leaderboardData);
-      
-      // Transform the data
-      const transformedData = leaderboardData.map(row => ({
-        streamer: row.streamer_username,
-        votes: parseInt(row.count),
-        earnings: (parseInt(row.count) * SUBSCRIPTION_PRICE * STREAMER_PAYOUT_PERCENTAGE).toFixed(2)
+      console.log('Vote data received:', voteData);
+
+      // Process the votes into streamer totals
+      const streamerTotals = voteData.reduce((acc, vote) => {
+        if (!acc[vote.streamer]) {
+          acc[vote.streamer] = {
+            streamer: vote.streamer,
+            votes: 0
+          };
+        }
+        acc[vote.streamer].votes += 1;
+        return acc;
+      }, {});
+
+      // Convert to array and add earnings calculation
+      const transformedData = Object.values(streamerTotals).map(data => ({
+        ...data,
+        earnings: (data.votes * SUBSCRIPTION_PRICE * STREAMER_PAYOUT_PERCENTAGE).toFixed(2)
       }));
 
+      console.log('Transformed data:', transformedData);
       setData(transformedData);
     } catch (err) {
       console.error('Unexpected error:', err);
