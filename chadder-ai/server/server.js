@@ -251,13 +251,15 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           event: event.type
         });
 
-        // First update the user's subscription status directly
+        // First update the user's subscription status and reset credits
         const { error: userError } = await supabase
           .from('users')
           .update({
             subscription_tier: tier,
             subscription_status: 'active',
-            stripe_customer_id: subscription.customer
+            stripe_customer_id: subscription.customer,
+            credits: 0, // Reset credits before distribution
+            last_credit_distribution: new Date().toISOString()
           })
           .eq('id', userId);
 
@@ -266,7 +268,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           throw userError;
         }
 
-        // Then process the subscription renewal
+        // Then process the subscription renewal with weekly credit distribution
         const { error: renewalError } = await supabase.rpc(
           'process_subscription_renewal',
           {
