@@ -6,7 +6,9 @@ export function UpgradeDialog({ currentPlan, newPlan, onCancel, onConfirm }) {
     return null;
   }
 
-  const planDifference = newPlan.credits - currentPlan.credits;
+  // Calculate the weekly difference instead of monthly
+  const weeklyDifference = newPlan.votesPerWeek - currentPlan.votesPerWeek;
+  const monthlyDifference = weeklyDifference * 4; // Convert to monthly for display
   
   return (
     <div className="upgrade-dialog-backdrop">
@@ -17,7 +19,7 @@ export function UpgradeDialog({ currentPlan, newPlan, onCancel, onConfirm }) {
           <div className="current-plan">
             <span className="plan-label">Current Plan</span>
             <h3>{currentPlan.name}</h3>
-            <p className="credits">{currentPlan.credits} credits/month</p>
+            <p className="credits">{currentPlan.votesPerWeek} credits/week</p>
             <p className="price">${currentPlan.price}/week</p>
           </div>
           
@@ -26,7 +28,7 @@ export function UpgradeDialog({ currentPlan, newPlan, onCancel, onConfirm }) {
           <div className="new-plan">
             <span className="plan-label">New Plan</span>
             <h3>{newPlan.name}</h3>
-            <p className="credits">{newPlan.credits} credits/month</p>
+            <p className="credits">{newPlan.votesPerWeek} credits/week</p>
             <p className="price">${newPlan.price}/week</p>
           </div>
         </div>
@@ -34,8 +36,8 @@ export function UpgradeDialog({ currentPlan, newPlan, onCancel, onConfirm }) {
         <div className="benefits">
           <h4>You'll Get</h4>
           <ul>
-            <li>+{planDifference} additional credits monthly</li>
-            <li>Higher credit rate ({newPlan.creditsPerDollar} credits/$)</li>
+            <li>+{monthlyDifference} additional credits monthly</li>
+            <li>Higher credit rate ({newPlan.votesPerDollar} credits/$)</li>
             <li>All existing benefits</li>
           </ul>
         </div>

@@ -175,17 +175,9 @@ const CreditsPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw new Error('Please log in to continue');
 
-      if (selectedPackage.period) {
-        const { error: renewalError } = await supabase.rpc('process_subscription_renewal', {
-          p_user_id: user.id,
-          p_subscription_tier: selectedPackage.id
-        });
-
-        if (renewalError) throw renewalError;
-      }
-
+      // Remove the duplicate credit distribution - this is now handled by the webhook
       setShowPayment(false);
-      toast.success('Purchase successful!');
+      toast.success('Purchase successful! Your credits will be available shortly.');
       
     } catch (error) {
       console.error('Error processing payment:', error);
