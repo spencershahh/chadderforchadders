@@ -217,6 +217,14 @@ const Discover = () => {
     e.preventDefault();
     
     try {
+      // Check if user is authenticated
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !currentUser) {
+        setShowAuthModal(true);
+        return;
+      }
+
       // Basic URL validation
       if (!nominationUrl.includes('twitch.tv/')) {
         setNominationStatus('Please enter a valid Twitch URL');
@@ -232,7 +240,7 @@ const Discover = () => {
           {
             streamer_url: nominationUrl,
             streamer_name: streamerName,
-            nominated_by: user?.id
+            nominated_by: currentUser.id
           }
         ]);
 
