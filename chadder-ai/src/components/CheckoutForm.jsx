@@ -65,8 +65,9 @@ const CheckoutForm = ({ amount, credits, selectedTier, onSuccess, onClose }) => 
       // Get user email from Supabase
       const { data: { session } } = await supabase.auth.getSession();
       const userEmail = session?.user?.email;
+      const userId = session?.user?.id;
 
-      if (!userEmail) {
+      if (!userEmail || !userId) {
         throw new Error('Please log in to subscribe');
       }
 
@@ -78,7 +79,8 @@ const CheckoutForm = ({ amount, credits, selectedTier, onSuccess, onClose }) => 
           paymentMethod: paymentMethod.id,
           email: userEmail,
           tier: selectedTier,
-          credits: Number(credits)
+          credits: Number(credits),
+          userId: userId
         }),
       });
 
