@@ -178,48 +178,44 @@ const Leaderboard = () => {
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
-      const today = new Date();
-      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-      const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-
-      const { data: votes, error } = await supabase
+      setError(null);
+      
+      // Get the start of the current week
+      const startOfWeek = getStartOfWeek();
+      
+      console.log('Fetching leaderboard data...');
+      const { data: leaderboardData, error: leaderboardError } = await supabase
         .from('votes')
-        .select('amount, streamer, created_at');
+        .select(`
+          streamer_username,
+          count(*),
+          users (
+            username,
+            avatar_url
+          )
+        `)
+        .gte('created_at', startOfWeek)
+        .group_by('streamer_username, users.username, users.avatar_url');
 
-      if (error) {
-        setError(error.message);
+      if (leaderboardError) {
+        console.error('Error fetching leaderboard:', leaderboardError);
+        setError('Failed to load leaderboard data. Please try again later.');
         return;
       }
 
-      // Process votes into streamer totals
-      const streamerTotals = votes.reduce((acc, vote) => {
-        const voteDate = new Date(vote.created_at);
-        
-        if (!acc[vote.streamer]) {
-          acc[vote.streamer] = {
-            name: vote.streamer,
-            today: 0,
-            week: 0,
-            allTime: 0
-          };
-        }
+      console.log('Leaderboard data received:', leaderboardData);
+      
+      // Transform the data
+      const transformedData = leaderboardData.map(row => ({
+        streamer: row.streamer_username,
+        votes: parseInt(row.count),
+        earnings: (parseInt(row.count) * SUBSCRIPTION_PRICE * STREAMER_PAYOUT_PERCENTAGE).toFixed(2)
+      }));
 
-        acc[vote.streamer].allTime += vote.amount;
-        if (voteDate >= startOfToday) {
-          acc[vote.streamer].today += vote.amount;
-        }
-        if (voteDate >= startOfWeek) {
-          acc[vote.streamer].week += vote.amount;
-        }
-
-        return acc;
-      }, {});
-
-      // Convert to array and sort by weekly votes
-      const leaderboardData = Object.values(streamerTotals).sort((a, b) => b.week - a.week);
-      setData(leaderboardData);
+      setData(transformedData);
     } catch (err) {
-      setError(err.message);
+      console.error('Unexpected error:', err);
+      setError('An unexpected error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }

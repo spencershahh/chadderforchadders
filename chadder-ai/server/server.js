@@ -29,6 +29,12 @@ if (!stripeKey) {
 const stripe = new Stripe(stripeKey);
 const app = express();
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // Add proper CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
@@ -408,6 +414,11 @@ app.delete('/api/streamers/:username', checkAdmin, async (req, res) => {
     console.error('Error deleting streamer:', error);
     res.status(500).json({ error: 'Failed to delete streamer' });
   }
+});
+
+// Add keep-alive endpoint
+app.get('/keep-alive', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 const PORT = 3001;
