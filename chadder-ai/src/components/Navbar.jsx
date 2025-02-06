@@ -1,14 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Navbar.css';
+import { supabase } from '../lib/supabase';
 
-const Navbar = ({ user, onLogout }) => {
+const Navbar = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const hamburgerRef = useRef(null);
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigate('/');
+      window.location.reload(); // Force reload to clear all states
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   useEffect(() => {
@@ -53,10 +66,7 @@ const Navbar = ({ user, onLogout }) => {
       <Link to="/settings" onClick={() => setIsOpen(false)}>Settings</Link>
       {user ? (
         <button 
-          onClick={() => {
-            setIsOpen(false);
-            onLogout();
-          }} 
+          onClick={handleLogout} 
           className="logout-button"
         >
           Logout
