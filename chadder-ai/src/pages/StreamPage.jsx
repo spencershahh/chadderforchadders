@@ -171,13 +171,13 @@ const StreamPage = () => {
     const chatIframe = document.createElement("iframe");
     chatIframe.setAttribute(
       "src",
-      `https://www.twitch.tv/embed/${normalizedUsername}/chat?parent=localhost`
+      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=${window.location.hostname}`
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
     chatIframe.style.width = "100%";
-    chatIframe.style.height = "100%"; // Ensures it takes full space
+    chatIframe.style.height = "100%";
     chatIframe.style.border = "none";
-    chatIframe.setAttribute("scrolling", "no");
+    chatIframe.setAttribute("scrolling", "yes");
   
     chatContainer.appendChild(chatIframe);
   };

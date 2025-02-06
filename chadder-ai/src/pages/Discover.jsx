@@ -331,8 +331,7 @@ const Discover = () => {
   useEffect(() => {
     const container = document.querySelector(`.${styles.discoverContainer}`);
     const handleMouseMove = (e) => {
-      const glow = container?.querySelector('::before');
-      if (glow) {
+      if (container) {
         const rect = container.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
