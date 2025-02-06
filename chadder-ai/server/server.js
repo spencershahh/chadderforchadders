@@ -118,11 +118,13 @@ app.post('/create-subscription', async (req, res) => {
       // If there's an active subscription, cancel it first
       if (activeSubscriptions.data.length > 0) {
         const currentSubscription = activeSubscriptions.data[0];
-        // Cancel immediately instead of at period end
-        await stripe.subscriptions.del(currentSubscription.id);
+        // Cancel at period end instead of immediately
+        await stripe.subscriptions.update(currentSubscription.id, {
+          cancel_at_period_end: true
+        });
       }
 
-      // Update payment method
+      // Attach new payment method
       await stripe.paymentMethods.attach(paymentMethod, { customer: customer.id });
       await stripe.customers.update(customer.id, {
         invoice_settings: { default_payment_method: paymentMethod },
