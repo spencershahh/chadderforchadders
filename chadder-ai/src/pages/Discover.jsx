@@ -359,7 +359,7 @@ const Discover = () => {
           Discover Streamers
         </h1>
         <p className={styles.discoverSubtitle}>
-          Find streamers, join the conversation, and vote for your favorites!
+          Discovering Hidden Gems, One Stream at a Time.
         </p>
 
         <div className={styles.statsContainer}>
@@ -486,7 +486,7 @@ const Discover = () => {
           Featured Streamers
         </h2>
         <p className={styles.streamersSubtitle}>
-          Watch and support your favorite content creators
+        Find streamers, join the conversation, and vote for your favorites!
         </p>
         {!user && (
           <div className={styles.gatedContentMessage}>
@@ -525,9 +525,15 @@ const Discover = () => {
           <button
             type="submit"
             className={styles.nominationSubmit}
-            aria-label="Submit nomination"
+            aria-label={user ? "Submit nomination" : "Login to nominate"}
+            onClick={(e) => {
+              if (!user) {
+                e.preventDefault();
+                setShowAuthModal(true);
+              }
+            }}
           >
-            Submit Nomination
+            {user ? "Submit Nomination" : "Login or Signup to Nominate a Streamer"}
           </button>
           {nominationStatus && (
             <div 
