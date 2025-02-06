@@ -115,10 +115,14 @@ app.post('/create-subscription', async (req, res) => {
         limit: 1
       });
 
-      // If there's an active subscription, cancel it first
+      // Check if user is trying to subscribe to the same tier
       if (activeSubscriptions.data.length > 0) {
         const currentSubscription = activeSubscriptions.data[0];
-        // Cancel at period end instead of immediately
+        if (currentSubscription.metadata.tier === tier) {
+          return res.status(400).json({ error: 'You already have this subscription tier!' });
+        }
+        
+        // Cancel existing subscription at period end
         await stripe.subscriptions.update(currentSubscription.id, {
           cancel_at_period_end: true
         });
@@ -154,17 +158,27 @@ app.post('/create-subscription', async (req, res) => {
       expand: ['latest_invoice.payment_intent']
     });
 
-    // Update user's subscription in Supabase
+    // Reset credits and update user's subscription in Supabase
     const { error: dbError } = await supabase
       .from('users')
       .update({
         stripe_customer_id: customer.id,
         subscription_tier: tier,
-        subscription_status: 'active'
+        subscription_status: 'active',
+        credits: 0, // Reset credits
+        last_credit_distribution: new Date().toISOString()
       })
       .eq('id', userId);
 
     if (dbError) throw dbError;
+
+    // Process initial credit distribution for the new tier
+    const { error: renewalError } = await supabase.rpc('process_subscription_renewal', {
+      p_user_id: userId,
+      p_subscription_tier: tier
+    });
+
+    if (renewalError) throw renewalError;
 
     res.json({
       subscriptionId: subscription.id,

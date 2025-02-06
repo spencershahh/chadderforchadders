@@ -383,13 +383,22 @@ const CreditsPage = () => {
               ))}
             </div>
 
-            <button
-              className={styles.actionButton}
-              onClick={() => handlePurchase(pkg.id, true)}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : 'Subscribe Now'}
-            </button>
+            {currentSubscription === pkg.id ? (
+              <button
+                className={`${styles.actionButton} ${styles.currentTier}`}
+                disabled={true}
+              >
+                Current Tier
+              </button>
+            ) : (
+              <button
+                className={styles.actionButton}
+                onClick={() => handleSubscription(pkg.id)}
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : 'Subscribe Now'}
+              </button>
+            )}
           </div>
         ))}
       </div>

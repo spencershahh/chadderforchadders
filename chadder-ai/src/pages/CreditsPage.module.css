@@ -147,29 +147,33 @@
   width: 100%;
   padding: 1rem;
   border-radius: 8px;
-  border: none;
-  background: rgba(31, 31, 35, 0.6);
-  color: white;
   font-weight: 600;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 1rem;
-  margin-top: auto;
+  background: #9147ff;
+  color: white;
+  border: none;
 }
 
-.pricingCard.popular .actionButton {
-  background: #9147ff;
-}
-
-.actionButton:hover {
-  background: #9147ff;
-  transform: translateY(-2px);
+.actionButton:hover:not(:disabled) {
+  background: #772ce8;
 }
 
 .actionButton:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
-  transform: none;
+}
+
+.currentTier {
+  background: #2f2f35;
+  border: 2px solid #9147ff;
+  color: #9147ff;
+}
+
+.currentTier:hover {
+  background: #2f2f35;
+  cursor: not-allowed;
 }
 
 .error {
