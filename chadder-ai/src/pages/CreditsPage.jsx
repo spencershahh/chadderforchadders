@@ -232,18 +232,6 @@ const CreditsPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("Please log in to continue.");
 
-      // Update user's subscription status
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          subscription_tier: packageId,
-          subscription_status: 'active',
-          last_credit_distribution: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
       // If there's a current subscription, show upgrade dialog
       if (currentTier) {
         const currentPlan = subscriptionPackages.find(pkg => pkg.id === currentTier);
@@ -283,13 +271,13 @@ const CreditsPage = () => {
         show: true,
         currentPlan: {
           name: currentPlan.name,
-          votes: currentPlan.votes,
+          votesPerWeek: currentPlan.votesPerWeek,
           price: currentPlan.price,
           votesPerDollar: currentPlan.votesPerDollar
         },
         newPlan: {
           name: newPlan.name,
-          votes: newPlan.votes,
+          votesPerWeek: newPlan.votesPerWeek,
           price: newPlan.price,
           votesPerDollar: newPlan.votesPerDollar
         }

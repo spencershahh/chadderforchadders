@@ -1,56 +1,52 @@
-import './UpgradeDialog.css'
+import React from 'react';
+import styles from './UpgradeDialog.module.css';
 
-export function UpgradeDialog({ currentPlan, newPlan, onCancel, onConfirm }) {
-  if (!currentPlan || !newPlan) {
-    console.error('Missing plan data:', { currentPlan, newPlan });
-    return null;
-  }
-
-  // Calculate the weekly difference instead of monthly
-  const weeklyDifference = newPlan.votesPerWeek - currentPlan.votesPerWeek;
-  const monthlyDifference = weeklyDifference * 4; // Convert to monthly for display
-  
+export const UpgradeDialog = ({ currentPlan, newPlan, onCancel, onConfirm }) => {
   return (
-    <div className="upgrade-dialog-backdrop">
-      <div className="upgrade-dialog">
+    <div className={styles.dialogOverlay}>
+      <div className={styles.dialogContent}>
         <h2>Upgrade to {newPlan.name}</h2>
         
-        <div className="plan-comparison">
-          <div className="current-plan">
-            <span className="plan-label">Current Plan</span>
-            <h3>{currentPlan.name}</h3>
-            <p className="credits">{currentPlan.votesPerWeek} credits/week</p>
-            <p className="price">${currentPlan.price}/week</p>
+        <div className={styles.planComparison}>
+          <div className={styles.currentPlan}>
+            <h3>Current Plan</h3>
+            <div className={styles.planDetails}>
+              <p>{currentPlan.name}</p>
+              <p>{currentPlan.votesPerWeek} votes/week</p>
+              <p>${currentPlan.price}/week</p>
+            </div>
           </div>
-          
-          <div className="upgrade-arrow">→</div>
-          
-          <div className="new-plan">
-            <span className="plan-label">New Plan</span>
-            <h3>{newPlan.name}</h3>
-            <p className="credits">{newPlan.votesPerWeek} credits/week</p>
-            <p className="price">${newPlan.price}/week</p>
+
+          <div className={styles.arrow}>→</div>
+
+          <div className={styles.newPlan}>
+            <h3>New Plan</h3>
+            <div className={styles.planDetails}>
+              <p>{newPlan.name}</p>
+              <p>{newPlan.votesPerWeek} votes/week</p>
+              <p>${newPlan.price}/week</p>
+            </div>
           </div>
         </div>
 
-        <div className="benefits">
-          <h4>You'll Get</h4>
+        <div className={styles.changes}>
+          <h3>Changes</h3>
           <ul>
-            <li>+{monthlyDifference} additional credits monthly</li>
-            <li>Higher credit rate ({newPlan.votesPerDollar} credits/$)</li>
+            <li>Weekly votes will change from {currentPlan.votesPerWeek} to {newPlan.votesPerWeek}</li>
+            <li>Higher credit rate: {newPlan.votesPerDollar} votes per $1</li>
             <li>All existing benefits</li>
           </ul>
         </div>
 
-        <div className="dialog-actions">
-          <button className="cancel-button" onClick={onCancel}>
+        <div className={styles.actions}>
+          <button onClick={onCancel} className={styles.cancelButton}>
             Keep Current Plan
           </button>
-          <button className="confirm-button" onClick={onConfirm}>
+          <button onClick={() => onConfirm(newPlan)} className={styles.upgradeButton}>
             Upgrade Now
           </button>
         </div>
       </div>
     </div>
-  )
-} 
+  );
+}; 

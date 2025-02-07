@@ -1,0 +1,124 @@
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialogContent {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 90%;
+  color: #fff;
+}
+
+.dialogContent h2 {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  color: #fff;
+}
+
+.planComparison {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+}
+
+.currentPlan, .newPlan {
+  flex: 1;
+  text-align: center;
+}
+
+.planDetails {
+  margin-top: 1rem;
+}
+
+.planDetails p {
+  margin: 0.5rem 0;
+  color: #ccc;
+}
+
+.arrow {
+  font-size: 2rem;
+  margin: 0 2rem;
+  color: #8b5cf6;
+}
+
+.changes {
+  margin: 2rem 0;
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+}
+
+.changes h3 {
+  margin: 0 0 1rem;
+  color: #fff;
+}
+
+.changes ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.changes li {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  color: #ccc;
+}
+
+.changes li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #8b5cf6;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancelButton, .upgradeButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background-color: transparent;
+  border: 1px solid #4a4a4a;
+  color: #fff;
+}
+
+.cancelButton:hover {
+  background-color: #2a2a2a;
+}
+
+.upgradeButton {
+  background-color: #8b5cf6;
+  border: none;
+  color: #fff;
+}
+
+.upgradeButton:hover {
+  background-color: #7c3aed;
+} 
