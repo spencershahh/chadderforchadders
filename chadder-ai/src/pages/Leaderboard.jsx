@@ -182,12 +182,10 @@ const Leaderboard = () => {
       
       const startOfWeek = getStartOfWeek();
       
-      console.log('Fetching leaderboard data...', startOfWeek);
-      
       // First, get the vote counts
       const { data: voteData, error: voteError } = await supabase
         .from('votes')
-        .select('streamer, created_at')
+        .select('streamer, amount, created_at')
         .gte('created_at', startOfWeek);
 
       if (voteError) {
@@ -196,27 +194,39 @@ const Leaderboard = () => {
         return;
       }
 
-      console.log('Vote data received:', voteData);
-
       // Process the votes into streamer totals
       const streamerTotals = voteData.reduce((acc, vote) => {
-        if (!acc[vote.streamer]) {
-          acc[vote.streamer] = {
-            streamer: vote.streamer,
-            votes: 0
+        const streamerName = vote.streamer.toLowerCase();
+        if (!acc[streamerName]) {
+          acc[streamerName] = {
+            name: streamerName,
+            votes: 0,
+            today: 0,
+            week: 0,
+            allTime: 0
           };
         }
-        acc[vote.streamer].votes += 1;
+        
+        const voteDate = new Date(vote.created_at);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const voteAmount = vote.amount || 1;
+        acc[streamerName].votes += voteAmount;
+        acc[streamerName].week += voteAmount;
+        
+        if (voteDate >= today) {
+          acc[streamerName].today += voteAmount;
+        }
+        
+        acc[streamerName].allTime += voteAmount;
+        
         return acc;
       }, {});
 
-      // Convert to array and add earnings calculation
-      const transformedData = Object.values(streamerTotals).map(data => ({
-        ...data,
-        earnings: (data.votes * SUBSCRIPTION_PRICE * STREAMER_PAYOUT_PERCENTAGE).toFixed(2)
-      }));
-
-      console.log('Transformed data:', transformedData);
+      // Convert to array
+      const transformedData = Object.values(streamerTotals);
+      console.log('Transformed leaderboard data:', transformedData);
       setData(transformedData);
     } catch (err) {
       console.error('Unexpected error:', err);
