@@ -157,7 +157,7 @@ const StreamPage = () => {
       channel: normalizedUsername,
       layout: "video",
       autoplay: true,
-      parent: ["chadderai.vercel.app", "localhost"]
+      parent: ["chadderforchaders-git-main-spencershahhs-projects.vercel.app"]
     });
 
     embedContainer.style.width = "100%";
@@ -171,7 +171,7 @@ const StreamPage = () => {
     const chatIframe = document.createElement("iframe");
     chatIframe.setAttribute(
       "src",
-      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=chadderai.vercel.app`
+      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=chadderforchaders-git-main-spencershahhs-projects.vercel.app`
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
     chatIframe.style.width = "100%";
