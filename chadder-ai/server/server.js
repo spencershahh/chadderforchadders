@@ -345,6 +345,82 @@ app.get('/keep-alive', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.post('/create-portal-session', async (req, res) => {
+  try {
+    const { userId, return_url } = req.body;
+    console.log('Creating portal session for:', { userId, return_url });
+
+    // Get the customer's Stripe ID from your database
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('stripe_customer_id')
+      .eq('id', userId)
+      .single();
+
+    console.log('Supabase response:', { userData, error });
+
+    if (error || !userData?.stripe_customer_id) {
+      console.error('No Stripe customer found:', { error, userData });
+      throw new Error('No Stripe customer found');
+    }
+
+    console.log('Found Stripe customer:', userData.stripe_customer_id);
+
+    // Create the portal session
+    const session = await stripe.billingPortal.sessions.create({
+      customer: userData.stripe_customer_id,
+      return_url,
+    });
+
+    console.log('Created portal session:', session.url);
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Detailed error in portal session:', {
+      message: error.message,
+      type: error.type,
+      stack: error.stack
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this endpoint to create a Stripe Checkout session
+app.post('/create-checkout-session', async (req, res) => {
+  try {
+    const { userId, packageId, mode, return_url } = req.body;
+
+    // Get the price ID for the selected package
+    const priceId = SUBSCRIPTION_PRICES[packageId];
+    if (!priceId) {
+      throw new Error('Invalid package selected');
+    }
+
+    // Create Stripe Checkout session
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      success_url: return_url,
+      cancel_url: `${return_url}?canceled=true`,
+      metadata: {
+        userId,
+        tier: packageId
+      },
+      customer_creation: 'always',
+      billing_address_collection: 'required',
+      allow_promotion_codes: true,
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

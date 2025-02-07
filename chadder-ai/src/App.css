@@ -30,7 +30,7 @@ body, html, #root {
 .stream-page {
   max-width: 100%;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 80px 1rem 1rem; /* Added top padding to account for navbar */
   color: #efeff1;
   background-color: #0e0e10;
   min-height: calc(100vh - 70px);
@@ -444,8 +444,8 @@ body, html, #root {
 =========================== */
 .settings-container {
   max-width: 800px;
-  margin: 2rem auto;
-  padding: 0 1.5rem;
+  margin: 0 auto;
+  padding: 80px 1.5rem 2rem; /* Added top padding to account for navbar */
 }
 
 .settings-header {
@@ -585,8 +585,8 @@ body, html, #root {
 =========================== */
 .leaderboard-container {
   max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  margin: 0 auto;
+  padding: 80px 1rem 2rem; /* Added top padding to account for navbar */
 }
 
 .leaderboard-title {

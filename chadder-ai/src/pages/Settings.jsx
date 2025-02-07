@@ -229,6 +229,53 @@ const Settings = () => {
     return contributions[tier] || 0;
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser) {
+        throw new Error('Please log in to continue');
+      }
+
+      // Check if user has a Stripe customer ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (userError || !userData?.stripe_customer_id) {
+        // If no Stripe customer ID, redirect to credits page to set up subscription
+        toast.error('Please set up a subscription first');
+        navigate('/credits');
+        return;
+      }
+
+      // Create a portal session
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/create-portal-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          return_url: window.location.origin + '/settings'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create portal session');
+      }
+
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch (error) {
+      console.error('Error creating portal session:', error);
+      toast.error(error.message || 'Failed to open subscription management portal');
+    }
+  };
+
   return (
     <div className="settings-container">
       <h1 className="settings-header">Settings</h1>
@@ -277,6 +324,16 @@ const Settings = () => {
                 </div>
               </>
             )}
+
+            <div className="subscription-actions" style={{ marginTop: '1.5rem' }}>
+              <button 
+                onClick={handleManageSubscription}
+                className="primary-button"
+                style={{ width: '100%', maxWidth: '300px' }}
+              >
+                Manage Subscription
+              </button>
+            </div>
           </div>
         ) : (
           <p>No subscription found</p>

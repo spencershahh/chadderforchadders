@@ -289,7 +289,7 @@ const Discover = () => {
   };
 
   const handleAuthPrompt = () => {
-    setShowAuthModal(true);
+    navigate('/signup');
   };
 
   const renderStreamerCard = (streamer, index) => {
@@ -335,7 +335,7 @@ const Discover = () => {
     );
   };
 
-  // Add mouse glow effect
+  // Add glow effect
   useEffect(() => {
     const container = document.querySelector(`.${styles.discoverContainer}`);
     const handleMouseMove = (e) => {
@@ -348,12 +348,13 @@ const Discover = () => {
       }
     };
 
-    container?.addEventListener('mousemove', handleMouseMove);
-    return () => container?.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   return (
     <div className={styles.discoverContainer}>
+      <div className="glow-effect"></div>
       <div className={styles.discoverHeader}>
         <h1 className={styles.discoverTitle}>
           Discover Streamers
@@ -529,7 +530,7 @@ const Discover = () => {
             onClick={(e) => {
               if (!user) {
                 e.preventDefault();
-                setShowAuthModal(true);
+                navigate('/signup');
               }
             }}
           >

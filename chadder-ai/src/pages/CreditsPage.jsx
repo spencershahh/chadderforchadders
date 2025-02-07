@@ -215,41 +215,31 @@ const CreditsPage = () => {
 
   const handleSubscription = async (packageId) => {
     try {
-      const currentTier = await fetchCurrentSubscription();
-      
-      if (currentTier === packageId) {
-        toast.error("You already have this subscription tier!");
-        return;
-      }
-
-      const selected = subscriptionPackages.find(pkg => pkg.id === packageId);
-      if (!selected) {
-        toast.error("Invalid subscription package");
-        return;
-      }
-
-      // Get user data
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("Please log in to continue.");
-
-      // If there's a current subscription, show upgrade dialog
-      if (currentTier) {
-        const currentPlan = subscriptionPackages.find(pkg => pkg.id === currentTier);
-        if (!currentPlan) {
-          toast.error("Error loading current plan");
-          return;
-        }
-        setShowUpgradeDialog({
-          show: true,
-          currentPlan,
-          newPlan: selected
-        });
+      if (authError || !user) {
+        setPendingPackageId(packageId);
+        setIsPendingSubscription(true);
+        setShowAuthModal(true);
         return;
       }
 
-      // For new subscriptions
-      setSelectedPackage(selected);
-      setShowPayment(true);
+      // Create a Stripe Checkout session for subscription
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          packageId,
+          mode: 'subscription',
+          return_url: `${window.location.origin}/settings`
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to create checkout session');
+      
+      const { url } = await response.json();
+      window.location.href = url; // Redirect to Stripe Checkout
     } catch (err) {
       console.error("Subscription error:", err);
       setError(err.message);
