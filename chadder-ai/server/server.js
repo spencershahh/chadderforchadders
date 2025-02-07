@@ -63,9 +63,9 @@ app.use(express.json());
 
 // Updated price IDs
 const SUBSCRIPTION_PRICES = {
-  'pog': 'price_1QnrdfEDfrbbc35YnZ3tVoMS',      // Replace with your Stripe price ID for Pog tier
-  'pogchamp': 'price_1Qnre1EDfrbbc35YQVAy7Z0E', // Replace with your Stripe price ID for Pogchamp tier
-  'poggers': 'price_1QnreLEDfrbbc35YV7TtcIld'   // Replace with your Stripe price ID for Poggers tier
+  'pog': 'price_1QnrdfEDfrbbc35YnZ3tVoMS',      // Pog tier
+  'pogchamp': 'price_1Qnre1EDfrbbc35YQVAy7Z0E', // Pogchamp tier
+  'poggers': 'price_1QnreLEDfrbbc35YV7TtcIld'   // Poggers tier
 };
 
 // Test endpoint
@@ -366,10 +366,11 @@ app.post('/create-portal-session', async (req, res) => {
 
     console.log('Found Stripe customer:', userData.stripe_customer_id);
 
-    // Create the portal session
+    // Create the portal session with configuration
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripe_customer_id,
       return_url,
+      configuration: process.env.STRIPE_PORTAL_CONFIGURATION_ID
     });
 
     console.log('Created portal session:', session.url);
@@ -387,36 +388,59 @@ app.post('/create-portal-session', async (req, res) => {
 // Add this endpoint to create a Stripe Checkout session
 app.post('/create-checkout-session', async (req, res) => {
   try {
-    const { userId, packageId, mode, return_url } = req.body;
+    console.log('Received checkout session request:', req.body);
+    const { userId, packageId, email, return_url } = req.body;
+
+    // Validate required fields
+    if (!userId || !packageId || !email || !return_url) {
+      throw new Error('Missing required fields');
+    }
 
     // Get the price ID for the selected package
     const priceId = SUBSCRIPTION_PRICES[packageId];
     if (!priceId) {
-      throw new Error('Invalid package selected');
+      throw new Error(`Invalid package selected: ${packageId}`);
     }
 
-    // Create Stripe Checkout session
+    console.log('Creating checkout session with:', {
+      userId,
+      packageId,
+      priceId,
+      email,
+      return_url
+    });
+
+    // Create Stripe Checkout session with minimal configuration
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{
         price: priceId,
         quantity: 1,
       }],
-      success_url: return_url,
+      mode: 'subscription',
+      success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${return_url}?canceled=true`,
+      client_reference_id: userId,
+      customer_email: email,
       metadata: {
         userId,
         tier: packageId
-      },
-      customer_creation: 'always',
-      billing_address_collection: 'required',
-      allow_promotion_codes: true,
+      }
+    });
+
+    console.log('Checkout session created:', {
+      sessionId: session.id,
+      url: session.url
     });
 
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    console.error('Detailed error creating checkout session:', {
+      message: error.message,
+      type: error.type,
+      stack: error.stack,
+      body: req.body
+    });
     res.status(500).json({ error: error.message });
   }
 });

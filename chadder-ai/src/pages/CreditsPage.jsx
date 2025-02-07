@@ -215,6 +215,7 @@ const CreditsPage = () => {
 
   const handleSubscription = async (packageId) => {
     try {
+      setLoading(true);
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
         setPendingPackageId(packageId);
@@ -223,27 +224,51 @@ const CreditsPage = () => {
         return;
       }
 
+      // Get user data first
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('Could not retrieve user data');
+      }
+
       // Create a Stripe Checkout session for subscription
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      console.log('Making request to:', API_URL);
+      
+      const requestData = {
+        userId: user.id,
+        email: userData.email,
+        packageId,
+        return_url: `${window.location.origin}/settings`
+      };
+      console.log('Request data:', requestData);
+
       const response = await fetch(`${API_URL}/create-checkout-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          packageId,
-          mode: 'subscription',
-          return_url: `${window.location.origin}/settings`
-        })
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
       });
 
-      if (!response.ok) throw new Error('Failed to create checkout session');
+      const responseData = await response.json();
+      console.log('Response:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to create checkout session');
+      }
       
-      const { url } = await response.json();
-      window.location.href = url; // Redirect to Stripe Checkout
+      window.location.href = responseData.url;
     } catch (err) {
       console.error("Subscription error:", err);
       setError(err.message);
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to create checkout session');
+    } finally {
+      setLoading(false);
     }
   };
 
