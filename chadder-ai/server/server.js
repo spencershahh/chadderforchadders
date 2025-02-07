@@ -329,36 +329,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
   }
 });
 
-// Admin middleware to check if user is admin
-const checkAdmin = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
-  }
-
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(authHeader.split(' ')[1]);
-    if (error) throw error;
-
-    const { data: userData } = await supabase
-      .from('users')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData?.is_admin) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    console.error('Auth error:', error);
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-// Admin routes for managing streamers
+// Remove admin middleware and routes
 app.get('/api/streamers', async (req, res) => {
   try {
     const streamersData = await fs.readFile(path.join(__dirname, '../src/data/streamers.json'), 'utf8');
@@ -366,53 +337,6 @@ app.get('/api/streamers', async (req, res) => {
   } catch (error) {
     console.error('Error reading streamers:', error);
     res.status(500).json({ error: 'Failed to read streamers' });
-  }
-});
-
-app.post('/api/streamers', checkAdmin, async (req, res) => {
-  try {
-    const { username, bio } = req.body;
-    if (!username || !bio) {
-      return res.status(400).json({ error: 'Username and bio are required' });
-    }
-
-    const streamersPath = path.join(__dirname, '../src/data/streamers.json');
-    const streamersData = await fs.readFile(streamersPath, 'utf8');
-    const streamers = JSON.parse(streamersData);
-
-    if (streamers.some(s => s.username === username)) {
-      return res.status(400).json({ error: 'Streamer already exists' });
-    }
-
-    streamers.push({ username, bio });
-    await fs.writeFile(streamersPath, JSON.stringify(streamers, null, 2));
-    
-    res.status(201).json({ message: 'Streamer added successfully' });
-  } catch (error) {
-    console.error('Error adding streamer:', error);
-    res.status(500).json({ error: 'Failed to add streamer' });
-  }
-});
-
-app.delete('/api/streamers/:username', checkAdmin, async (req, res) => {
-  try {
-    const { username } = req.params;
-    const streamersPath = path.join(__dirname, '../src/data/streamers.json');
-    const streamersData = await fs.readFile(streamersPath, 'utf8');
-    const streamers = JSON.parse(streamersData);
-
-    const index = streamers.findIndex(s => s.username === username);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Streamer not found' });
-    }
-
-    streamers.splice(index, 1);
-    await fs.writeFile(streamersPath, JSON.stringify(streamers, null, 2));
-    
-    res.json({ message: 'Streamer deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting streamer:', error);
-    res.status(500).json({ error: 'Failed to delete streamer' });
   }
 });
 
