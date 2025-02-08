@@ -11,28 +11,46 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const checkExistingUser = async (email) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', email)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned
+      console.error("Error checking existing user:", error);
+      return null;
+    }
+    
+    return data;
+  };
+
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Check for existing user first
+      const existingUser = await checkExistingUser(email);
+      if (existingUser) {
+        // Try to delete the existing user record
+        const { error: deleteError } = await supabase
+          .from('users')
+          .delete()
+          .eq('id', existingUser.id);
+
+        if (deleteError) {
+          console.error("Error deleting existing user:", deleteError);
+          toast.error('Error creating account. Please try again later.');
+          setLoading(false);
+          return;
+        }
+      }
+
       // Validate display name
       if (!displayName.trim()) {
         toast.error('Display name is required');
-        setLoading(false);
-        return;
-      }
-
-      // Check if email already exists in auth
-      const { data: emailData, error: emailError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false
-        }
-      });
-
-      if (!emailError) {
-        toast.error('An account with this email already exists');
         setLoading(false);
         return;
       }
@@ -81,6 +99,16 @@ const Signup = () => {
       console.log("Supabase auth signup response:", data);
 
       if (user) {
+        // First try to delete any existing record with this ID
+        const { error: deleteError } = await supabase
+          .from('users')
+          .delete()
+          .eq('id', user.id);
+
+        if (deleteError) {
+          console.error("Error deleting existing user:", deleteError);
+        }
+
         // Insert the user into the users table
         const { error: dbError } = await supabase
           .from('users')
@@ -98,6 +126,12 @@ const Signup = () => {
         if (dbError) {
           console.error("Database insert error:", dbError);
           toast.error(`Database error saving new user: ${dbError.message}`);
+          
+          // If insert fails, try to clean up the auth user
+          const { error: cleanupError } = await supabase.auth.admin.deleteUser(user.id);
+          if (cleanupError) {
+            console.error("Error cleaning up auth user:", cleanupError);
+          }
           return;
         }
 

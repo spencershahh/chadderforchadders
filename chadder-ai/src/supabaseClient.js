@@ -23,6 +23,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     debug: true, // Enable debug logging for auth
     redirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
     emailRedirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
+    multiTab: {
+      enabled: true
+    },
+    storageOptions: {
+      skipSynchronizationOnInit: false
+    }
   },
   realtime: {
     params: {
