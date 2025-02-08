@@ -189,13 +189,64 @@ app.post('/create-subscription', async (req, res) => {
 
     if (dbError) throw dbError;
 
-    // Process initial credit distribution for the new tier
-    const { error: renewalError } = await supabase.rpc('process_subscription_renewal', {
-      p_user_id: userId,
-      p_subscription_tier: tier
-    });
+    // Process initial credit distribution
+    console.log('Starting credit distribution for tier:', tier);
+    console.log('User ID:', userId);
+    console.log('Current timestamp:', new Date().toISOString());
+    
+    // Get current credits before update
+    const { data: beforeUser } = await supabase
+      .from('users')
+      .select('credits, subscription_tier')
+      .eq('id', userId)
+      .single();
+    console.log('Credits before update:', beforeUser?.credits);
 
-    if (renewalError) throw renewalError;
+    const { data: renewalData, error: renewalError } = await supabase.rpc(
+      'process_subscription_renewal',
+      {
+        p_user_id: userId,
+        p_subscription_tier: tier
+      }
+    );
+
+    if (renewalError) {
+      console.error('Error processing renewal in Supabase:', renewalError);
+      throw renewalError;
+    }
+    console.log('Credit distribution result:', renewalData);
+
+    // Verify the credits were updated
+    const { data: updatedUser, error: verifyError } = await supabase
+      .from('users')
+      .select('credits, subscription_tier, last_credit_distribution')
+      .eq('id', userId)
+      .single();
+
+    if (verifyError) {
+      console.error('Error verifying credit update:', verifyError);
+    } else {
+      console.log('Updated user data:', {
+        credits: updatedUser.credits,
+        tier: updatedUser.subscription_tier,
+        lastDistribution: updatedUser.last_credit_distribution
+      });
+    }
+
+    // Verify the subscription_credits record
+    const { data: creditRecord, error: creditRecordError } = await supabase
+      .from('subscription_credits')
+      .select('*')
+      .eq('user_id', userId)
+      .order('distribution_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (creditRecordError) {
+      console.error('Error verifying credit record:', creditRecordError);
+    } else {
+      console.log('Latest credit distribution record:', creditRecord);
+    }
 
     res.json({
       subscriptionId: subscription.id,
@@ -241,6 +292,21 @@ app.get('/subscriptions/:customerId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Add this near your other constants
+const PRIZE_POOL_PERCENTAGE = 0.55; // 55% of revenue goes to prize pool
+
+// Add this helper function
+async function updatePrizePool() {
+  try {
+    const { data, error } = await supabase.rpc('calculate_weekly_prize_pool');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating prize pool:', err);
+    throw err;
+  }
+}
 
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -322,7 +388,19 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         console.log('Successfully updated user in Supabase');
 
         // Process initial credit distribution
-        const { error: renewalError } = await supabase.rpc(
+        console.log('Starting credit distribution for tier:', tier);
+        console.log('User ID:', userId);
+        console.log('Current timestamp:', new Date().toISOString());
+        
+        // Get current credits before update
+        const { data: beforeUser } = await supabase
+          .from('users')
+          .select('credits, subscription_tier')
+          .eq('id', userId)
+          .single();
+        console.log('Credits before update:', beforeUser?.credits);
+
+        const { data: renewalData, error: renewalError } = await supabase.rpc(
           'process_subscription_renewal',
           {
             p_user_id: userId,
@@ -334,7 +412,47 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           console.error('Error processing renewal in Supabase:', renewalError);
           throw renewalError;
         }
-        console.log('Successfully processed subscription renewal');
+        console.log('Credit distribution result:', renewalData);
+
+        // Verify the credits were updated
+        const { data: updatedUser, error: verifyError } = await supabase
+          .from('users')
+          .select('credits, subscription_tier, last_credit_distribution')
+          .eq('id', userId)
+          .single();
+
+        if (verifyError) {
+          console.error('Error verifying credit update:', verifyError);
+        } else {
+          console.log('Updated user data:', {
+            credits: updatedUser.credits,
+            tier: updatedUser.subscription_tier,
+            lastDistribution: updatedUser.last_credit_distribution
+          });
+        }
+
+        // Verify the subscription_credits record
+        const { data: creditRecord, error: creditRecordError } = await supabase
+          .from('subscription_credits')
+          .select('*')
+          .eq('user_id', userId)
+          .order('distribution_date', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (creditRecordError) {
+          console.error('Error verifying credit record:', creditRecordError);
+        } else {
+          console.log('Latest credit distribution record:', creditRecord);
+        }
+
+        // Update prize pool after subscription changes
+        try {
+          await updatePrizePool();
+          console.log('Prize pool updated successfully');
+        } catch (err) {
+          console.error('Failed to update prize pool:', err);
+        }
         break;
 
       case 'customer.subscription.created':
@@ -367,7 +485,8 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         }
 
         // Then process the subscription renewal with weekly credit distribution
-        const { error: subscriptionRenewalError } = await supabase.rpc(
+        console.log('Starting credit distribution for tier:', subscriptionTier);
+        const { data: subscriptionRenewalData, error: subscriptionRenewalError } = await supabase.rpc(
           'process_subscription_renewal',
           {
             p_user_id: subscriberUserId,
@@ -379,8 +498,16 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           console.error('Error processing renewal:', subscriptionRenewalError);
           throw subscriptionRenewalError;
         }
-
+        console.log('Credit distribution result:', subscriptionRenewalData);
         console.log('Successfully processed subscription for user:', subscriberUserId);
+
+        // Update prize pool after subscription changes
+        try {
+          await updatePrizePool();
+          console.log('Prize pool updated successfully');
+        } catch (err) {
+          console.error('Failed to update prize pool:', err);
+        }
         break;
 
       case 'customer.subscription.deleted':
@@ -406,6 +533,14 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         }
 
         console.log('Successfully cancelled subscription for user:', cancelledUserId);
+
+        // Update prize pool after subscription changes
+        try {
+          await updatePrizePool();
+          console.log('Prize pool updated successfully');
+        } catch (err) {
+          console.error('Failed to update prize pool:', err);
+        }
         break;
     }
 
@@ -507,6 +642,30 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this endpoint to get current prize pool
+app.get('/prize-pool', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('prize_pool')
+      .select('*')
+      .eq('is_active', true)
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      amount: data?.current_amount || 0,
+      weekStart: data?.week_start,
+      weekEnd: data?.week_end
+    });
+  } catch (error) {
+    console.error('Error fetching prize pool:', error);
     res.status(500).json({ error: error.message });
   }
 });
