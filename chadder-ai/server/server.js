@@ -302,11 +302,11 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       case 'customer.subscription.updated':
         const subscriptionData = event.data.object;
         const subscriberUserId = subscriptionData.metadata.user_id;
-        const tier = subscriptionData.metadata.tier;
+        const subscriptionTier = subscriptionData.metadata.tier;
 
         console.log('Processing subscription:', {
           userId: subscriberUserId,
-          tier,
+          tier: subscriptionTier,
           event: event.type
         });
 
@@ -314,7 +314,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         const { error: userError } = await supabase
           .from('users')
           .update({
-            subscription_tier: tier,
+            subscription_tier: subscriptionTier,
             subscription_status: 'active',
             stripe_customer_id: subscriptionData.customer,
             credits: 0, // Reset credits before distribution
@@ -332,7 +332,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           'process_subscription_renewal',
           {
             p_user_id: subscriberUserId,
-            p_subscription_tier: tier
+            p_subscription_tier: subscriptionTier
           }
         );
 
