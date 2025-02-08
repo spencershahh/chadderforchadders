@@ -300,9 +300,9 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
-        const subscription = event.data.object;
-        const userId = subscription.metadata.user_id;
-        const tier = subscription.metadata.tier;
+        const subscriptionData = event.data.object;
+        const userId = subscriptionData.metadata.user_id;
+        const tier = subscriptionData.metadata.tier;
 
         console.log('Processing subscription:', {
           userId,
@@ -316,7 +316,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           .update({
             subscription_tier: tier,
             subscription_status: 'active',
-            stripe_customer_id: subscription.customer,
+            stripe_customer_id: subscriptionData.customer,
             credits: 0, // Reset credits before distribution
             last_credit_distribution: new Date().toISOString()
           })
