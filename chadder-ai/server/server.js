@@ -311,7 +311,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         });
 
         // First update the user's subscription status and reset credits
-        const { error: userError } = await supabase
+        const { error: subscriptionUserError } = await supabase
           .from('users')
           .update({
             subscription_tier: subscriptionTier,
@@ -322,13 +322,13 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           })
           .eq('id', subscriberUserId);
 
-        if (userError) {
-          console.error('Error updating user:', userError);
-          throw userError;
+        if (subscriptionUserError) {
+          console.error('Error updating user:', subscriptionUserError);
+          throw subscriptionUserError;
         }
 
         // Then process the subscription renewal with weekly credit distribution
-        const { error: renewalError } = await supabase.rpc(
+        const { error: subscriptionRenewalError } = await supabase.rpc(
           'process_subscription_renewal',
           {
             p_user_id: subscriberUserId,
@@ -336,9 +336,9 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           }
         );
 
-        if (renewalError) {
-          console.error('Error processing renewal:', renewalError);
-          throw renewalError;
+        if (subscriptionRenewalError) {
+          console.error('Error processing renewal:', subscriptionRenewalError);
+          throw subscriptionRenewalError;
         }
 
         console.log('Successfully processed subscription for user:', subscriberUserId);
@@ -353,7 +353,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         });
 
         // Update user's subscription status to inactive
-        const { error: cancelError } = await supabase
+        const { error: subscriptionCancelError } = await supabase
           .from('users')
           .update({
             subscription_status: 'inactive',
@@ -361,9 +361,9 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           })
           .eq('id', cancelledUserId);
 
-        if (cancelError) {
-          console.error('Error cancelling subscription:', cancelError);
-          throw cancelError;
+        if (subscriptionCancelError) {
+          console.error('Error cancelling subscription:', subscriptionCancelError);
+          throw subscriptionCancelError;
         }
 
         console.log('Successfully cancelled subscription for user:', cancelledUserId);
