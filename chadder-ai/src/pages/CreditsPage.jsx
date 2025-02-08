@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import AuthModal from '../components/AuthModal';
 import styles from './CreditsPage.module.css';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const CreditsPage = () => {
   const { user, loading: authLoading, error: authError } = useAuth();
