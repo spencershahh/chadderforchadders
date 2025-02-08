@@ -29,6 +29,15 @@ if (!stripeKey) {
 const stripe = new Stripe(stripeKey);
 const app = express();
 
+// Configure express to use JSON for regular routes
+app.use((req, res, next) => {
+  if (req.originalUrl === '/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
+
 // Add request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -45,11 +54,14 @@ app.use(cors({
       'http://localhost:5173',
       'https://chadderai.vercel.app',
       'https://chadder.ai',
-      'https://chadderforchadders.onrender.com'
+      'https://chadderforchadders.onrender.com',
+      'https://chadderforchadders.onrender.com/webhook'
     ];
     
-    // Allow all vercel.app subdomains
-    if(origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
+    // Allow all vercel.app subdomains and Stripe webhook requests
+    if(origin === null || // Allow Stripe webhook calls
+       origin.endsWith('.vercel.app') || 
+       allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -58,8 +70,6 @@ app.use(cors({
   methods: ['GET', 'POST'],
   credentials: true
 }));
-
-app.use(express.json());
 
 // Updated price IDs
 const SUBSCRIPTION_PRICES = {
@@ -236,11 +246,38 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
   const sig = req.headers['stripe-signature'];
   let event;
 
+  console.log('Received webhook request');
+  console.log('Headers:', JSON.stringify(req.headers));
+  console.log('Raw body length:', req.body?.length);
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Stripe-Signature:', sig);
+
+  // Verify webhook secret is configured
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error('STRIPE_WEBHOOK_SECRET is not set in environment!');
+    return res.status(500).send('Webhook secret is not configured');
+  }
+
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    console.log('Webhook event type:', event.type);
+    // Convert raw body buffer to string if needed
+    const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(req.body);
+    
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    
+    console.log('Webhook verified successfully');
+    console.log('Event type:', event.type);
+    console.log('Event data:', JSON.stringify(event.data, null, 2));
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('Webhook verification failed:', {
+      error: err.message,
+      signature: sig,
+      secretLength: process.env.STRIPE_WEBHOOK_SECRET?.length,
+      bodyLength: req.body?.length
+    });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -248,9 +285,11 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object;
+        console.log('Processing checkout completion. Session:', JSON.stringify(session));
         
         // Get the subscription details from the session
         const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        console.log('Retrieved subscription:', JSON.stringify(subscription));
         
         // Extract user ID and tier from metadata
         const userId = session.metadata.userId;
@@ -277,9 +316,10 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           .eq('id', userId);
 
         if (userError) {
-          console.error('Error updating user:', userError);
+          console.error('Error updating user in Supabase:', userError);
           throw userError;
         }
+        console.log('Successfully updated user in Supabase');
 
         // Process initial credit distribution
         const { error: renewalError } = await supabase.rpc(
@@ -291,11 +331,10 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         );
 
         if (renewalError) {
-          console.error('Error processing renewal:', renewalError);
+          console.error('Error processing renewal in Supabase:', renewalError);
           throw renewalError;
         }
-
-        console.log('Successfully processed checkout completion for user:', userId);
+        console.log('Successfully processed subscription renewal');
         break;
 
       case 'customer.subscription.created':
