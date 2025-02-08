@@ -301,11 +301,11 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         const subscriptionData = event.data.object;
-        const userId = subscriptionData.metadata.user_id;
+        const subscriberUserId = subscriptionData.metadata.user_id;
         const tier = subscriptionData.metadata.tier;
 
         console.log('Processing subscription:', {
-          userId,
+          userId: subscriberUserId,
           tier,
           event: event.type
         });
@@ -320,7 +320,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             credits: 0, // Reset credits before distribution
             last_credit_distribution: new Date().toISOString()
           })
-          .eq('id', userId);
+          .eq('id', subscriberUserId);
 
         if (userError) {
           console.error('Error updating user:', userError);
@@ -331,7 +331,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         const { error: renewalError } = await supabase.rpc(
           'process_subscription_renewal',
           {
-            p_user_id: userId,
+            p_user_id: subscriberUserId,
             p_subscription_tier: tier
           }
         );
@@ -341,7 +341,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           throw renewalError;
         }
 
-        console.log('Successfully processed subscription for user:', userId);
+        console.log('Successfully processed subscription for user:', subscriberUserId);
         break;
 
       case 'customer.subscription.deleted':
