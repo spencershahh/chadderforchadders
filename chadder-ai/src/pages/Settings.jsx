@@ -43,11 +43,13 @@ const Settings = () => {
   const fetchUserData = async () => {
     try {
       console.log('Fetching user data...');
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw authError;
+      // First ensure we have a valid user
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('User error:', userError);
+        throw userError;
       }
 
       if (!currentUser) {
@@ -56,95 +58,152 @@ const Settings = () => {
         return;
       }
 
-      console.log('Current user:', currentUser.id);
+      // Then check session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      // Get user data including credits and subscription info
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select(`
-          *,
-          subscription_credits(amount, distribution_date)
-        `)
-        .eq('id', currentUser.id)
-        .single();
-
-      if (userError) {
-        console.error('Error fetching user data:', userError);
-        throw userError;
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw sessionError;
       }
 
-      console.log('Fetched user data:', userData);
-      setUserData(userData);
-      setCredits(userData.credits || 0);
-      setSubscription({
-        tier: userData.subscription_tier || 'free',
-        status: userData.subscription_status || 'inactive',
-        lastDistribution: userData.last_credit_distribution,
-        nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
-      });
+      if (!sessionData?.session) {
+        console.log('No active session found');
+        // Try to refresh the session
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          navigate('/login');
+          return;
+        }
+      }
 
-      // If there's an active subscription, fetch the latest subscription data
-      if (userData.stripe_customer_id && userData.subscription_status === 'active') {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-        const response = await fetch(`${API_URL}/subscriptions/${userData.stripe_customer_id}`);
-        const { subscriptions } = await response.json();
-        
-        if (subscriptions && subscriptions.length > 0) {
-          const latestSubscription = subscriptions[0];
-          setSubscription(prev => ({
-            ...prev,
-            status: latestSubscription.status,
-            currentPeriodEnd: new Date(latestSubscription.current_period_end * 1000).toLocaleDateString()
-          }));
+      console.log('Current user:', currentUser.id);
+      
+      // Get user data including credits and subscription info with retry logic
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select(`
+              *,
+              subscription_credits(amount, distribution_date)
+            `)
+            .eq('id', currentUser.id)
+            .single();
+
+          if (userError) {
+            console.error('Database error:', userError);
+            throw userError;
+          }
+
+          if (!userData) {
+            console.error('No user data found');
+            throw new Error('No user data found');
+          }
+
+          console.log('Fetched user data:', userData);
+          setUserData(userData);
+          setCredits(userData.credits || 0);
+          setSubscription({
+            tier: userData.subscription_tier || 'free',
+            status: userData.subscription_status || 'inactive',
+            lastDistribution: userData.last_credit_distribution,
+            nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
+          });
+          
+          return; // Success, exit the retry loop
+        } catch (error) {
+          console.error(`Attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          if (retryCount === maxRetries) {
+            throw new Error('Failed to fetch user data after multiple attempts');
+          }
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
         }
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
-      toast.error('Failed to load user data');
+      toast.error('Failed to load user data. Please try refreshing the page.');
+      if (error.message?.includes('No active session') || error.message?.includes('JWT expired')) {
+        navigate('/login');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Set up real-time subscription for user updates
+  // Set up real-time subscription for user updates with reconnection logic
   useEffect(() => {
+    let mounted = true;
+    
+    const setupRealtimeSubscription = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Remove any existing subscriptions first
+        const channels = supabase.getChannels();
+        channels.forEach(channel => supabase.removeChannel(channel));
+
+        const userChannel = supabase.channel('user-updates')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'users',
+              filter: `id=eq.${user.id}`
+            },
+            (payload) => {
+              console.log('User update received:', payload);
+              if (mounted) {
+                fetchUserData();
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('User channel status:', status);
+          });
+
+        const creditsChannel = supabase.channel('credits-updates')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'subscription_credits',
+              filter: `user_id=eq.${user.id}`
+            },
+            (payload) => {
+              console.log('Credits update received:', payload);
+              if (mounted) {
+                fetchUserData();
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('Credits channel status:', status);
+          });
+
+        return () => {
+          mounted = false;
+          supabase.removeChannel(userChannel);
+          supabase.removeChannel(creditsChannel);
+        };
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+      }
+    };
+
     fetchUserData();
-
-    const userChannel = supabase.channel('user-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'users',
-          filter: user?.id ? `id=eq.${user.id}` : undefined
-        },
-        (payload) => {
-          console.log('User update received:', payload);
-          fetchUserData();
-        }
-      )
-      .subscribe();
-
-    const creditsChannel = supabase.channel('credits-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscription_credits',
-          filter: user?.id ? `user_id=eq.${user.id}` : undefined
-        },
-        (payload) => {
-          console.log('Credits update received:', payload);
-          fetchUserData();
-        }
-      )
-      .subscribe();
+    setupRealtimeSubscription();
 
     return () => {
-      supabase.removeChannel(userChannel);
-      supabase.removeChannel(creditsChannel);
+      mounted = false;
+      const channels = supabase.getChannels();
+      channels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [user?.id]);
 
@@ -219,9 +278,13 @@ const Settings = () => {
         throw new Error('Please enter a different email address');
       }
 
-      // Try to update email in Supabase Auth
+      const siteUrl = import.meta.env.VITE_APP_URL || 'https://chadderai.vercel.app';
+      
+      // Try to update email in Supabase Auth with redirect URL
       const { data, error: authError } = await supabase.auth.updateUser({
         email: newEmail,
+      }, {
+        emailRedirectTo: `${siteUrl}/settings`
       });
 
       if (authError) {
