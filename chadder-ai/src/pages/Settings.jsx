@@ -211,29 +211,46 @@ const Settings = () => {
   const handleEmailUpdate = async (e) => {
     e.preventDefault();
     setIsEmailUpdateLoading(true);
+    setError('');
 
     try {
-      // Update email in Supabase Auth
+      // Validate the new email
+      if (!newEmail || newEmail === user?.email) {
+        throw new Error('Please enter a different email address');
+      }
+
+      // Try to update email in Supabase Auth
       const { data, error: authError } = await supabase.auth.updateUser({
         email: newEmail,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Auth error updating email:', authError);
+        throw authError;
+      }
 
-      // Update email in users table
-      const { error: dbError } = await supabase
-        .from('users')
-        .update({ email: newEmail })
-        .eq('id', user.id);
+      // Only update the users table if auth update was successful
+      if (data?.user) {
+        const { error: dbError } = await supabase
+          .from('users')
+          .update({ email: newEmail })
+          .eq('id', user.id);
 
-      if (dbError) throw dbError;
+        if (dbError) {
+          console.error('Database error updating email:', dbError);
+          throw dbError;
+        }
 
-      toast.success('Email update verification sent. Please check your new email.');
-      setShowEmailUpdate(false);
-      setNewEmail('');
+        toast.success('Email update verification sent. Please check your new email to confirm the change.', {
+          duration: 5000
+        });
+        setShowEmailUpdate(false);
+        setNewEmail('');
+      }
     } catch (error) {
       console.error('Error updating email:', error);
-      toast.error(error.message);
+      toast.error(error.message || 'Failed to update email. Please try again.');
+      setError(error.message);
     } finally {
       setIsEmailUpdateLoading(false);
     }
