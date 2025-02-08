@@ -17,7 +17,7 @@ const CreditsPage = () => {
   const subscriptionPackages = [
     {
       id: 'pog',
-      name: 'Common',
+      name: 'Pog',
       price: 3,
       period: 'weekly',
       votes: 100,
@@ -25,7 +25,7 @@ const CreditsPage = () => {
       votesPerDollar: 33.3,
       description: 'Perfect for casual viewers',
       features: [
-        '100 gems monthly (25 weekly) 💚',
+        '100 votes monthly (25 weekly)',
         'Access to streamer list',
         'Weekly donation pool participation',
         'Cancel anytime'
@@ -35,7 +35,7 @@ const CreditsPage = () => {
     },
     {
       id: 'pogchamp',
-      name: 'Rare',
+      name: 'Pogchamp',
       price: 5,
       period: 'weekly',
       votes: 200,
@@ -43,7 +43,7 @@ const CreditsPage = () => {
       votesPerDollar: 40.0,
       description: 'Best value for active chatters',
       features: [
-        '200 gems monthly (50 weekly) 💎',
+        '200 votes monthly (50 weekly)',
         'Access to streamer list',
         'Weekly donation pool participation',
         'Cancel anytime'
@@ -53,7 +53,7 @@ const CreditsPage = () => {
     },
     {
       id: 'poggers',
-      name: 'Epic',
+      name: 'Poggers',
       price: 7,
       period: 'weekly',
       votes: 400,
@@ -61,7 +61,7 @@ const CreditsPage = () => {
       votesPerDollar: 57.1,
       description: 'For the true community leaders',
       features: [
-        '400 gems monthly (100 weekly) 🔸',
+        '400 votes monthly (100 weekly)',
         'Access to streamer list',
         'Weekly donation pool participation',
         'Cancel anytime'
@@ -155,9 +155,13 @@ const CreditsPage = () => {
       const requestData = {
         userId: user.id,
         email: userData.email,
-        packageId: selectedPackage.id,
         priceId: selectedPackage.priceId,
-        return_url: `${window.location.origin}/settings`
+        packageId: selectedPackage.id,
+        return_url: `${window.location.origin}/settings`,
+        line_items: [{
+          price: selectedPackage.priceId,
+          quantity: 1
+        }]
       };
 
       const response = await fetch(`${API_URL}/create-checkout-session`, {
