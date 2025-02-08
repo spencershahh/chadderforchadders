@@ -23,7 +23,23 @@ const Leaderboard = () => {
     fetchTotalDonations();
     fetchSupportersLeaderboard();
     
-    // Only listen for subscription revenue changes
+    // Listen for prize pool and subscription changes
+    const prizePoolSubscription = supabase
+      .channel('prize-pool-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'prize_pool'
+        },
+        (payload) => {
+          console.log('Prize pool update received:', payload);
+          fetchTotalDonations();
+        }
+      )
+      .subscribe();
+
     const subscriptionSubscription = supabase
       .channel('subscriptions-channel')
       .on(
@@ -33,7 +49,8 @@ const Leaderboard = () => {
           schema: 'public',
           table: 'subscription_revenue'
         },
-        () => {
+        (payload) => {
+          console.log('Subscription update received:', payload);
           fetchTotalDonations();
         }
       )
@@ -52,6 +69,7 @@ const Leaderboard = () => {
     // Cleanup subscriptions on component unmount
     return () => {
       clearInterval(timer);
+      supabase.removeChannel(prizePoolSubscription);
       supabase.removeChannel(subscriptionSubscription);
     };
   }, []);
@@ -104,11 +122,16 @@ const Leaderboard = () => {
 
   const fetchTotalDonations = async () => {
     try {
+      console.log('Fetching total donations for leaderboard...');
       const { data, error } = await supabase
         .rpc('calculate_weekly_donation_bomb');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error calculating donation bomb:', error);
+        throw error;
+      }
       
+      console.log('New donation bomb amount:', data);
       setTotalDonations(data || 0);
     } catch (error) {
       console.error('Error fetching total donations:', error);

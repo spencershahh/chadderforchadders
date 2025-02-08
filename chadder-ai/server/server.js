@@ -73,9 +73,9 @@ app.use(cors({
 
 // Updated price IDs
 const SUBSCRIPTION_PRICES = {
-  'pog': 'price_1QnrdfEDfrbbc35YnZ3tVoMS',      // Pog tier
-  'pogchamp': 'price_1Qnre1EDfrbbc35YQVAy7Z0E', // Pogchamp tier
-  'poggers': 'price_1QnreLEDfrbbc35YV7TtcIld'   // Poggers tier
+  'common': 'price_1QnrdfEDfrbbc35YnZ3tVoMS',      // Common tier (was pog)
+  'rare': 'price_1Qnre1EDfrbbc35YQVAy7Z0E',        // Rare tier (was pogchamp)
+  'epic': 'price_1QnreLEDfrbbc35YV7TtcIld'         // Epic tier (was poggers)
 };
 
 // Test endpoint
@@ -299,8 +299,31 @@ const PRIZE_POOL_PERCENTAGE = 0.55; // 55% of revenue goes to prize pool
 // Add this helper function
 async function updatePrizePool() {
   try {
+    console.log('Starting prize pool update calculation');
     const { data, error } = await supabase.rpc('calculate_weekly_prize_pool');
-    if (error) throw error;
+    
+    if (error) {
+      console.error('Error in calculate_weekly_prize_pool RPC:', error);
+      throw error;
+    }
+    
+    console.log('Prize pool calculation result:', data);
+    
+    // Notify clients about the updated prize pool
+    await supabase.from('prize_pool')
+      .select('*')
+      .eq('is_active', true)
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data: poolData, error: poolError }) => {
+        if (poolError) {
+          console.error('Error fetching updated prize pool:', poolError);
+        } else {
+          console.log('Current prize pool state:', poolData);
+        }
+      });
+
     return data;
   } catch (err) {
     console.error('Error updating prize pool:', err);
@@ -446,6 +469,24 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           console.log('Latest credit distribution record:', creditRecord);
         }
 
+        // After updating user data and before updating prize pool
+        console.log('Recording subscription revenue...');
+        const { error: revenueError } = await supabase
+          .from('subscription_revenue')
+          .insert([{
+            user_id: userId,
+            amount: subscription.items.data[0].price.unit_amount / 100, // Convert from cents to dollars
+            subscription_id: subscription.id,
+            subscription_tier: tier,
+            payment_status: 'succeeded'
+          }]);
+
+        if (revenueError) {
+          console.error('Error recording subscription revenue:', revenueError);
+          throw revenueError;
+        }
+        console.log('Successfully recorded subscription revenue');
+
         // Update prize pool after subscription changes
         try {
           await updatePrizePool();
@@ -500,6 +541,24 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         }
         console.log('Credit distribution result:', subscriptionRenewalData);
         console.log('Successfully processed subscription for user:', subscriberUserId);
+
+        // Record subscription revenue
+        console.log('Recording subscription revenue...');
+        const { error: subRevenueError } = await supabase
+          .from('subscription_revenue')
+          .insert([{
+            user_id: subscriberUserId,
+            amount: subscriptionData.items.data[0].price.unit_amount / 100,
+            subscription_id: subscriptionData.id,
+            subscription_tier: subscriptionTier,
+            payment_status: 'succeeded'
+          }]);
+
+        if (subRevenueError) {
+          console.error('Error recording subscription revenue:', subRevenueError);
+          throw subRevenueError;
+        }
+        console.log('Successfully recorded subscription revenue');
 
         // Update prize pool after subscription changes
         try {

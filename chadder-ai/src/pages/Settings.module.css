@@ -164,4 +164,38 @@
   color: #8b5cf6;
   margin: 0.5rem 0;
   font-weight: bold;
+}
+
+.emailUpdateForm {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.emailUpdateButtons {
+  display: flex;
+  gap: 1rem;
+}
+
+.formInput {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.primaryButton {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 } 

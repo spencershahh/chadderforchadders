@@ -23,73 +23,128 @@ const Settings = () => {
     lastDistribution: null,
     nextDistribution: null
   });
+  const [error, setError] = useState('');
+  const [userData, setUserData] = useState(null);
 
   const formatTierName = (tier) => {
     if (!tier) return 'Free';
-    return tier.charAt(0).toUpperCase() + tier.slice(1);
+    // Map old tier names to new ones if they still exist in the database
+    const tierMap = {
+      'pog': 'Common',
+      'pogchamp': 'Rare',
+      'poggers': 'Epic',
+      'common': 'Common',
+      'rare': 'Rare',
+      'epic': 'Epic'
+    };
+    return tierMap[tier.toLowerCase()] || tier.charAt(0).toUpperCase() + tier.slice(1);
   };
 
   const fetchUserData = async () => {
     try {
+      console.log('Fetching user data...');
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !currentUser) {
+      
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+
+      if (!currentUser) {
+        console.log('No authenticated user found');
         navigate('/login');
         return;
       }
 
+      console.log('Current user:', currentUser.id);
+      
+      // Get user data including credits and subscription info
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          subscription_credits(amount, distribution_date)
+        `)
         .eq('id', currentUser.id)
         .single();
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error('Error fetching user data:', userError);
+        throw userError;
+      }
 
+      console.log('Fetched user data:', userData);
+      setUserData(userData);
       setCredits(userData.credits || 0);
       setSubscription({
-        tier: userData.subscription_tier || userData.tier || 'free',
+        tier: userData.subscription_tier || 'free',
         status: userData.subscription_status || 'inactive',
         lastDistribution: userData.last_credit_distribution,
         nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
       });
+
+      // If there's an active subscription, fetch the latest subscription data
+      if (userData.stripe_customer_id && userData.subscription_status === 'active') {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${API_URL}/subscriptions/${userData.stripe_customer_id}`);
+        const { subscriptions } = await response.json();
+        
+        if (subscriptions && subscriptions.length > 0) {
+          const latestSubscription = subscriptions[0];
+          setSubscription(prev => ({
+            ...prev,
+            status: latestSubscription.status,
+            currentPeriodEnd: new Date(latestSubscription.current_period_end * 1000).toLocaleDateString()
+          }));
+        }
+      }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('Error in fetchUserData:', error);
       toast.error('Failed to load user data');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Set up real-time subscription for user updates
   useEffect(() => {
     fetchUserData();
 
-    // Set up real-time subscription for user updates
-    const userSubscription = supabase
-      .channel('users_channel')
+    const userChannel = supabase.channel('user-updates')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'users',
-          filter: `id=eq.${user?.id}`
+          filter: user?.id ? `id=eq.${user.id}` : undefined
         },
         (payload) => {
-          console.log('Real-time update received:', payload);
-          const newData = payload.new;
-          setCredits(newData.credits || 0);
-          setSubscription({
-            tier: newData.subscription_tier || newData.tier || 'free',
-            status: newData.subscription_status || 'inactive',
-            lastDistribution: newData.last_credit_distribution,
-            nextDistribution: getNextDistributionDate(newData.last_credit_distribution)
-          });
+          console.log('User update received:', payload);
+          fetchUserData();
+        }
+      )
+      .subscribe();
+
+    const creditsChannel = supabase.channel('credits-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscription_credits',
+          filter: user?.id ? `user_id=eq.${user.id}` : undefined
+        },
+        (payload) => {
+          console.log('Credits update received:', payload);
+          fetchUserData();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(userSubscription);
+      supabase.removeChannel(userChannel);
+      supabase.removeChannel(creditsChannel);
     };
   }, [user?.id]);
 
@@ -349,6 +404,38 @@ const Settings = () => {
               >
                 Change Email
               </button>
+              
+              {showEmailUpdate && (
+                <form onSubmit={handleEmailUpdate} className={styles.emailUpdateForm}>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="New Email Address"
+                    required
+                    className={styles.formInput}
+                  />
+                  <div className={styles.emailUpdateButtons}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEmailUpdate(false);
+                        setNewEmail('');
+                      }}
+                      className={styles.secondaryButton}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isEmailUpdateLoading || !newEmail}
+                      className={styles.primaryButton}
+                    >
+                      {isEmailUpdateLoading ? 'Updating...' : 'Update Email'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
             <button
               type="button"

@@ -16,7 +16,7 @@ const CreditsPage = () => {
 
   const subscriptionPackages = [
     {
-      id: 'pog',
+      id: 'common',
       name: 'Common',
       price: 3,
       period: 'weekly',
@@ -34,7 +34,7 @@ const CreditsPage = () => {
       priceId: 'price_1QnrdfEDfrbbc35YnZ3tVoMS'
     },
     {
-      id: 'pogchamp',
+      id: 'rare',
       name: 'Rare',
       price: 5,
       period: 'weekly',
@@ -52,7 +52,7 @@ const CreditsPage = () => {
       priceId: 'price_1Qnre1EDfrbbc35YQVAy7Z0E'
     },
     {
-      id: 'poggers',
+      id: 'epic',
       name: 'Epic',
       price: 7,
       period: 'weekly',
