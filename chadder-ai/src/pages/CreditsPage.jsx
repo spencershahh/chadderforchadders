@@ -4,8 +4,10 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import AuthModal from '../components/AuthModal';
 import styles from './CreditsPage.module.css';
+import { useAuth } from '../contexts/AuthContext';
 
 const CreditsPage = () => {
+  const { user, loading: authLoading, error: authError } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -93,62 +95,47 @@ const CreditsPage = () => {
     setShowAuthModal(false);
   };
 
+  useEffect(() => {
+    if (authError) {
+      console.error('Auth error:', authError);
+      setError('Authentication error. Please try logging in again.');
+      return;
+    }
+
+    if (!authLoading && user) {
+      loadCurrentSubscription();
+    }
+  }, [user, authLoading, authError]);
+
   const fetchCurrentSubscription = async () => {
     try {
-      // First check user auth state
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw authError;
-      }
+      if (!user) return null;
 
-      if (!currentUser) {
-        console.log('No authenticated user');
-        return null;
-      }
-
-      // Then check session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData?.session) {
-        console.error('Session error:', sessionError);
-        // Try to refresh the session
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          throw new Error('No active session');
-        }
-      }
-
-      // Get user data
+      // Get user data with subscription info
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("stripe_customer_id, subscription_tier, subscription_status")
-        .eq("id", currentUser.id)
-        .single();
+        .eq("id", user.id)
+        .maybeSingle(); // Use maybeSingle instead of single to avoid the multiple rows error
 
       if (userError) {
         console.error('Database error:', userError);
         throw userError;
       }
 
-      if (!userData) {
-        console.error('No user data found');
-        return null;
-      }
-
       // If we have a subscription status in the database, use that
-      if (userData.subscription_tier && userData.subscription_status === 'active') {
+      if (userData?.subscription_tier && userData.subscription_status === 'active') {
         return userData.subscription_tier;
       }
 
       // If we have a Stripe customer ID, verify with Stripe
-      if (userData.stripe_customer_id) {
+      if (userData?.stripe_customer_id) {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
         const response = await fetch(`${API_URL}/subscriptions/${userData.stripe_customer_id}`);
         
         if (!response.ok) {
-          throw new Error('Failed to fetch subscription data from Stripe');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch subscription data from Stripe');
         }
         
         const { subscriptions } = await response.json();
@@ -161,10 +148,17 @@ const CreditsPage = () => {
       return null;
     } catch (err) {
       console.error("Error fetching subscription:", err);
-      if (err.message?.includes('No active session') || err.message?.includes('JWT expired')) {
-        navigate('/login');
-      }
-      return null;
+      throw err;
+    }
+  };
+
+  const loadCurrentSubscription = async () => {
+    try {
+      const tier = await fetchCurrentSubscription();
+      setCurrentSubscription(tier);
+    } catch (err) {
+      console.error('Error loading subscription:', err);
+      toast.error('Failed to load subscription data');
     }
   };
 
@@ -257,15 +251,6 @@ const CreditsPage = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const loadCurrentSubscription = async () => {
-      const tier = await fetchCurrentSubscription();
-      setCurrentSubscription(tier);
-    };
-    
-    loadCurrentSubscription();
-  }, []);
 
   return (
     <div className={styles.creditsPage}>

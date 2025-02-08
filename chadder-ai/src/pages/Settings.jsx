@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 import styles from './Settings.module.css';
 
 const Settings = () => {
-  const { user, updateUser } = useAuth();
+  const { user, loading: authLoading, error: authError } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isEmailUpdateLoading, setIsEmailUpdateLoading] = useState(false);
@@ -26,6 +26,65 @@ const Settings = () => {
   const [error, setError] = useState('');
   const [userData, setUserData] = useState(null);
 
+  useEffect(() => {
+    if (authError) {
+      console.error('Auth error:', authError);
+      toast.error('Authentication error. Please try logging in again.');
+      navigate('/login');
+      return;
+    }
+
+    if (!authLoading && !user) {
+      navigate('/login');
+      return;
+    }
+
+    if (user) {
+      fetchUserData();
+    }
+  }, [user, authLoading, authError]);
+
+  const fetchUserData = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Fetching user data...');
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select(`
+          *,
+          subscription_credits(amount, distribution_date)
+        `)
+        .eq('id', user.id)
+        .single();
+
+      if (userError) {
+        console.error('Database error:', userError);
+        throw userError;
+      }
+
+      if (!userData) {
+        console.error('No user data found');
+        throw new Error('No user data found');
+      }
+
+      console.log('Fetched user data:', userData);
+      setUserData(userData);
+      setCredits(userData.credits || 0);
+      setSubscription({
+        tier: userData.subscription_tier || 'free',
+        status: userData.subscription_status || 'inactive',
+        lastDistribution: userData.last_credit_distribution,
+        nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
+      });
+    } catch (error) {
+      console.error('Error in fetchUserData:', error);
+      toast.error('Failed to load user data. Please try refreshing the page.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const formatTierName = (tier) => {
     if (!tier) return 'Free';
     // Map old tier names to new ones if they still exist in the database
@@ -38,101 +97,6 @@ const Settings = () => {
       'epic': 'Epic'
     };
     return tierMap[tier.toLowerCase()] || tier.charAt(0).toUpperCase() + tier.slice(1);
-  };
-
-  const fetchUserData = async () => {
-    try {
-      console.log('Fetching user data...');
-      
-      // First ensure we have a valid user
-      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        console.error('User error:', userError);
-        throw userError;
-      }
-
-      if (!currentUser) {
-        console.log('No authenticated user found');
-        navigate('/login');
-        return;
-      }
-
-      // Then check session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw sessionError;
-      }
-
-      if (!sessionData?.session) {
-        console.log('No active session found');
-        // Try to refresh the session
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          navigate('/login');
-          return;
-        }
-      }
-
-      console.log('Current user:', currentUser.id);
-      
-      // Get user data including credits and subscription info with retry logic
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
-        try {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select(`
-              *,
-              subscription_credits(amount, distribution_date)
-            `)
-            .eq('id', currentUser.id)
-            .single();
-
-          if (userError) {
-            console.error('Database error:', userError);
-            throw userError;
-          }
-
-          if (!userData) {
-            console.error('No user data found');
-            throw new Error('No user data found');
-          }
-
-          console.log('Fetched user data:', userData);
-          setUserData(userData);
-          setCredits(userData.credits || 0);
-          setSubscription({
-            tier: userData.subscription_tier || 'free',
-            status: userData.subscription_status || 'inactive',
-            lastDistribution: userData.last_credit_distribution,
-            nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
-          });
-          
-          return; // Success, exit the retry loop
-        } catch (error) {
-          console.error(`Attempt ${retryCount + 1} failed:`, error);
-          retryCount++;
-          if (retryCount === maxRetries) {
-            throw new Error('Failed to fetch user data after multiple attempts');
-          }
-          // Wait before retrying (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-        }
-      }
-    } catch (error) {
-      console.error('Error in fetchUserData:', error);
-      toast.error('Failed to load user data. Please try refreshing the page.');
-      if (error.message?.includes('No active session') || error.message?.includes('JWT expired')) {
-        navigate('/login');
-      }
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   // Set up real-time subscription for user updates with reconnection logic
