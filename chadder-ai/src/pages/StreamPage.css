@@ -290,6 +290,7 @@
   position: absolute;
   right: 0.5rem;
   color: #9147ff;
+  content: "💎";
 }
 
 .vote-submit-button {

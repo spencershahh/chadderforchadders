@@ -23,11 +23,11 @@ const Signup = () => {
         return;
       }
 
-      // Check if display name is already taken
-      const { data: existingUsers, error: checkError } = await supabase
-        .from('users')
-        .select('display_name')
-        .eq('display_name', displayName);
+      // Check if display name is available using our new function
+      const { data: isAvailable, error: checkError } = await supabase
+        .rpc('is_username_available', {
+          p_display_name: displayName
+        });
 
       if (checkError) {
         toast.error(`Error checking display name: ${checkError.message}`);
@@ -35,18 +35,21 @@ const Signup = () => {
         return;
       }
 
-      if (existingUsers?.length > 0) {
-        toast.error('Display name is already taken');
+      if (!isAvailable) {
+        toast.error('Display name is not available');
         setLoading(false);
         return;
       }
 
-      console.log("Signing up user:", email);
-
-      // Sign up the user
+      // Sign up the user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            display_name: displayName // Store display name in auth metadata
+          }
+        }
       });
 
       if (error) {
@@ -59,32 +62,34 @@ const Signup = () => {
       const user = data.user;
       console.log("Supabase auth signup response:", data);
 
-      // Insert the user into the 'users' table (corrected table name)
       if (user) {
+        // Insert the user into the users table
         const { error: dbError } = await supabase
-          .from("users")
-          .insert({
-            id: user.id,
-            email: user.email,
-            display_name: displayName,
-            tier: "free",
-            credits: 0,
-          });
+          .from('users')
+          .insert([
+            {
+              id: user.id,
+              email: user.email,
+              display_name: displayName,
+              tier: 'free',
+              credits: 0,
+              created_at: new Date().toISOString()
+            }
+          ]);
 
         if (dbError) {
-          console.error("Database insert error:", dbError.message);
+          console.error("Database insert error:", dbError);
           toast.error(`Database error saving new user: ${dbError.message}`);
           return;
         }
 
-        // Show single notification and navigate
         toast.success('Signup successful! Please check your email to confirm.', {
           duration: 5000,
           onClose: () => navigate("/login")
         });
       }
     } catch (err) {
-      console.error("Unexpected error:", err.message);
+      console.error("Unexpected error:", err);
       toast.error(`Unexpected error: ${err.message}`);
     } finally {
       setLoading(false);

@@ -443,7 +443,7 @@ const StreamPage = () => {
         )}
 
         <div className="top-supporters-card">
-          <h3>🏆 Top Supporters</h3>
+          <h3>💎 Top Supporters</h3>
           <div className="supporters-list">
             {topSupporters.map((supporter, index) => (
               <div 
@@ -452,7 +452,7 @@ const StreamPage = () => {
               >
                 <span className="rank">#{index + 1}</span>
                 <span className="username">{supporter.username}</span>
-                <span className="amount">{supporter.amount} 🪙</span>
+                <span className="amount">{supporter.amount} 💎</span>
               </div>
             ))}
           </div>
@@ -509,7 +509,7 @@ const StreamPage = () => {
                   setCustomAmount('');
                 }}
               >
-                {amount} 🪙
+                {amount} 💎
               </button>
             ))}
             <div className="custom-amount-wrapper">
@@ -520,7 +520,7 @@ const StreamPage = () => {
                 placeholder="Custom"
                 className="custom-amount-input"
               />
-              <span className="custom-amount-icon">🪙</span>
+              <span className="custom-amount-icon">💎</span>
             </div>
           </div>
 
@@ -530,21 +530,21 @@ const StreamPage = () => {
             disabled={isVoting || errorMessage === "Please log in to continue."}
           >
             {isVoting ? (
-              `Processing Vote (${selectedAmount} 🪙)`
+              `Processing Vote (${selectedAmount} 💎)`
             ) : voteSuccess ? (
-              `Vote Successful! (${selectedAmount} 🪙)`
+              `Vote Successful! (${selectedAmount} 💎)`
             ) : (
-              `👍 Vote with ${selectedAmount} 🪙`
+              `👍 Vote with ${selectedAmount} 💎`
             )}
           </button>
 
           <p className="credit-balance">
             {isVoting ? (
-              `Processing... Current Balance: ${credits.available} 🪙`
+              `Processing... Current Balance: ${credits.available} 💎`
             ) : errorMessage ? (
               `Error: ${errorMessage}`
             ) : (
-              `Available Credits: ${credits.available} 🪙`
+              `Available Gems: ${credits.available} 💎`
             )}
           </p>
         </div>

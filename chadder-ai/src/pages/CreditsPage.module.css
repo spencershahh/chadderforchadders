@@ -33,6 +33,43 @@
   margin-top: 2rem;
 }
 
+/* Add keyframes for glow animation */
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(80, 200, 120, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(80, 200, 120, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(80, 200, 120, 0.2);
+  }
+}
+
+@keyframes glowPulseRare {
+  0% {
+    box-shadow: 0 0 10px rgba(15, 82, 186, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(15, 82, 186, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(15, 82, 186, 0.2);
+  }
+}
+
+@keyframes glowPulseEpic {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 165, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 165, 0, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(255, 165, 0, 0.2);
+  }
+}
+
 .pricingCard {
   background: rgba(30, 30, 46, 0.6);
   border: 1px solid rgba(99, 102, 241, 0.1);
@@ -40,16 +77,48 @@
   padding: 2rem;
   position: relative;
   backdrop-filter: blur(10px);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+/* Common tier glow */
+.pricingCard:nth-child(1) {
+  animation: glowPulse 3s infinite;
+  border-color: rgba(80, 200, 120, 0.3);
+}
+
+.pricingCard:nth-child(1):hover {
+  box-shadow: 0 0 30px rgba(80, 200, 120, 0.4);
+  transform: translateY(-5px);
+}
+
+/* Rare tier glow */
+.pricingCard:nth-child(2) {
+  animation: glowPulseRare 3s infinite;
+  border-color: rgba(15, 82, 186, 0.3);
+}
+
+.pricingCard:nth-child(2):hover {
+  box-shadow: 0 0 30px rgba(15, 82, 186, 0.4);
+  transform: translateY(-5px);
+}
+
+/* Epic tier glow */
+.pricingCard:nth-child(3) {
+  animation: glowPulseEpic 3s infinite;
+  border-color: rgba(255, 165, 0, 0.3);
+}
+
+.pricingCard:nth-child(3):hover {
+  box-shadow: 0 0 30px rgba(255, 165, 0, 0.4);
+  transform: translateY(-5px);
 }
 
 .pricingCard:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
 .popular {
-  border: 2px solid #a855f7;
+  border: 2px solid rgba(15, 82, 186, 0.5);
 }
 
 .popularBadge {

@@ -95,7 +95,7 @@
   flex-direction: column;
   justify-content: space-around;
   width: 2rem;
-  height: 2rem;
+  height: 1.5rem;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -105,54 +105,17 @@
 
 .navbar .hamburger span {
   width: 2rem;
-  height: 0.25rem;
+  height: 2px;
   background: #9147ff;
   border-radius: 10px;
-  transition: all 0.3s linear;
+  transition: all 0.3s ease;
   position: relative;
   transform-origin: 1px;
+  box-shadow: 0 0 10px rgba(145, 71, 255, 0.5);
 }
 
 .navbar .navbar-menu {
   display: none;
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 1rem;
-  background: #18181b;
-  border-radius: 12px;
-  padding: 0.5rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-  min-width: 200px;
-  z-index: 1001;
-}
-
-.navbar .navbar-menu.active {
-  display: flex;
-  flex-direction: column;
-}
-
-.navbar .navbar-menu a,
-.navbar .navbar-menu button {
-  color: #efeff1;
-  text-decoration: none;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  transition: all 0.2s ease;
-  background: transparent;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.navbar .navbar-menu a:hover,
-.navbar .navbar-menu button:hover {
-  background: rgba(255, 255, 255, 0.05);
 }
 
 /* Mobile styles */
@@ -168,62 +131,89 @@
   .navbar .hamburger {
     display: flex;
     position: relative;
-    z-index: 1002; /* Ensure hamburger stays above menu */
+    z-index: 1002;
   }
 
   .navbar .navbar-menu {
     position: fixed;
-    top: 0;  /* Start from very top */
+    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: #18181b;  /* Solid background */
+    width: 100vw;
+    height: 100vh;
+    background: #0e0e10;
     display: none;
-    padding: 5rem 1.5rem 1.5rem;  /* Extra top padding to account for navbar */
+    padding: 6rem 1.5rem 2rem;
     z-index: 1001;
+    animation: menuFadeIn 0.2s ease;
+  }
+
+  @keyframes menuFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .navbar .navbar-menu.active {
     display: flex;
     flex-direction: column;
-    align-items: center;  /* Center items horizontally */
-    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
   }
 
   .navbar .navbar-menu a,
   .navbar .navbar-menu button {
     width: 100%;
-    max-width: 400px;  /* Limit width on larger phones */
-    font-size: 1.2rem;
-    padding: 1rem;
+    max-width: 300px;
+    font-size: 1.25rem;
+    padding: 1.2rem;
     justify-content: center;
     text-align: center;
-    border-radius: 12px;
+    border-radius: 16px;
     background: rgba(145, 71, 255, 0.05);
     border: 1px solid rgba(145, 71, 255, 0.1);
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    margin: 0.3rem 0;
+    font-weight: 500;
+    color: #efeff1;
+  }
+
+  .navbar .navbar-menu a:active,
+  .navbar .navbar-menu button:active {
+    transform: scale(0.98);
   }
 
   .navbar .navbar-menu a:hover,
   .navbar .navbar-menu button:hover {
-    background: rgba(145, 71, 255, 0.15);
-    transform: translateY(-1px);
+    background: rgba(145, 71, 255, 0.1);
+    transform: translateY(-2px);
     border-color: rgba(145, 71, 255, 0.3);
+    box-shadow: 0 4px 20px rgba(145, 71, 255, 0.2);
   }
 
   .navbar .navbar-menu .signup-button {
-    background: #9147ff;
+    background: linear-gradient(135deg, #9147ff, #6441a5);
     color: white;
     margin-top: 1rem;
     font-weight: 600;
+    border: none;
   }
 
   .navbar .navbar-menu .signup-button:hover {
-    background: #772ce8;
-    box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+    background: linear-gradient(135deg, #772ce8, #52348c);
+    box-shadow: 0 4px 20px rgba(145, 71, 255, 0.4);
   }
 
   /* Hamburger animation */
+  .navbar .hamburger.active span {
+    background: #efeff1;
+  }
+
   .navbar .hamburger.active span:first-child {
     transform: rotate(45deg);
     top: 6px;
@@ -231,10 +221,11 @@
 
   .navbar .hamburger.active span:nth-child(2) {
     opacity: 0;
+    transform: translateX(-20px);
   }
 
   .navbar .hamburger.active span:nth-child(3) {
     transform: rotate(-45deg);
-    top: -6px;
+    top: -8px;
   }
 } 

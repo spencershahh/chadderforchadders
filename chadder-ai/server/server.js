@@ -246,6 +246,58 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
   try {
     switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        
+        // Get the subscription details from the session
+        const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        
+        // Extract user ID and tier from metadata
+        const userId = session.metadata.userId;
+        const tier = session.metadata.tier;
+        
+        console.log('Processing checkout completion:', {
+          userId,
+          tier,
+          subscription: subscription.id,
+          event: event.type
+        });
+
+        // Update user's subscription status and reset credits
+        const { error: userError } = await supabase
+          .from('users')
+          .update({
+            subscription_tier: tier,
+            tier: tier, // Update both fields for compatibility
+            subscription_status: 'active',
+            stripe_customer_id: session.customer,
+            credits: 0, // Reset credits before distribution
+            last_credit_distribution: new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (userError) {
+          console.error('Error updating user:', userError);
+          throw userError;
+        }
+
+        // Process initial credit distribution
+        const { error: renewalError } = await supabase.rpc(
+          'process_subscription_renewal',
+          {
+            p_user_id: userId,
+            p_subscription_tier: tier
+          }
+        );
+
+        if (renewalError) {
+          console.error('Error processing renewal:', renewalError);
+          throw renewalError;
+        }
+
+        console.log('Successfully processed checkout completion for user:', userId);
+        break;
+
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         const subscription = event.data.object;
@@ -388,59 +440,34 @@ app.post('/create-portal-session', async (req, res) => {
 // Add this endpoint to create a Stripe Checkout session
 app.post('/create-checkout-session', async (req, res) => {
   try {
-    console.log('Received checkout session request:', req.body);
-    const { userId, packageId, email, return_url } = req.body;
+    const { userId, email, priceId, packageId, return_url } = req.body;
 
-    // Validate required fields
-    if (!userId || !packageId || !email || !return_url) {
-      throw new Error('Missing required fields');
-    }
-
-    // Get the price ID for the selected package
-    const priceId = SUBSCRIPTION_PRICES[packageId];
-    if (!priceId) {
-      throw new Error(`Invalid package selected: ${packageId}`);
-    }
-
-    console.log('Creating checkout session with:', {
-      userId,
-      packageId,
-      priceId,
-      email,
-      return_url
-    });
-
-    // Create Stripe Checkout session with minimal configuration
+    // Create a new checkout session
     const session = await stripe.checkout.sessions.create({
+      customer_email: email,
+      mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{
         price: priceId,
         quantity: 1,
       }],
-      mode: 'subscription',
-      success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: return_url,
       cancel_url: `${return_url}?canceled=true`,
-      client_reference_id: userId,
-      customer_email: email,
       metadata: {
-        userId,
+        userId: userId,
         tier: packageId
+      },
+      subscription_data: {
+        metadata: {
+          userId: userId,
+          tier: packageId
+        }
       }
-    });
-
-    console.log('Checkout session created:', {
-      sessionId: session.id,
-      url: session.url
     });
 
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Detailed error creating checkout session:', {
-      message: error.message,
-      type: error.type,
-      stack: error.stack,
-      body: req.body
-    });
+    console.error('Error creating checkout session:', error);
     res.status(500).json({ error: error.message });
   }
 });

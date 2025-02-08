@@ -1,23 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import CheckoutForm from '../components/CheckoutForm';
 import { toast } from 'react-hot-toast';
-import { UpgradeDialog } from '../components/UpgradeDialog';
 import AuthModal from '../components/AuthModal';
 import styles from './CreditsPage.module.css';
 
 const CreditsPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [customAmount, setCustomAmount] = useState('');
   const navigate = useNavigate();
-  const [showPayment, setShowPayment] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState(null);
-  const [selectedCredits, setSelectedCredits] = useState(null);
-  const [selectedPackage, setSelectedPackage] = useState(null);
   const [currentSubscription, setCurrentSubscription] = useState(null);
-  const [showUpgradeDialog, setShowUpgradeDialog] = useState({ show: false });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingPackageId, setPendingPackageId] = useState(null);
   const [isPendingSubscription, setIsPendingSubscription] = useState(false);
@@ -25,7 +17,7 @@ const CreditsPage = () => {
   const subscriptionPackages = [
     {
       id: 'pog',
-      name: 'Pog',
+      name: 'Common',
       price: 3,
       period: 'weekly',
       votes: 100,
@@ -33,16 +25,17 @@ const CreditsPage = () => {
       votesPerDollar: 33.3,
       description: 'Perfect for casual viewers',
       features: [
-        '100 votes monthly (25 weekly)',
+        '100 gems monthly (25 weekly) 💚',
         'Access to streamer list',
         'Weekly donation pool participation',
         'Cancel anytime'
       ],
-      popular: false
+      popular: false,
+      priceId: 'price_1QnrdfEDfrbbc35YnZ3tVoMS'
     },
     {
       id: 'pogchamp',
-      name: 'Pogchamp',
+      name: 'Rare',
       price: 5,
       period: 'weekly',
       votes: 200,
@@ -50,16 +43,17 @@ const CreditsPage = () => {
       votesPerDollar: 40.0,
       description: 'Best value for active chatters',
       features: [
-        '200 votes monthly (50 weekly)',
+        '200 gems monthly (50 weekly) 💎',
         'Access to streamer list',
         'Weekly donation pool participation',
         'Cancel anytime'
       ],
-      popular: true
+      popular: true,
+      priceId: 'price_1Qnre1EDfrbbc35YQVAy7Z0E'
     },
     {
       id: 'poggers',
-      name: 'Poggers',
+      name: 'Epic',
       price: 7,
       period: 'weekly',
       votes: 400,
@@ -67,75 +61,15 @@ const CreditsPage = () => {
       votesPerDollar: 57.1,
       description: 'For the true community leaders',
       features: [
-        '400 votes monthly (100 weekly)',
+        '400 gems monthly (100 weekly) 🔸',
         'Access to streamer list',
         'Weekly donation pool participation',
         'Cancel anytime'
       ],
-      popular: false
+      popular: false,
+      priceId: 'price_1QnreLEDfrbbc35YV7TtcIld'
     }
   ];
-
-  const handlePurchase = async (packageId, isSubscription = false) => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        setPendingPackageId(packageId);
-        setIsPendingSubscription(isSubscription);
-        setShowAuthModal(true);
-        return;
-      }
-
-      const selectedPkg = isSubscription 
-        ? subscriptionPackages.find(pkg => pkg.id === packageId)
-        : oneTimePackages.find(pkg => pkg.id === packageId);
-
-      if (!selectedPkg) throw new Error('Invalid package');
-
-      setShowPayment(true);
-      setSelectedAmount(selectedPkg.price);
-      setSelectedCredits(selectedPkg.votes);
-      setSelectedPackage(selectedPkg);
-      
-    } catch (err) {
-      setError(err.message);
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCustomPurchase = async () => {
-    if (!customAmount || customAmount < 2) {
-      toast.error('Minimum amount is $2');
-      return;
-    }
-
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        setShowAuthModal(true);
-        return;
-      }
-
-      const votes = calculateCustomCredits(customAmount);
-      setSelectedAmount(Number(customAmount));
-      setSelectedCredits(votes);
-      setSelectedPackage({
-        id: 'custom',
-        name: 'Custom Amount',
-        price: Number(customAmount),
-        votes: votes
-      });
-      setShowPayment(true);
-    } catch (err) {
-      setError(err.message);
-      toast.error(err.message);
-    }
-  };
 
   const handleLogin = () => {
     navigate('/login', { 
@@ -157,32 +91,6 @@ const CreditsPage = () => {
       } 
     });
     setShowAuthModal(false);
-  };
-
-  const calculateCustomCredits = (amount) => {
-    if (!amount || amount <= 0) return 0;
-    const value = Number(parseFloat(amount).toFixed(2));
-    
-    if (value >= 100) return Math.floor(value * 15);
-    if (value >= 50) return Math.floor(value * 13);
-    if (value >= 25) return Math.floor(value * 11);
-    if (value >= 10) return Math.floor(value * 10);
-    return Math.floor(value * 8);
-  };
-
-  const handlePaymentSuccess = async () => {
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw new Error('Please log in to continue');
-
-      // Remove the duplicate credit distribution - this is now handled by the webhook
-      setShowPayment(false);
-      toast.success('Purchase successful! Your credits will be available shortly.');
-      
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      toast.error('Error processing payment');
-    }
   };
 
   const fetchCurrentSubscription = async () => {
@@ -235,17 +143,22 @@ const CreditsPage = () => {
         throw new Error('Could not retrieve user data');
       }
 
+      // Find the selected package and get its priceId
+      const selectedPackage = subscriptionPackages.find(pkg => pkg.id === packageId);
+      if (!selectedPackage) {
+        throw new Error('Invalid package selected');
+      }
+
       // Create a Stripe Checkout session for subscription
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      console.log('Making request to:', API_URL);
       
       const requestData = {
         userId: user.id,
         email: userData.email,
-        packageId,
+        packageId: selectedPackage.id,
+        priceId: selectedPackage.priceId,
         return_url: `${window.location.origin}/settings`
       };
-      console.log('Request data:', requestData);
 
       const response = await fetch(`${API_URL}/create-checkout-session`, {
         method: 'POST',
@@ -256,7 +169,6 @@ const CreditsPage = () => {
       });
 
       const responseData = await response.json();
-      console.log('Response:', responseData);
 
       if (!response.ok) {
         throw new Error(responseData.error || 'Failed to create checkout session');
@@ -270,56 +182,6 @@ const CreditsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleUpgradeClick = (newPlan) => {
-    try {
-      // Find current plan using currentSubscription state
-      const currentPlan = subscriptionPackages.find(pkg => pkg.id === currentSubscription);
-      
-      if (!currentPlan) {
-        toast.error('Error loading current plan');
-        return;
-      }
-
-      setShowUpgradeDialog({
-        show: true,
-        currentPlan: {
-          name: currentPlan.name,
-          votesPerWeek: currentPlan.votesPerWeek,
-          price: currentPlan.price,
-          votesPerDollar: currentPlan.votesPerDollar
-        },
-        newPlan: {
-          name: newPlan.name,
-          votesPerWeek: newPlan.votesPerWeek,
-          price: newPlan.price,
-          votesPerDollar: newPlan.votesPerDollar
-        }
-      });
-    } catch (err) {
-      console.error('Error in handleUpgradeClick:', err);
-      toast.error('Failed to process upgrade');
-    }
-  };
-
-  const handleUpgradeConfirm = async (newPlan) => {
-    setSelectedPackage(newPlan);
-    setShowPayment(true);
-  };
-
-  const calculateValuePerDollar = (votes, price) => {
-    return (votes / price).toFixed(1);
-  };
-
-  const calculatePackageDonationBomb = (votes, price) => {
-    const stripeFee = price * 0.029 + 0.30;
-    const netRevenue = price - stripeFee;
-    return (netRevenue * 0.55).toFixed(2); // 55% of net revenue goes to prize pool
-  };
-
-  const handleClosePayment = () => {
-    setShowPayment(false);
   };
 
   useEffect(() => {
@@ -359,13 +221,13 @@ const CreditsPage = () => {
                 <span className={styles.period}>/w</span>
               </div>
               <div className={styles.creditsAmount}>
-                {pkg.votes} Votes Monthly
+                {pkg.votes} Gems Monthly
               </div>
               <div className={styles.creditsDetails}>
-                ({pkg.votesPerWeek} votes weekly)
+                ({pkg.votesPerWeek} gems weekly)
               </div>
               <div className={styles.creditsPerDollar}>
-                {pkg.votesPerDollar.toFixed(1)} votes per $1
+                {pkg.votesPerDollar.toFixed(1)} gems per $1
               </div>
             </div>
 
@@ -399,28 +261,6 @@ const CreditsPage = () => {
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
-
-      {showPayment && selectedPackage && (
-        <CheckoutForm 
-          amount={selectedAmount}
-          credits={selectedCredits}
-          selectedTier={selectedPackage.id}
-          onSuccess={handlePaymentSuccess}
-          onClose={handleClosePayment}
-        />
-      )}
-
-      {showUpgradeDialog.show && (
-        <UpgradeDialog
-          currentPlan={showUpgradeDialog.currentPlan}
-          newPlan={showUpgradeDialog.newPlan}
-          onCancel={() => setShowUpgradeDialog({ show: false })}
-          onConfirm={() => {
-            handlePurchase(showUpgradeDialog.newPlan.id, true);
-            setShowUpgradeDialog({ show: false });
-          }}
-        />
-      )}
 
       <AuthModal
         isOpen={showAuthModal}

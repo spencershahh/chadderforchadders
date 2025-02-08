@@ -3,94 +3,142 @@ import { useAuth } from '../hooks/useAuth'; // Assuming you have an auth hook
 import { toast } from 'react-hot-toast'; // For notifications
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import styles from './Settings.module.css';
 
 const Settings = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEmailUpdateLoading, setIsEmailUpdateLoading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [showEmailUpdate, setShowEmailUpdate] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    email: user?.email || '',
-    notifications: {
-      email: true,
-      streamersLive: true,
-      weeklyDigest: true
-    }
-  });
-
-  // Update state to match new schema
-  const [credits, setCredits] = useState({
-    regular: 0
-  });
-
-  // Add new state for delete account modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState(1);
+  const [credits, setCredits] = useState(0);
+  const [subscription, setSubscription] = useState({
+    tier: 'free',
+    status: 'inactive',
+    lastDistribution: null,
+    nextDistribution: null
+  });
 
-  // Add this new state
-  const [subscription, setSubscription] = useState(null);
-  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
+  const formatTierName = (tier) => {
+    if (!tier) return 'Free';
+    return tier.charAt(0).toUpperCase() + tier.slice(1);
+  };
 
   const fetchUserData = async () => {
-    setIsLoadingSubscriptions(true);
     try {
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !currentUser) throw new Error("Please log in to continue.");
+      if (authError || !currentUser) {
+        navigate('/login');
+        return;
+      }
 
-      // Get all user data in one query
       const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select(`
-          stripe_customer_id,
-          tier,
-          subscription_tier,
-          subscription_status,
-          last_credit_distribution,
-          credits
-        `)
-        .eq("id", currentUser.id)
+        .from('users')
+        .select('*')
+        .eq('id', currentUser.id)
         .single();
 
       if (userError) throw userError;
-      if (!userData) throw new Error("User data not found");
 
-      // Update subscription state
+      setCredits(userData.credits || 0);
       setSubscription({
         tier: userData.subscription_tier || userData.tier || 'free',
-        status: userData.subscription_status || (userData.stripe_customer_id ? 'active' : 'inactive'),
+        status: userData.subscription_status || 'inactive',
         lastDistribution: userData.last_credit_distribution,
         nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
       });
-
-      // Update credits state
-      setCredits({
-        regular: userData.credits || 0
-      });
-
-    } catch (err) {
-      console.error("Error fetching user data:", err.message);
-      toast.error("Failed to load user data");
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      toast.error('Failed to load user data');
     } finally {
-      setIsLoadingSubscriptions(false);
+      setIsLoading(false);
     }
   };
 
-  // Single useEffect for data fetching and polling
   useEffect(() => {
-    // Initial fetch
     fetchUserData();
-    
-    // Set up polling with a longer interval (30 seconds instead of 10)
-    const pollInterval = setInterval(fetchUserData, 30000);
-    
-    // Cleanup
-    return () => clearInterval(pollInterval);
-  }, []);
+
+    // Set up real-time subscription for user updates
+    const userSubscription = supabase
+      .channel('users_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          const newData = payload.new;
+          setCredits(newData.credits || 0);
+          setSubscription({
+            tier: newData.subscription_tier || newData.tier || 'free',
+            status: newData.subscription_status || 'inactive',
+            lastDistribution: newData.last_credit_distribution,
+            nextDistribution: getNextDistributionDate(newData.last_credit_distribution)
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(userSubscription);
+    };
+  }, [user?.id]);
+
+  const handleManageSubscription = async () => {
+    try {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) throw userError;
+
+      // If no Stripe customer ID or inactive subscription, redirect to credits page
+      if (!userData?.stripe_customer_id || subscription.status !== 'active') {
+        navigate('/credits');
+        return;
+      }
+
+      // Create portal session
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/create-portal-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          return_url: window.location.origin + '/settings'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create portal session');
+      }
+
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch (error) {
+      console.error('Error managing subscription:', error);
+      toast.error(error.message || 'Failed to manage subscription');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -144,17 +192,40 @@ const Settings = () => {
 
     setIsDeleting(true);
     try {
-      // First delete user data from related tables
+      // First, cancel any active subscriptions
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) throw userError;
+
+      if (userData?.stripe_customer_id) {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        try {
+          await fetch(`${API_URL}/cancel-subscription`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customerId: userData.stripe_customer_id })
+          });
+        } catch (err) {
+          console.error('Error cancelling subscription:', err);
+          // Continue with deletion even if subscription cancellation fails
+        }
+      }
+
+      // Delete user's auth account using RPC first
+      const { error: deleteError } = await supabase.rpc('delete_user');
+      if (deleteError) throw deleteError;
+
+      // Then delete user data from users table
       const { error: dbError } = await supabase
         .from('users')
         .delete()
         .eq('id', user.id);
 
       if (dbError) throw dbError;
-
-      // Delete user's auth account using RPC
-      const { error: deleteError } = await supabase.rpc('delete_user');
-      if (deleteError) throw deleteError;
 
       // Sign out the user
       await supabase.auth.signOut();
@@ -222,181 +293,63 @@ const Settings = () => {
   // Calculate weekly contribution based on subscription tier
   const calculateWeeklyContribution = (tier) => {
     const contributions = {
+      'pog': 1.65, // 55% of $3
       'pogchamp': 2.75, // 55% of $5
-      'gigachad': 5.50, // 55% of $10
+      'poggers': 3.85, // 55% of $7
       'free': 0
     };
     return contributions[tier] || 0;
   };
 
-  const handleManageSubscription = async () => {
-    try {
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !currentUser) {
-        throw new Error('Please log in to continue');
-      }
-
-      // Check if user has a Stripe customer ID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('stripe_customer_id')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (userError || !userData?.stripe_customer_id) {
-        // If no Stripe customer ID, redirect to credits page to set up subscription
-        toast.error('Please set up a subscription first');
-        navigate('/credits');
-        return;
-      }
-
-      // Create a portal session
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/create-portal-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          return_url: window.location.origin + '/settings'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create portal session');
-      }
-
-      const { url } = await response.json();
-      window.location.href = url;
-    } catch (error) {
-      console.error('Error creating portal session:', error);
-      toast.error(error.message || 'Failed to open subscription management portal');
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className={styles.settingsContainer}>
+        <div className={styles.loading}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="settings-container">
-      <h1 className="settings-header">Settings</h1>
+    <div className={styles.settingsContainer}>
+      <h1>Settings</h1>
 
-      {/* Credits Display */}
-      <section className="settings-section">
+      <section className={styles.section}>
         <h2>Your Credits</h2>
-        <div className="credits-display">
-          <div>
-            <h3>Available Credits</h3>
-            <p>{credits.regular}</p>
-          </div>
+        <div className={styles.creditsInfo}>
+          <h3>Available Credits</h3>
+          <div className={styles.creditsAmount}>{credits}</div>
         </div>
       </section>
 
-      {/* Subscription Display */}
-      <section className="settings-section">
+      <section className={styles.section}>
         <h2>Subscription</h2>
-        {isLoadingSubscriptions ? (
-          <p>Loading subscription details...</p>
-        ) : subscription ? (
-          <div className="subscription-info">
-            <div className="subscription-info-row">
-              <span className="subscription-label">Current Tier:</span>
-              <span className={`subscription-value ${subscription.tier}`}>
-                {subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)}
-              </span>
-            </div>
-            
-            <div className="subscription-info-row">
-              <span className="subscription-label">Status:</span>
-              <span className={`subscription-value ${subscription.status}`}>
-                {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
-              </span>
-            </div>
-
-            {subscription.status === 'active' && (
-              <>
-                <div className="prize-pool-contribution">
-                  <div className="subscription-info-row">
-                    <span className="subscription-label">Active Week:</span>
-                    <span className="subscription-value">
-                      {getWeekRange().start} - {getWeekRange().end}
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="subscription-actions" style={{ marginTop: '1.5rem' }}>
-              <button 
-                onClick={handleManageSubscription}
-                className="primary-button"
-                style={{ width: '100%', maxWidth: '300px' }}
-              >
-                Manage Subscription
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p>No subscription found</p>
-        )}
+        <div className={styles.subscriptionInfo}>
+          <div>Current Tier: {formatTierName(subscription.tier)}</div>
+          <div>Status: {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}</div>
+          <button
+            className={styles.manageButton}
+            onClick={handleManageSubscription}
+          >
+            {subscription.status === 'active' ? 'Manage Subscription' : 'Subscribe Now'}
+          </button>
+        </div>
       </section>
 
       <form onSubmit={handleSubmit}>
-        {/* Account Section */}
-        <section className="settings-section">
-          <h2 className="settings-section-header">Account</h2>
-          
-          {/* Current Email Display */}
-          <div className="form-group">
-            <label className="form-label">Current Email</label>
-            <div className="email-container">
-              <input
-                type="email"
-                value={user?.email || ''}
-                disabled
-                className="form-input"
-                style={{ opacity: 0.7 }}
-              />
+        <section className={styles.section}>
+          <h2>Account</h2>
+          <div className={styles.accountInfo}>
+            <div>
+              <h3>Current Email</h3>
+              <p>{user?.email}</p>
               <button
                 type="button"
                 onClick={() => setShowEmailUpdate(!showEmailUpdate)}
-                className="secondary-button"
+                className={styles.secondaryButton}
               >
                 Change Email
               </button>
             </div>
-          </div>
-
-          {/* Email Update Form */}
-          {showEmailUpdate && (
-            <div className="form-group">
-              <form onSubmit={handleEmailUpdate}>
-                <label className="form-label">New Email Address</label>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="form-input"
-                    placeholder="Enter new email"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={isEmailUpdateLoading}
-                    className="primary-button"
-                  >
-                    {isEmailUpdateLoading ? 'Updating...' : 'Update Email'}
-                  </button>
-                </div>
-                <p className="help-text">
-                  You'll need to verify your new email address before the change takes effect.
-                </p>
-              </form>
-            </div>
-          )}
-
-          {/* Password Change Button */}
-          <div className="settings-button-group">
             <button
               type="button"
               onClick={async () => {
@@ -409,47 +362,43 @@ const Settings = () => {
                   toast.error('Failed to send reset email: ' + error.message);
                 }
               }}
-              className="secondary-button"
+              className={styles.secondaryButton}
             >
               Change Password
             </button>
           </div>
         </section>
 
-        {/* Danger Zone Section */}
-        <section className="settings-section danger-zone">
-          <h2 className="settings-section-header" style={{ color: '#ff4444' }}>Danger Zone</h2>
-          <div className="form-group">
-            <button
-              type="button"
-              className="danger-button"
-              onClick={() => {
-                setShowDeleteModal(true);
-                setDeleteStep(1);
-                setDeleteConfirmEmail('');
-              }}
-            >
-              Delete Account Permanently
-            </button>
-            <p className="help-text" style={{ color: '#ff4444', marginTop: '0.5rem' }}>
-              Once you delete your account, there is no going back. Please be certain.
-            </p>
-          </div>
+        <section className={styles.dangerZone}>
+          <h2>Danger Zone</h2>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            onClick={() => {
+              setShowDeleteModal(true);
+              setDeleteStep(1);
+              setDeleteConfirmEmail('');
+            }}
+          >
+            Delete Account Permanently
+          </button>
+          <p className={styles.warning}>
+            Once you delete your account, there is no going back. Please be certain.
+          </p>
         </section>
       </form>
 
-      {/* Delete Account Modal - Moved outside the main form */}
       {showDeleteModal && (
-        <div className="modal-overlay" onClick={(e) => {
-          if (e.target.className === 'modal-overlay') {
+        <div className={styles.modalOverlay} onClick={(e) => {
+          if (e.target.className === styles.modalOverlay) {
             setShowDeleteModal(false);
           }
         }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
             {deleteStep === 1 && (
               <div>
-                <h2 className="modal-title">Delete Account</h2>
-                <div className="modal-message">
+                <h2 className={styles.modalTitle}>Delete Account</h2>
+                <div className={styles.modalMessage}>
                   <p>Are you sure you want to delete your account? This action:</p>
                   <ul style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
                     <li>Cannot be undone</li>
@@ -458,17 +407,17 @@ const Settings = () => {
                     <li>Will cancel any active subscriptions</li>
                   </ul>
                 </div>
-                <div className="modal-buttons">
+                <div className={styles.modalButtons}>
                   <button 
                     type="button"
-                    className="modal-button secondary"
+                    className={styles.modalButtonSecondary}
                     onClick={() => setShowDeleteModal(false)}
                   >
                     Cancel
                   </button>
                   <button 
                     type="button"
-                    className="modal-button primary"
+                    className={styles.modalButtonPrimary}
                     onClick={() => setDeleteStep(2)}
                   >
                     Continue
@@ -482,23 +431,23 @@ const Settings = () => {
                 e.preventDefault();
                 handleDeleteAccount();
               }}>
-                <h2 className="modal-title">Confirm Deletion</h2>
-                <div className="modal-message">
+                <h2 className={styles.modalTitle}>Confirm Deletion</h2>
+                <div className={styles.modalMessage}>
                   <p>To confirm deletion, please enter your email address:</p>
-                  <p className="user-email">{user?.email}</p>
+                  <p className={styles.userEmail}>{user?.email}</p>
                   <input
                     type="text"
                     value={deleteConfirmEmail}
                     onChange={(e) => setDeleteConfirmEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="form-input"
+                    className={styles.formInput}
                     style={{ marginTop: '1rem' }}
                   />
                 </div>
-                <div className="modal-buttons">
+                <div className={styles.modalButtons}>
                   <button 
                     type="button"
-                    className="modal-button secondary"
+                    className={styles.modalButtonSecondary}
                     onClick={() => {
                       setDeleteStep(1);
                       setDeleteConfirmEmail('');
@@ -508,7 +457,7 @@ const Settings = () => {
                   </button>
                   <button 
                     type="submit"
-                    className="modal-button danger"
+                    className={styles.modalButtonDanger}
                     disabled={isDeleting}
                   >
                     {isDeleting ? 'Deleting...' : 'Delete Account'}
