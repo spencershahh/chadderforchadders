@@ -47,7 +47,19 @@ const Settings = () => {
   const fetchUserData = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching user data...');
+      console.log('Fetching user data...', user?.id);
+
+      // First verify we have a valid session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw sessionError;
+      }
+
+      if (!session?.user?.id) {
+        console.error('No valid session found');
+        throw new Error('No valid session found');
+      }
 
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -55,7 +67,7 @@ const Settings = () => {
           *,
           subscription_credits(amount, distribution_date)
         `)
-        .eq('id', user.id)
+        .eq('id', session.user.id)
         .single();
 
       if (userError) {
@@ -80,6 +92,10 @@ const Settings = () => {
     } catch (error) {
       console.error('Error in fetchUserData:', error);
       toast.error('Failed to load user data. Please try refreshing the page.');
+      // If we have auth errors, redirect to login
+      if (error.message.includes('session') || error.message.includes('JWT')) {
+        navigate('/login');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -314,20 +330,34 @@ const Settings = () => {
         }
       }
 
-      // Delete user's auth account using RPC first
-      const { error: deleteError } = await supabase.rpc('delete_user');
-      if (deleteError) throw deleteError;
-
-      // Then delete user data from users table
+      // First, try to delete from the users table
       const { error: dbError } = await supabase
         .from('users')
         .delete()
         .eq('id', user.id);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Error deleting user data:', dbError);
+        // If this fails, try to update the display_name to null first
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ display_name: null })
+          .eq('id', user.id);
+          
+        if (updateError) throw updateError;
+        
+        // Try deleting again after setting display_name to null
+        const { error: secondDbError } = await supabase
+          .from('users')
+          .delete()
+          .eq('id', user.id);
+          
+        if (secondDbError) throw secondDbError;
+      }
 
-      // Sign out the user
-      await supabase.auth.signOut();
+      // Sign out the user which will also delete their session
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
       
       toast.success('Account successfully deleted');
       navigate('/');

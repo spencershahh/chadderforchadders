@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const siteUrl = import.meta.env.VITE_APP_URL || 'https://chadderai.vercel.app';
+const siteUrl = import.meta.env.VITE_APP_URL || window.location.origin;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables:', {
@@ -21,7 +21,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: window.localStorage,
     storageKey: 'supabase.auth.token',
     debug: true, // Enable debug logging for auth
-    redirectTo: `${siteUrl}/settings`, // Add redirect URL for auth callbacks
+    redirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
+    emailRedirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
   },
   realtime: {
     params: {

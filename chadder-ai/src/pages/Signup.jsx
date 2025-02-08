@@ -23,6 +23,20 @@ const Signup = () => {
         return;
       }
 
+      // Check if email already exists in auth
+      const { data: emailData, error: emailError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
+
+      if (!emailError) {
+        toast.error('An account with this email already exists');
+        setLoading(false);
+        return;
+      }
+
       // Check if display name is available using our new function
       const { data: isAvailable, error: checkError } = await supabase
         .rpc('is_username_available', {
@@ -41,14 +55,18 @@ const Signup = () => {
         return;
       }
 
+      // Get site URL for email confirmation
+      const siteUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+
       // Sign up the user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            display_name: displayName // Store display name in auth metadata
-          }
+            display_name: displayName
+          },
+          emailRedirectTo: `${siteUrl}/login`
         }
       });
 
@@ -83,7 +101,7 @@ const Signup = () => {
           return;
         }
 
-        toast.success('Signup successful! Please check your email to confirm.', {
+        toast.success('Signup successful! Please check your email to confirm your account.', {
           duration: 5000,
           onClose: () => navigate("/login")
         });
