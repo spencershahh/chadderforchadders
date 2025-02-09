@@ -31,23 +31,6 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // Check for existing user first
-      const existingUser = await checkExistingUser(email);
-      if (existingUser) {
-        // Try to delete the existing user record
-        const { error: deleteError } = await supabase
-          .from('users')
-          .delete()
-          .eq('id', existingUser.id);
-
-        if (deleteError) {
-          console.error("Error deleting existing user:", deleteError);
-          toast.error('Error creating account. Please try again later.');
-          setLoading(false);
-          return;
-        }
-      }
-
       // Validate display name
       if (!displayName.trim()) {
         toast.error('Display name is required');
@@ -71,6 +54,21 @@ const Signup = () => {
         toast.error('Display name is not available');
         setLoading(false);
         return;
+      }
+
+      // Check for existing user with this email in the database
+      const { data: existingDbUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingDbUser) {
+        // Delete the existing user from the database
+        await supabase
+          .from('users')
+          .delete()
+          .eq('id', existingDbUser.id);
       }
 
       // Get site URL for email confirmation
@@ -99,18 +97,11 @@ const Signup = () => {
       console.log("Supabase auth signup response:", data);
 
       if (user) {
-        // First try to delete any existing record with this ID
-        const { error: deleteError } = await supabase
-          .from('users')
-          .delete()
-          .eq('id', user.id);
+        // Wait a short moment to ensure any cascading deletes have completed
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        if (deleteError) {
-          console.error("Error deleting existing user:", deleteError);
-        }
-
-        // Insert the user into the users table
-        const { error: dbError } = await supabase
+        // Try inserting the new user record
+        const { error: insertError } = await supabase
           .from('users')
           .insert([
             {
@@ -123,16 +114,34 @@ const Signup = () => {
             }
           ]);
 
-        if (dbError) {
-          console.error("Database insert error:", dbError);
-          toast.error(`Database error saving new user: ${dbError.message}`);
+        if (insertError) {
+          console.error("Database insert error:", insertError);
           
-          // If insert fails, try to clean up the auth user
-          const { error: cleanupError } = await supabase.auth.admin.deleteUser(user.id);
-          if (cleanupError) {
-            console.error("Error cleaning up auth user:", cleanupError);
+          // If the error is a duplicate key error, try one more time after a delay
+          if (insertError.code === '23505') {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const { error: retryError } = await supabase
+              .from('users')
+              .insert([
+                {
+                  id: user.id,
+                  email: user.email,
+                  display_name: displayName,
+                  tier: 'free',
+                  credits: 0,
+                  created_at: new Date().toISOString()
+                }
+              ]);
+              
+            if (retryError) {
+              toast.error('Failed to create account. Please try again later.');
+              return;
+            }
+          } else {
+            toast.error(`Failed to create account: ${insertError.message}`);
+            return;
           }
-          return;
         }
 
         toast.success('Signup successful! Please check your email to confirm your account.', {

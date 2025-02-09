@@ -61,11 +61,22 @@ const Settings = () => {
         throw new Error('No valid session found');
       }
 
+      // Use proper query syntax for related tables
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select(`
-          *,
-          subscription_credits(amount, distribution_date)
+          id,
+          email,
+          display_name,
+          tier,
+          credits,
+          subscription_tier,
+          subscription_status,
+          last_credit_distribution,
+          subscription_credits (
+            amount,
+            distribution_date
+          )
         `)
         .eq('id', session.user.id)
         .single();
