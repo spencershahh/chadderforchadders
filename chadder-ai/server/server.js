@@ -301,23 +301,6 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           throw new Error('Missing required metadata: userId or tier');
         }
 
-        // Update user's subscription status
-        const { error: userError } = await supabase
-          .from('users')
-          .update({
-            subscription_tier: tier,
-            subscription_status: 'active',
-            stripe_customer_id: session.customer,
-            credits: 0, // Reset credits before distribution
-            last_credit_distribution: null // Set to null to ensure immediate distribution
-          })
-          .eq('id', userId);
-
-        if (userError) {
-          console.error('Error updating user:', userError);
-          throw userError;
-        }
-
         // Calculate amount per week based on tier
         const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
 
@@ -339,20 +322,22 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           throw subscriptionError;
         }
 
-        // Process credit distribution after subscription is updated
-        const { error: renewalError } = await supabase.rpc(
-          'process_subscription_renewal',
-          {
-            p_user_id: userId,
-            p_subscription_tier: tier
-          }
-        );
+        // Update user's subscription status
+        const { error: userError } = await supabase
+          .from('users')
+          .update({
+            subscription_tier: tier,
+            subscription_status: 'active',
+            stripe_customer_id: session.customer
+          })
+          .eq('id', userId);
 
-        if (renewalError) {
-          console.error('Error processing renewal:', renewalError);
-          throw renewalError;
+        if (userError) {
+          console.error('Error updating user:', userError);
+          throw userError;
         }
 
+        // Don't process credit distribution here, let the subscription.updated webhook handle it
         // Update prize pool
         await updatePrizePool();
         break;
@@ -400,9 +385,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             .from('users')
             .update({
               subscription_tier: tier,
-              subscription_status: 'active',
-              credits: 0, // Reset credits before distribution
-              last_credit_distribution: null // Set to null to ensure immediate distribution
+              subscription_status: 'active'
             })
             .eq('id', userId);
 
@@ -411,18 +394,22 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             throw userError;
           }
 
-          // Process credit distribution after subscription is updated
-          const { error: renewalError } = await supabase.rpc(
-            'process_subscription_renewal',
-            {
-              p_user_id: userId,
-              p_subscription_tier: tier
-            }
-          );
+          // Only distribute credits if this is a new subscription or reactivation
+          const previousAttributes = event.data.previous_attributes || {};
+          if (previousAttributes.status !== 'active') {
+            // Process credit distribution after subscription is updated
+            const { error: renewalError } = await supabase.rpc(
+              'process_subscription_renewal',
+              {
+                p_user_id: userId,
+                p_subscription_tier: tier
+              }
+            );
 
-          if (renewalError) {
-            console.error('Error processing renewal:', renewalError);
-            throw renewalError;
+            if (renewalError) {
+              console.error('Error processing renewal:', renewalError);
+              throw renewalError;
+            }
           }
 
           // Update prize pool
