@@ -77,9 +77,9 @@ app.use(cors({
 
 // Updated price IDs
 const SUBSCRIPTION_PRICES = {
-  'common': 'price_1QnrdfEDfrbbc35YnZ3tVoMS',      // Common tier (was pog)
-  'rare': 'price_1Qnre1EDfrbbc35YQVAy7Z0E',        // Rare tier (was pogchamp)
-  'epic': 'price_1QnreLEDfrbbc35YV7TtcIld'         // Epic tier (was poggers)
+  'common': 'price_1QnrdfEDfrbbc35YnZ3tVoMS',      // Common tier
+  'rare': 'price_1Qnre1EDfrbbc35YQVAy7Z0E',        // Rare tier
+  'epic': 'price_1QnreLEDfrbbc35YV7TtcIld'         // Epic tier
 };
 
 // Test endpoint

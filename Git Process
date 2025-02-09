@@ -43,8 +43,16 @@ git reset --soft HEAD~1
 
 
 
+PULL ORIGINAL: 
+git fetch origin
+git reset --hard origin/main
 
 
-git remote add origin https://github.com/spencershahh/chadderforchadders.git
-git branch -M main
-git push -u origin main
+
+
+
+git add .
+
+git commit -m "maybe fixed signup issues"
+
+git push origin main

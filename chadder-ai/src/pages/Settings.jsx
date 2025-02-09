@@ -26,6 +26,12 @@ const Settings = () => {
   const [error, setError] = useState('');
   const [userData, setUserData] = useState(null);
 
+  // Add debug logging for initial render and auth state
+  useEffect(() => {
+    console.log('Settings page mounted');
+    console.log('Auth state:', { user, authLoading, authError });
+  }, []);
+
   useEffect(() => {
     if (authError) {
       console.error('Auth error:', authError);
@@ -35,11 +41,13 @@ const Settings = () => {
     }
 
     if (!authLoading && !user) {
+      console.log('No user found, redirecting to login');
       navigate('/login');
       return;
     }
 
     if (user) {
+      console.log('User found, fetching data for:', user.id);
       fetchUserData();
     }
   }, [user, authLoading, authError]);
@@ -67,7 +75,8 @@ const Settings = () => {
   const fetchUserData = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching user data...', user?.id);
+      setError('');
+      console.log('Starting fetchUserData for user:', user?.id);
 
       // First verify we have a valid session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -80,6 +89,8 @@ const Settings = () => {
         console.error('No valid session found');
         throw new Error('No valid session found');
       }
+
+      console.log('Session verified for user:', session.user.id);
 
       // Use proper query syntax for related tables
       const { data: userData, error: userError } = await supabase
@@ -118,6 +129,7 @@ const Settings = () => {
       });
     } catch (error) {
       console.error('Error in fetchUserData:', error);
+      setError(error.message);
       toast.error('Failed to load user data. Please try refreshing the page.');
       // If we have auth errors, redirect to login
       if (error.message.includes('session') || error.message.includes('JWT')) {
@@ -130,11 +142,8 @@ const Settings = () => {
 
   const formatTierName = (tier) => {
     if (!tier) return 'Free';
-    // Map old tier names to new ones if they still exist in the database
+    // Map tier names to display format
     const tierMap = {
-      'pog': 'Common',
-      'pogchamp': 'Rare',
-      'poggers': 'Epic',
       'common': 'Common',
       'rare': 'Rare',
       'epic': 'Epic'
@@ -142,54 +151,65 @@ const Settings = () => {
     return tierMap[tier.toLowerCase()] || tier.charAt(0).toUpperCase() + tier.slice(1);
   };
 
-  // Set up real-time subscription for user updates with reconnection logic
+  // Modify the real-time subscription setup
   useEffect(() => {
     let mounted = true;
     
-    const setupRealtimeSubscription = async () => {
+    const fetchAndSetData = async () => {
       if (!user?.id) return;
+      await fetchUserData();
+    };
 
+    // Initial fetch
+    fetchAndSetData();
+
+    // Set up polling instead of real-time for local development
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let pollInterval;
+
+    if (isLocalhost) {
+      // Poll every 30 seconds in local development
+      pollInterval = setInterval(fetchAndSetData, 30000);
+    } else {
+      // Only use real-time subscription in production
       try {
-        // Remove any existing subscriptions first
-        const channels = supabase.getChannels();
-        channels.forEach(channel => supabase.removeChannel(channel));
-
-        const userChannel = supabase.channel('user-updates')
+        const channel = supabase.channel(`user-updates-${user?.id}`)
           .on(
             'postgres_changes',
             {
               event: '*',
               schema: 'public',
               table: 'users',
-              filter: `id=eq.${user.id}`
+              filter: `id=eq.${user?.id}`
             },
-            (payload) => {
-              console.log('User update received:', payload);
+            () => {
               if (mounted) {
-                fetchUserData();
+                fetchAndSetData();
               }
             }
           )
           .subscribe((status) => {
-            console.log('User channel status:', status);
+            console.log('Subscription status:', status);
           });
 
         return () => {
           mounted = false;
-          supabase.removeChannel(userChannel);
+          if (channel) {
+            supabase.removeChannel(channel);
+          }
         };
       } catch (error) {
-        console.error('Error setting up realtime subscription:', error);
+        console.error('Real-time subscription error:', error);
+        // Fallback to polling if real-time fails
+        pollInterval = setInterval(fetchAndSetData, 30000);
       }
-    };
-
-    fetchUserData();
-    setupRealtimeSubscription();
+    }
 
     return () => {
       mounted = false;
-      const channels = supabase.getChannels();
-      channels.forEach(channel => supabase.removeChannel(channel));
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [user?.id]);
 
@@ -429,21 +449,57 @@ const Settings = () => {
   // Calculate weekly contribution based on subscription tier
   const calculateWeeklyContribution = (tier) => {
     const contributions = {
-      'pog': 1.65, // 55% of $3
-      'pogchamp': 2.75, // 55% of $5
-      'poggers': 3.85, // 55% of $7
+      'common': 1.65, // 55% of $3
+      'rare': 2.75, // 55% of $5
+      'epic': 3.85, // 55% of $7
       'free': 0
     };
     return contributions[tier] || 0;
   };
 
-  if (isLoading) {
+  if (authLoading) {
+    console.log('Auth is loading...');
     return (
       <div className={styles.settingsContainer}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.loading}>Checking authentication...</div>
       </div>
     );
   }
+
+  if (!user) {
+    console.log('No user found in render');
+    return (
+      <div className={styles.settingsContainer}>
+        <div className={styles.error}>Please log in to view settings.</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    console.log('Rendering error state:', error);
+    return (
+      <div className={styles.settingsContainer}>
+        <div className={styles.error}>
+          <h2>Error loading settings</h2>
+          <p>{error}</p>
+          <button onClick={fetchUserData} className={styles.retryButton}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    console.log('Rendering loading state...');
+    return (
+      <div className={styles.settingsContainer}>
+        <div className={styles.loading}>Loading your settings...</div>
+      </div>
+    );
+  }
+
+  console.log('Rendering settings page with data:', { userData, credits, subscription });
 
   return (
     <div className={styles.settingsContainer}>

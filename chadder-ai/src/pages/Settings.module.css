@@ -1,92 +1,110 @@
 .settingsContainer {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem;
-  color: #fff;
+  padding: 3rem 2rem;
+  color: #efeff1;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.error {
+  color: #ff4444;
+}
+
+.retryButton {
+  background: #9147ff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  margin-top: 1.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.retryButton:hover {
+  background: #772ce8;
 }
 
 .section {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  padding: 2rem;
+  margin-bottom: 2.5rem;
 }
 
-.creditsInfo {
-  margin-top: 1rem;
+.section h2 {
+  margin: 0 0 1.5rem 0;
+  color: #efeff1;
+  font-size: 1.5rem;
+}
+
+.creditsInfo, .subscriptionInfo, .accountInfo {
+  margin-top: 1.5rem;
 }
 
 .creditsAmount {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: bold;
-  color: #8b5cf6;
-}
-
-.subscriptionInfo {
-  margin-top: 1rem;
+  color: #9147ff;
+  margin: 1rem 0;
 }
 
 .manageButton {
-  background: #8b5cf6;
+  background: #9147ff;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  margin-top: 1rem;
+  border-radius: 4px;
+  margin-top: 1.5rem;
   cursor: pointer;
-  transition: background 0.2s;
+  font-size: 1rem;
+  width: fit-content;
 }
 
 .manageButton:hover {
-  background: #7c3aed;
-}
-
-.accountInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.secondaryButton {
-  background: rgba(139, 92, 246, 0.1);
-  color: #8b5cf6;
-  border: 1px solid #8b5cf6;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.secondaryButton:hover {
-  background: rgba(139, 92, 246, 0.2);
+  background: #772ce8;
 }
 
 .dangerZone {
-  background: rgba(239, 68, 68, 0.1);
+  margin-top: 3rem;
+  padding: 2rem;
+  border: 1px solid #ff4444;
   border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 2rem;
+}
+
+.dangerZone h2 {
+  color: #ff4444;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
 }
 
 .deleteButton {
-  background: #ef4444;
+  background: #ff4444;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  width: 100%;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.2s;
+  font-size: 1rem;
+  width: fit-content;
 }
 
 .deleteButton:hover {
-  background: #dc2626;
+  background: #cc3333;
 }
 
 .warning {
-  color: #ef4444;
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
+  color: #ff4444;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  line-height: 1.5;
 }
 
 .modalOverlay {
@@ -100,102 +118,116 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modalContent {
-  background: #1a1a1a;
-  padding: 2rem;
+  background: #18181b;
+  padding: 2.5rem;
   border-radius: 8px;
   max-width: 500px;
-  width: 90%;
+  width: 100%;
 }
 
 .modalTitle {
-  margin-bottom: 1rem;
+  margin: 0 0 1.5rem 0;
+  color: #efeff1;
+  font-size: 1.5rem;
 }
 
 .modalMessage {
-  margin-bottom: 1.5rem;
+  margin: 1.5rem 0;
+  line-height: 1.6;
+}
+
+.modalMessage ul {
+  padding-left: 1.5rem;
+}
+
+.modalMessage li {
+  margin: 0.5rem 0;
 }
 
 .modalButtons {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+  margin-top: 2rem;
 }
 
-.modalButtonSecondary {
-  background: transparent;
-  border: 1px solid #8b5cf6;
-  color: #8b5cf6;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+.modalButtonPrimary,
+.modalButtonSecondary,
+.modalButtonDanger {
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  border: none;
   cursor: pointer;
+  font-size: 1rem;
+  min-width: 100px;
 }
 
 .modalButtonPrimary {
-  background: #8b5cf6;
-  border: none;
+  background: #9147ff;
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
+}
+
+.modalButtonSecondary {
+  background: #3a3a3d;
+  color: white;
 }
 
 .modalButtonDanger {
-  background: #ef4444;
-  border: none;
+  background: #ff4444;
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
 .formInput {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem;
   border-radius: 4px;
-  border: 1px solid #4a4a4a;
-  background: #2a2a2a;
-  color: white;
-}
-
-.userEmail {
-  color: #8b5cf6;
-  margin: 0.5rem 0;
-  font-weight: bold;
+  border: 1px solid #303036;
+  background: #18181b;
+  color: #efeff1;
+  margin-top: 1rem;
+  font-size: 1rem;
 }
 
 .emailUpdateForm {
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
 }
 
 .emailUpdateButtons {
   display: flex;
   gap: 1rem;
+  margin-top: 1.5rem;
 }
 
-.formInput {
-  padding: 0.5rem;
-  border: 1px solid #ccc;
+.primaryButton,
+.secondaryButton {
+  padding: 0.75rem 1.5rem;
   border-radius: 4px;
+  border: none;
+  cursor: pointer;
   font-size: 1rem;
-  width: 100%;
+  min-width: 100px;
 }
 
 .primaryButton {
-  background-color: #007bff;
+  background: #9147ff;
   color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
-.primaryButton:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+.secondaryButton {
+  background: #3a3a3d;
+  color: white;
+}
+
+.userEmail {
+  color: #8b5cf6;
+  margin: 1rem 0;
+  font-weight: bold;
+  font-size: 1.1rem;
 } 

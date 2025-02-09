@@ -98,17 +98,22 @@ export function useAuth() {
     };
 
     // Set up auth state change listener
-    authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      console.log('Auth state changed:', event, session?.user?.id);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchUserData(session.user.id);
-      } else {
-        setSubscription(null);
-      }
-    });
+    try {
+      authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!mounted) return;
+        console.log('Auth state changed:', event, session?.user?.id);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchUserData(session.user.id);
+        } else {
+          setSubscription(null);
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up auth state change listener:', error);
+      setError(error);
+    }
 
     setupSubscriptions();
 
@@ -118,7 +123,7 @@ export function useAuth() {
       if (userSubscription) {
         supabase.removeChannel(userSubscription);
       }
-      if (authSubscription) {
+      if (authSubscription?.subscription?.unsubscribe) {
         authSubscription.subscription.unsubscribe();
       }
     };

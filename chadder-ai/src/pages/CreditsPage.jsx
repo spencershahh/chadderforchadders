@@ -96,16 +96,75 @@ const CreditsPage = () => {
   };
 
   useEffect(() => {
-    if (authError) {
-      console.error('Auth error:', authError);
-      setError('Authentication error. Please try logging in again.');
-      return;
+    let mounted = true;
+    
+    const fetchAndSetData = async () => {
+      if (!user?.id) return;
+      try {
+        const tier = await fetchCurrentSubscription();
+        if (mounted) {
+          setCurrentSubscription(tier);
+        }
+      } catch (err) {
+        console.error('Error loading subscription:', err);
+        if (mounted) {
+          toast.error('Failed to load subscription data');
+        }
+      }
+    };
+
+    // Initial fetch
+    if (!authLoading && user) {
+      fetchAndSetData();
     }
 
-    if (!authLoading && user) {
-      loadCurrentSubscription();
+    // Set up polling instead of real-time for local development
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let pollInterval;
+
+    if (isLocalhost && user) {
+      // Poll every 30 seconds in local development
+      pollInterval = setInterval(fetchAndSetData, 30000);
+    } else if (user) {
+      // Only use real-time subscription in production
+      try {
+        const channel = supabase.channel(`subscription-updates-${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'users',
+              filter: `id=eq.${user.id}`
+            },
+            () => {
+              if (mounted) {
+                fetchAndSetData();
+              }
+            }
+          )
+          .subscribe();
+
+        return () => {
+          mounted = false;
+          if (channel) {
+            supabase.removeChannel(channel);
+          }
+        };
+      } catch (error) {
+        console.error('Real-time subscription error:', error);
+        // Fallback to polling if real-time fails
+        pollInterval = setInterval(fetchAndSetData, 30000);
+      }
     }
-  }, [user, authLoading, authError]);
+
+    return () => {
+      mounted = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [user, authLoading]);
 
   const fetchCurrentSubscription = async () => {
     try {
@@ -149,16 +208,6 @@ const CreditsPage = () => {
     } catch (err) {
       console.error("Error fetching subscription:", err);
       throw err;
-    }
-  };
-
-  const loadCurrentSubscription = async () => {
-    try {
-      const tier = await fetchCurrentSubscription();
-      setCurrentSubscription(tier);
-    } catch (err) {
-      console.error('Error loading subscription:', err);
-      toast.error('Failed to load subscription data');
     }
   };
 
