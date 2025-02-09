@@ -378,8 +378,8 @@ app.get('/keep-alive', (req, res) => {
 
 app.post('/create-portal-session', async (req, res) => {
   try {
-    const { userId, return_url } = req.body;
-    console.log('Creating portal session for:', { userId, return_url });
+    const { userId } = req.body;
+    console.log('Creating portal session for:', { userId });
 
     // Get the customer's Stripe ID from your database
     const { data: userData, error } = await supabase
@@ -400,7 +400,7 @@ app.post('/create-portal-session', async (req, res) => {
     // Create the portal session with configuration
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripe_customer_id,
-      return_url,
+      return_url: 'https://chadderai.vercel.app/dashboard',
       configuration: process.env.STRIPE_PORTAL_CONFIGURATION_ID
     });
 
@@ -419,7 +419,7 @@ app.post('/create-portal-session', async (req, res) => {
 // Add this endpoint to create a Stripe Checkout session
 app.post('/create-checkout-session', async (req, res) => {
   try {
-    const { userId, email, priceId, packageId, return_url } = req.body;
+    const { userId, email, priceId, packageId } = req.body;
 
     // First, try to find or create a Stripe customer
     let stripeCustomerId;
@@ -463,12 +463,11 @@ app.post('/create-checkout-session', async (req, res) => {
         price: priceId,
         quantity: 1,
       }],
-      success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}&success=true`,
-      cancel_url: `${return_url}?canceled=true`,
+      success_url: 'https://chadderai.vercel.app/dashboard?session_id={CHECKOUT_SESSION_ID}&success=true',
+      cancel_url: 'https://chadderai.vercel.app/credits?canceled=true',
       metadata: {
         userId: userId,
-        tier: packageId,
-        return_url: return_url
+        tier: packageId
       },
       subscription_data: {
         metadata: {
