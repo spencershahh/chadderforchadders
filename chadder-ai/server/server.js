@@ -574,9 +574,42 @@ app.post('/create-checkout-session', async (req, res) => {
   try {
     const { userId, email, priceId, packageId, return_url } = req.body;
 
+    // First, try to find or create a Stripe customer
+    let stripeCustomerId;
+    
+    // Check if user already has a Stripe customer ID
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('stripe_customer_id')
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+
+    if (userData?.stripe_customer_id) {
+      stripeCustomerId = userData.stripe_customer_id;
+    } else {
+      // Create a new Stripe customer
+      const customer = await stripe.customers.create({
+        email: email,
+        metadata: {
+          userId: userId
+        }
+      });
+      stripeCustomerId = customer.id;
+
+      // Update user with new Stripe customer ID
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+    }
+
     // Create a new checkout session
     const session = await stripe.checkout.sessions.create({
-      customer_email: email,
+      customer: stripeCustomerId,
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{
