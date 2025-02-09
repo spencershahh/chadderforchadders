@@ -233,21 +233,6 @@ app.post('/create-subscription', async (req, res) => {
       });
     }
 
-    // Verify the subscription_credits record
-    const { data: creditRecord, error: creditRecordError } = await supabase
-      .from('subscription_credits')
-      .select('*')
-      .eq('user_id', userId)
-      .order('distribution_date', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (creditRecordError) {
-      console.error('Error verifying credit record:', creditRecordError);
-    } else {
-      console.log('Latest credit distribution record:', creditRecord);
-    }
-
     res.json({
       subscriptionId: subscription.id,
       clientSecret: subscription.latest_invoice.payment_intent.client_secret,
@@ -452,21 +437,6 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             tier: updatedUser.subscription_tier,
             lastDistribution: updatedUser.last_credit_distribution
           });
-        }
-
-        // Verify the subscription_credits record
-        const { data: creditRecord, error: creditRecordError } = await supabase
-          .from('subscription_credits')
-          .select('*')
-          .eq('user_id', userId)
-          .order('distribution_date', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (creditRecordError) {
-          console.error('Error verifying credit record:', creditRecordError);
-        } else {
-          console.log('Latest credit distribution record:', creditRecord);
         }
 
         // After updating user data and before updating prize pool

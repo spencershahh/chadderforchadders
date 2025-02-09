@@ -72,11 +72,7 @@ const Settings = () => {
           credits,
           subscription_tier,
           subscription_status,
-          last_credit_distribution,
-          subscription_credits (
-            amount,
-            distribution_date
-          )
+          last_credit_distribution
         `)
         .eq('id', session.user.id)
         .single();
@@ -158,30 +154,9 @@ const Settings = () => {
             console.log('User channel status:', status);
           });
 
-        const creditsChannel = supabase.channel('credits-updates')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'subscription_credits',
-              filter: `user_id=eq.${user.id}`
-            },
-            (payload) => {
-              console.log('Credits update received:', payload);
-              if (mounted) {
-                fetchUserData();
-              }
-            }
-          )
-          .subscribe((status) => {
-            console.log('Credits channel status:', status);
-          });
-
         return () => {
           mounted = false;
           supabase.removeChannel(userChannel);
-          supabase.removeChannel(creditsChannel);
         };
       } catch (error) {
         console.error('Error setting up realtime subscription:', error);
