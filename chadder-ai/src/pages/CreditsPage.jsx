@@ -267,8 +267,7 @@ const CreditsPage = () => {
         userId: user.id,
         email: userData.email,
         packageId: selectedPackage.id,
-        priceId: selectedPackage.priceId,
-        return_url: `${siteUrl}/settings`
+        priceId: selectedPackage.priceId
       };
 
       const response = await fetch(`${API_URL}/create-checkout-session`, {
