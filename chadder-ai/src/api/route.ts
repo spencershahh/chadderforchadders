@@ -1,7 +1,14 @@
-import { stripe } from '@/lib/stripe';
-import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import { type NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: Request) {
+// Add explicit Next.js types to fix module resolution
+export type { NextRequest } from 'next/server';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2023-10-16' as const
+});
+
+export async function POST(req: NextRequest) {
   try {
     const { priceId, userId } = await req.json();
 

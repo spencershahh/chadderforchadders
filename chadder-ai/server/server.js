@@ -87,44 +87,41 @@ app.get('/test', (req, res) => {
   res.json({ status: 'ok', prices: SUBSCRIPTION_PRICES });
 });
 
+// Create payment intent for one-time payments
 app.post('/create-payment-intent', async (req, res) => {
   try {
     const { amount, credits } = req.body;
     
-    console.log('Creating payment intent:', { amount, credits });
-    
-    // Convert amount to cents (amount is already in dollars)
+    // Convert amount to cents
     const amountInCents = Math.round(amount * 100);
     
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'usd',
-      payment_method_types: ['card'],
       metadata: { 
         credits,
-        frequency: 'weekly'
+        type: 'one_time'
       }
     });
 
-    console.log('Payment intent created:', paymentIntent.id);
     res.json({ 
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id
     });
   } catch (error) {
-    console.error('Stripe error details:', error);
+    console.error('Error creating payment intent:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+// Create subscription with direct card payment
 app.post('/create-subscription', async (req, res) => {
   try {
     const { paymentMethod, email, tier, credits, userId } = req.body;
-    console.log('Creating subscription:', { tier, credits, userId });
 
-    // First, check if customer exists and get any active subscriptions
+    // First, check if customer exists
     let customer;
-    const existingCustomers = await stripe.customers.list({ email: email, limit: 1 });
+    const existingCustomers = await stripe.customers.list({ email, limit: 1 });
     
     if (existingCustomers.data.length > 0) {
       customer = existingCustomers.data[0];
@@ -136,7 +133,6 @@ app.post('/create-subscription', async (req, res) => {
         limit: 1
       });
 
-      // Check if user is trying to subscribe to the same tier
       if (activeSubscriptions.data.length > 0) {
         const currentSubscription = activeSubscriptions.data[0];
         if (currentSubscription.metadata.tier === tier) {
@@ -162,10 +158,13 @@ app.post('/create-subscription', async (req, res) => {
         invoice_settings: {
           default_payment_method: paymentMethod,
         },
+        metadata: {
+          user_id: userId
+        }
       });
     }
 
-    // Create new subscription
+    // Create subscription
     const subscription = await stripe.subscriptions.create({
       customer: customer.id,
       items: [{ price: SUBSCRIPTION_PRICES[tier] }],
@@ -174,76 +173,19 @@ app.post('/create-subscription', async (req, res) => {
       metadata: { 
         credits,
         tier,
-        user_id: userId
+        user_id: userId,
+        type: 'subscription'
       },
       expand: ['latest_invoice.payment_intent']
     });
 
-    // Reset credits and update user's subscription in Supabase
-    const { error: dbError } = await supabase
-      .from('users')
-      .update({
-        stripe_customer_id: customer.id,
-        subscription_tier: tier,
-        subscription_status: 'active',
-        credits: 0, // Reset credits
-        last_credit_distribution: new Date().toISOString()
-      })
-      .eq('id', userId);
-
-    if (dbError) throw dbError;
-
-    // Process initial credit distribution
-    console.log('Starting credit distribution for tier:', tier);
-    console.log('User ID:', userId);
-    console.log('Current timestamp:', new Date().toISOString());
-    
-    // Get current credits before update
-    const { data: beforeUser } = await supabase
-      .from('users')
-      .select('credits, subscription_tier')
-      .eq('id', userId)
-      .single();
-    console.log('Credits before update:', beforeUser?.credits);
-
-    const { data: renewalData, error: renewalError } = await supabase.rpc(
-      'process_subscription_renewal',
-      {
-        p_user_id: userId,
-        p_subscription_tier: tier
-      }
-    );
-
-    if (renewalError) {
-      console.error('Error processing renewal in Supabase:', renewalError);
-      throw renewalError;
-    }
-    console.log('Credit distribution result:', renewalData);
-
-    // Verify the credits were updated
-    const { data: updatedUser, error: verifyError } = await supabase
-      .from('users')
-      .select('credits, subscription_tier, last_credit_distribution')
-      .eq('id', userId)
-      .single();
-
-    if (verifyError) {
-      console.error('Error verifying credit update:', verifyError);
-    } else {
-      console.log('Updated user data:', {
-        credits: updatedUser.credits,
-        tier: updatedUser.subscription_tier,
-        lastDistribution: updatedUser.last_credit_distribution
-      });
-    }
-
-    res.json({
-      subscriptionId: subscription.id,
+    res.json({ 
       clientSecret: subscription.latest_invoice.payment_intent.client_secret,
-      customerId: customer.id
+      customerId: customer.id,
+      subscriptionId: subscription.id
     });
   } catch (error) {
-    console.error('Subscription error:', error);
+    console.error('Error creating subscription:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -320,196 +262,101 @@ async function updatePrizePool() {
   }
 }
 
+// Update webhook handler to handle both payment types
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
-  console.log('Received webhook request');
-  console.log('Headers:', JSON.stringify(req.headers));
-  console.log('Raw body length:', req.body?.length);
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Stripe-Signature:', sig);
-
-  // Verify webhook secret is configured
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error('STRIPE_WEBHOOK_SECRET is not set in environment!');
-    return res.status(500).send('Webhook secret is not configured');
-  }
-
   try {
-    // Convert raw body buffer to string if needed
     const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(req.body);
-    
     event = stripe.webhooks.constructEvent(
       rawBody,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-    
-    console.log('Webhook verified successfully');
-    console.log('Event type:', event.type);
-    console.log('Event data:', JSON.stringify(event.data, null, 2));
   } catch (err) {
-    console.error('Webhook verification failed:', {
-      error: err.message,
-      signature: sig,
-      secretLength: process.env.STRIPE_WEBHOOK_SECRET?.length,
-      bodyLength: req.body?.length
-    });
+    console.error('Webhook verification failed:', err);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   try {
     switch (event.type) {
-      case 'checkout.session.completed':
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
-        let userId, tier, customerId;
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        if (paymentIntent.metadata.type === 'one_time') {
+          // Handle one-time payment success
+          const userId = paymentIntent.metadata.user_id;
+          const credits = parseInt(paymentIntent.metadata.credits);
 
-        if (event.type === 'checkout.session.completed') {
-          const session = event.data.object;
-          userId = session.metadata.userId;
-          tier = session.metadata.tier;
-          customerId = session.customer;
-        } else {
-          const subscription = event.data.object;
-          userId = subscription.metadata.user_id;
-          tier = subscription.metadata.tier;
-          customerId = subscription.customer;
+          // Update user's credits
+          const { error: creditsError } = await supabase
+            .from('users')
+            .update({
+              additional_credits: credits,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+
+          if (creditsError) throw creditsError;
         }
-
-        console.log('Processing subscription event:', {
-          userId,
-          tier,
-          customerId,
-          event: event.type
-        });
-
-        // Update user's subscription status
-        const { error: userError } = await supabase
-          .from('users')
-          .update({
-            subscription_tier: tier,
-            subscription_status: 'active',
-            stripe_customer_id: customerId,
-            credits: 0, // Reset credits before distribution
-            last_credit_distribution: null // Set to null to ensure immediate distribution
-          })
-          .eq('id', userId);
-
-        if (userError) {
-          console.error('Error updating user:', userError);
-          throw userError;
-        }
-
-        // Process credit distribution
-        const { error: renewalError } = await supabase.rpc(
-          'process_subscription_renewal',
-          {
-            p_user_id: userId,
-            p_subscription_tier: tier
-          }
-        );
-
-        if (renewalError) {
-          console.error('Error processing renewal:', renewalError);
-          throw renewalError;
-        }
-
-        // Record subscription revenue if it's a new subscription or renewal
-        if (event.type !== 'customer.subscription.updated' || 
-            event.data.object.status === 'active') {
-          const { error: revenueError } = await supabase
-            .from('subscription_revenue')
-            .insert([{
-              user_id: userId,
-              amount: event.data.object.items.data[0].price.unit_amount / 100,
-              subscription_id: event.data.object.id,
-              subscription_tier: tier,
-              payment_status: 'succeeded'
-            }]);
-
-          if (revenueError) {
-            console.error('Error recording revenue:', revenueError);
-            throw revenueError;
-          }
-        }
-
-        // Update prize pool
-        await updatePrizePool();
         break;
       }
 
-      case 'customer.subscription.deleted':
-      case 'customer.subscription.paused':
-      case 'customer.subscription.pending_update_expired':
-      case 'customer.subscription.pending_update_applied': {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        if (subscription.status === 'active') {
+          const userId = subscription.metadata.user_id;
+          const tier = subscription.metadata.tier;
+          
+          // Update user's subscription status
+          const { error: userError } = await supabase
+            .from('users')
+            .update({
+              subscription_tier: tier,
+              subscription_status: 'active',
+              credits: 0, // Reset credits before distribution
+              last_credit_distribution: null // Set to null to ensure immediate distribution
+            })
+            .eq('id', userId);
+
+          if (userError) throw userError;
+
+          // Process credit distribution
+          const { error: renewalError } = await supabase.rpc(
+            'process_subscription_renewal',
+            {
+              p_user_id: userId,
+              p_subscription_tier: tier
+            }
+          );
+
+          if (renewalError) throw renewalError;
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         const userId = subscription.metadata.user_id;
-        const status = event.type === 'customer.subscription.paused' ? 'paused' : 
-                      event.type === 'customer.subscription.deleted' ? 'cancelled' : 
-                      subscription.status;
-
-        console.log('Processing subscription status change:', {
-          userId,
-          status,
-          event: event.type
-        });
 
         const { error: statusError } = await supabase
           .from('users')
           .update({
-            subscription_status: status === 'cancelled' ? 'inactive' : status,
-            subscription_tier: status === 'cancelled' ? 'free' : undefined
+            subscription_status: 'inactive',
+            subscription_tier: 'free'
           })
           .eq('id', userId);
 
-        if (statusError) {
-          console.error('Error updating subscription status:', statusError);
-          throw statusError;
-        }
-
-        // Update prize pool after subscription changes
-        await updatePrizePool();
+        if (statusError) throw statusError;
         break;
       }
-
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object;
-        const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-        const userId = subscription.metadata.user_id;
-
-        console.log('Processing failed payment:', {
-          userId,
-          invoiceId: invoice.id
-        });
-
-        const { error: failureError } = await supabase
-          .from('users')
-          .update({
-            subscription_status: 'past_due'
-          })
-          .eq('id', userId);
-
-        if (failureError) {
-          console.error('Error updating subscription status:', failureError);
-          throw failureError;
-        }
-        break;
-      }
-
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
     }
 
     res.json({ received: true });
   } catch (err) {
     console.error('Error processing webhook:', err);
-    // Send a 200 response even on error to prevent Stripe from retrying
-    res.status(200).json({ 
-      error: err.message,
-      received: true 
-    });
+    res.status(200).json({ error: err.message, received: true });
   }
 });
 
