@@ -32,24 +32,39 @@ const StreamPage = () => {
   const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+    let subscriptionSubscription = null;
+    let votesSubscription = null;
+
     const initializePage = async () => {
+      if (!mounted) return;
       setLoading(true);
-      await fetchUserCredits();
-      await fetchVoteStats();
-      await getUserIP();
-      await fetchLeaderboardData();
-      await fetchTotalDonations();
-      await fetchStreamerInfo();
-      await fetchTopSupporters();
-      setupTwitchEmbed();
-      setupTwitchChatEmbed();
-      setLoading(false);
+      try {
+        await Promise.all([
+          fetchUserCredits(),
+          fetchVoteStats(),
+          getUserIP(),
+          fetchLeaderboardData(),
+          fetchTotalDonations(),
+          fetchStreamerInfo(),
+          fetchTopSupporters()
+        ]);
+        if (mounted) {
+          setupTwitchEmbed();
+          setupTwitchChatEmbed();
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing page:', error);
+        if (mounted) {
+          setLoading(false);
+          setErrorMessage('Failed to load stream data. Please refresh the page.');
+        }
+      }
     };
 
-    initializePage();
-
     // Set up real-time subscriptions
-    const subscriptionSubscription = supabase
+    subscriptionSubscription = supabase
       .channel('subscriptions-channel')
       .on(
         'postgres_changes',
@@ -59,13 +74,15 @@ const StreamPage = () => {
           table: 'subscription_revenue'
         },
         () => {
-          fetchTotalDonations();
+          if (mounted) {
+            fetchTotalDonations();
+          }
         }
       )
       .subscribe();
 
     // Add real-time subscription for votes
-    const votesSubscription = supabase
+    votesSubscription = supabase
       .channel('votes-channel')
       .on(
         'postgres_changes',
@@ -76,16 +93,35 @@ const StreamPage = () => {
           filter: `streamer=eq.${normalizedUsername}`
         },
         () => {
-          fetchTopSupporters();
-          fetchVoteStats();
+          if (mounted) {
+            fetchTopSupporters();
+            fetchVoteStats();
+          }
         }
       )
       .subscribe();
 
-    // Cleanup subscriptions on unmount
+    initializePage();
+
+    // Cleanup subscriptions and state on unmount
     return () => {
-      supabase.removeChannel(subscriptionSubscription);
-      supabase.removeChannel(votesSubscription);
+      mounted = false;
+      if (subscriptionSubscription) {
+        supabase.removeChannel(subscriptionSubscription);
+      }
+      if (votesSubscription) {
+        supabase.removeChannel(votesSubscription);
+      }
+      // Clean up Twitch embed
+      const embedContainer = document.getElementById("twitch-embed");
+      if (embedContainer) {
+        embedContainer.innerHTML = "";
+      }
+      // Clean up Twitch chat
+      const chatContainer = document.getElementById("twitch-chat");
+      if (chatContainer) {
+        chatContainer.innerHTML = "";
+      }
     };
   }, [normalizedUsername]);
 

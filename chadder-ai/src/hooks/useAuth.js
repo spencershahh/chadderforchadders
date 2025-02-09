@@ -32,22 +32,29 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     let userSubscription = null;
     let authSubscription = null;
 
     const setupSubscriptions = async () => {
       try {
+        setLoading(true);
         // Get initial session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          setError(sessionError);
+          if (mounted) {
+            setError(sessionError);
+            setLoading(false);
+          }
           return;
         }
 
-        setUser(session?.user ?? null);
+        if (mounted) {
+          setUser(session?.user ?? null);
+        }
 
-        if (session?.user) {
+        if (session?.user && mounted) {
           // Fetch initial user data
           await fetchUserData(session.user.id);
 
@@ -63,6 +70,7 @@ export function useAuth() {
                 filter: `id=eq.${session.user.id}`
               },
               async (payload) => {
+                if (!mounted) return;
                 console.log('User data changed:', payload);
                 if (payload.new) {
                   setSubscription({
@@ -77,16 +85,21 @@ export function useAuth() {
             .subscribe();
         }
 
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       } catch (err) {
         console.error('Error setting up subscriptions:', err);
-        setError(err);
-        setLoading(false);
+        if (mounted) {
+          setError(err);
+          setLoading(false);
+        }
       }
     };
 
     // Set up auth state change listener
     authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
       console.log('Auth state changed:', event, session?.user?.id);
       setUser(session?.user ?? null);
       
@@ -99,8 +112,9 @@ export function useAuth() {
 
     setupSubscriptions();
 
-    // Cleanup
+    // Cleanup function
     return () => {
+      mounted = false;
       if (userSubscription) {
         supabase.removeChannel(userSubscription);
       }
