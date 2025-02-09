@@ -290,10 +290,16 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         const subscription = await stripe.subscriptions.retrieve(session.subscription);
         console.log('Subscription retrieved:', subscription);
 
-        const userId = session.metadata.userId;
-        const tier = session.metadata.tier;
+        // Get userId and tier from metadata, with fallbacks
+        const userId = session.metadata?.userId || subscription.metadata?.user_id;
+        const tier = session.metadata?.tier || subscription.metadata?.tier;
         
-        console.log('Updating user:', { userId, tier });
+        console.log('Extracted user info:', { userId, tier, sessionMetadata: session.metadata, subscriptionMetadata: subscription.metadata });
+
+        if (!userId || !tier) {
+          console.error('Missing userId or tier:', { userId, tier });
+          throw new Error('Missing required metadata: userId or tier');
+        }
 
         // Update user's subscription status
         const { error: userError } = await supabase
@@ -357,9 +363,17 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         console.log('Subscription updated:', subscription);
         
         if (subscription.status === 'active') {
-          const userId = subscription.metadata.user_id;
-          const tier = subscription.metadata.tier;
+          // Get userId and tier from metadata
+          const userId = subscription.metadata?.user_id || subscription.metadata?.userId;
+          const tier = subscription.metadata?.tier;
           
+          console.log('Extracted user info:', { userId, tier, metadata: subscription.metadata });
+
+          if (!userId || !tier) {
+            console.error('Missing userId or tier:', { userId, tier });
+            throw new Error('Missing required metadata: userId or tier');
+          }
+
           console.log('Updating user subscription:', { userId, tier });
 
           // Update user's subscription status
@@ -421,7 +435,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        const userId = subscription.metadata.userId;
+        const userId = subscription.metadata?.user_id || subscription.metadata?.userId;
+
+        if (!userId) {
+          console.error('Missing userId in deleted subscription:', subscription.metadata);
+          throw new Error('Missing required metadata: userId');
+        }
 
         console.log('Subscription deleted:', { userId });
 
