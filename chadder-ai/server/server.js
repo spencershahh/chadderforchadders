@@ -274,6 +274,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
+    console.log('Webhook event received:', event.type, JSON.stringify(event.data.object, null, 2));
   } catch (err) {
     console.error('Webhook verification failed:', err);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -281,34 +282,65 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
   try {
     switch (event.type) {
-      case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object;
-        if (paymentIntent.metadata.type === 'one_time') {
-          // Handle one-time payment success
-          const userId = paymentIntent.metadata.user_id;
-          const credits = parseInt(paymentIntent.metadata.credits);
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        console.log('Checkout session completed:', session);
+        
+        // Get the subscription
+        const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        console.log('Subscription retrieved:', subscription);
 
-          // Update user's credits
-          const { error: creditsError } = await supabase
-            .from('users')
-            .update({
-              additional_credits: credits,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId);
+        const userId = session.metadata.userId;
+        const tier = session.metadata.tier;
+        
+        console.log('Updating user:', { userId, tier });
 
-          if (creditsError) throw creditsError;
+        // Update user's subscription status
+        const { error: userError } = await supabase
+          .from('users')
+          .update({
+            subscription_tier: tier,
+            subscription_status: 'active',
+            stripe_customer_id: session.customer,
+            credits: 0, // Reset credits before distribution
+            last_credit_distribution: null // Set to null to ensure immediate distribution
+          })
+          .eq('id', userId);
+
+        if (userError) {
+          console.error('Error updating user:', userError);
+          throw userError;
         }
+
+        // Process credit distribution
+        const { error: renewalError } = await supabase.rpc(
+          'process_subscription_renewal',
+          {
+            p_user_id: userId,
+            p_subscription_tier: tier
+          }
+        );
+
+        if (renewalError) {
+          console.error('Error processing renewal:', renewalError);
+          throw renewalError;
+        }
+
+        // Update prize pool
+        await updatePrizePool();
         break;
       }
 
-      case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
+        console.log('Subscription updated:', subscription);
+        
         if (subscription.status === 'active') {
-          const userId = subscription.metadata.user_id;
+          const userId = subscription.metadata.userId;
           const tier = subscription.metadata.tier;
           
+          console.log('Updating user subscription:', { userId, tier });
+
           // Update user's subscription status
           const { error: userError } = await supabase
             .from('users')
@@ -320,7 +352,10 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             })
             .eq('id', userId);
 
-          if (userError) throw userError;
+          if (userError) {
+            console.error('Error updating user:', userError);
+            throw userError;
+          }
 
           // Process credit distribution
           const { error: renewalError } = await supabase.rpc(
@@ -331,14 +366,22 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             }
           );
 
-          if (renewalError) throw renewalError;
+          if (renewalError) {
+            console.error('Error processing renewal:', renewalError);
+            throw renewalError;
+          }
+
+          // Update prize pool
+          await updatePrizePool();
         }
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        const userId = subscription.metadata.user_id;
+        const userId = subscription.metadata.userId;
+
+        console.log('Subscription deleted:', { userId });
 
         const { error: statusError } = await supabase
           .from('users')
@@ -348,7 +391,10 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           })
           .eq('id', userId);
 
-        if (statusError) throw statusError;
+        if (statusError) {
+          console.error('Error updating user status:', statusError);
+          throw statusError;
+        }
         break;
       }
     }
@@ -356,6 +402,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
     res.json({ received: true });
   } catch (err) {
     console.error('Error processing webhook:', err);
+    // Send 200 to acknowledge receipt but log the error
     res.status(200).json({ error: err.message, received: true });
   }
 });
@@ -476,7 +523,8 @@ app.post('/create-checkout-session', async (req, res) => {
         }
       },
       allow_promotion_codes: true,
-      billing_address_collection: 'required'
+      billing_address_collection: 'required',
+      client_reference_id: userId // Add this to ensure we have a backup reference
     });
 
     res.json({ url: session.url });
