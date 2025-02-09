@@ -274,7 +274,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-    console.log('Webhook event received:', event.type, JSON.stringify(event.data.object, null, 2));
+    console.log('Webhook event received:', event.type);
   } catch (err) {
     console.error('Webhook verification failed:', err);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -294,7 +294,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         const userId = session.metadata?.userId || subscription.metadata?.user_id;
         const tier = session.metadata?.tier || subscription.metadata?.tier;
         
-        console.log('Extracted user info:', { userId, tier, sessionMetadata: session.metadata, subscriptionMetadata: subscription.metadata });
+        console.log('Extracted user info:', { userId, tier });
 
         if (!userId || !tier) {
           console.error('Missing userId or tier:', { userId, tier });
@@ -318,7 +318,28 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           throw userError;
         }
 
-        // Process credit distribution
+        // Calculate amount per week based on tier
+        const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
+
+        // Update subscription record first
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .upsert({
+            user_id: userId,
+            amount_per_week: amountPerWeek,
+            status: 'active',
+            subscription_tier: tier,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (subscriptionError) {
+          console.error('Error updating subscription:', subscriptionError);
+          throw subscriptionError;
+        }
+
+        // Process credit distribution after subscription is updated
         const { error: renewalError } = await supabase.rpc(
           'process_subscription_renewal',
           {
@@ -334,27 +355,6 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
         // Update prize pool
         await updatePrizePool();
-
-        // Calculate amount per week based on tier
-        const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
-
-        // Update subscription amount for prize pool calculation
-        const { error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: userId,
-            amount_per_week: amountPerWeek,
-            status: 'active',
-            subscription_tier: tier, // Explicitly set the tier
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id'
-          });
-
-        if (subscriptionError) {
-          console.error('Error updating subscription:', subscriptionError);
-          throw subscriptionError;
-        }
         break;
       }
 
@@ -367,14 +367,33 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           const userId = subscription.metadata?.user_id || subscription.metadata?.userId;
           const tier = subscription.metadata?.tier;
           
-          console.log('Extracted user info:', { userId, tier, metadata: subscription.metadata });
+          console.log('Extracted user info:', { userId, tier });
 
           if (!userId || !tier) {
             console.error('Missing userId or tier:', { userId, tier });
             throw new Error('Missing required metadata: userId or tier');
           }
 
-          console.log('Updating user subscription:', { userId, tier });
+          // Calculate amount per week based on tier
+          const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
+
+          // Update subscription record first
+          const { error: subscriptionError } = await supabase
+            .from('subscriptions')
+            .upsert({
+              user_id: userId,
+              amount_per_week: amountPerWeek,
+              status: 'active',
+              subscription_tier: tier,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (subscriptionError) {
+            console.error('Error updating subscription:', subscriptionError);
+            throw subscriptionError;
+          }
 
           // Update user's subscription status
           const { error: userError } = await supabase
@@ -392,7 +411,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             throw userError;
           }
 
-          // Process credit distribution
+          // Process credit distribution after subscription is updated
           const { error: renewalError } = await supabase.rpc(
             'process_subscription_renewal',
             {
@@ -408,27 +427,6 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
           // Update prize pool
           await updatePrizePool();
-
-          // Calculate amount per week based on tier
-          const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
-
-          // Update subscription amount for prize pool calculation
-          const { error: subscriptionError } = await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: userId,
-              amount_per_week: amountPerWeek,
-              status: 'active',
-              subscription_tier: tier, // Explicitly set the tier
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id'
-            });
-
-          if (subscriptionError) {
-            console.error('Error updating subscription:', subscriptionError);
-            throw subscriptionError;
-          }
         }
         break;
       }
