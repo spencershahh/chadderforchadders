@@ -328,6 +328,24 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
         // Update prize pool
         await updatePrizePool();
+
+        // Update subscription amount for prize pool calculation
+        await supabase.from('subscriptions')
+          .insert({
+            user_id: userId,
+            amount_per_week: 0, // Assuming 0 amount per week for completed session
+            status: 'active',
+            subscription_tier: tier
+          })
+          .onConflict('user_id')
+          .doUpdate({
+            set: {
+              amount_per_week: EXCLUDED.amount_per_week,
+              subscription_tier: EXCLUDED.subscription_tier,
+              status: EXCLUDED.status,
+              updated_at: NOW()
+            }
+          });
         break;
       }
 
@@ -373,6 +391,24 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
           // Update prize pool
           await updatePrizePool();
+
+          // Update subscription amount for prize pool calculation
+          await supabase.from('subscriptions')
+            .insert({
+              user_id: userId,
+              amount_per_week: 0, // Assuming 0 amount per week for active subscription
+              status: 'active',
+              subscription_tier: tier
+            })
+            .onConflict('user_id')
+            .doUpdate({
+              set: {
+                amount_per_week: EXCLUDED.amount_per_week,
+                subscription_tier: EXCLUDED.subscription_tier,
+                status: EXCLUDED.status,
+                updated_at: NOW()
+              }
+            });
         }
         break;
       }
@@ -395,6 +431,11 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           console.error('Error updating user status:', statusError);
           throw statusError;
         }
+
+        // Update subscription amount for prize pool calculation
+        await supabase.from('subscriptions')
+          .delete()
+          .eq('user_id', userId);
         break;
       }
     }
