@@ -630,8 +630,7 @@ app.post('/create-checkout-session', async (req, res) => {
         }
       },
       allow_promotion_codes: true,
-      billing_address_collection: 'required',
-      customer_creation: 'always'
+      billing_address_collection: 'required'
     });
 
     res.json({ url: session.url });
