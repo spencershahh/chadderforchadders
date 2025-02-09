@@ -393,7 +393,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             subscription_status: 'active',
             stripe_customer_id: customerId,
             credits: 0, // Reset credits before distribution
-            last_credit_distribution: new Date().toISOString()
+            last_credit_distribution: null // Set to null to ensure immediate distribution
           })
           .eq('id', userId);
 
