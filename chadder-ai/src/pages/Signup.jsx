@@ -100,10 +100,10 @@ const Signup = () => {
         // Wait a short moment to ensure any cascading deletes have completed
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Try inserting the new user record
-        const { error: insertError } = await supabase
+        // Try upserting the new user record to avoid duplicate key error if record exists
+        const { error: upsertError } = await supabase
           .from('users')
-          .insert([
+          .upsert([
             {
               id: user.id,
               email: user.email,
@@ -112,36 +112,13 @@ const Signup = () => {
               credits: 0,
               created_at: new Date().toISOString()
             }
-          ]);
+          ], { onConflict: 'id' });
 
-        if (insertError) {
-          console.error("Database insert error:", insertError);
-          
-          // If the error is a duplicate key error, try one more time after a delay
-          if (insertError.code === '23505') {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            const { error: retryError } = await supabase
-              .from('users')
-              .insert([
-                {
-                  id: user.id,
-                  email: user.email,
-                  display_name: displayName,
-                  tier: 'free',
-                  credits: 0,
-                  created_at: new Date().toISOString()
-                }
-              ]);
-              
-            if (retryError) {
-              toast.error('Failed to create account. Please try again later.');
-              return;
-            }
-          } else {
-            toast.error(`Failed to create account: ${insertError.message}`);
-            return;
-          }
+        if (upsertError) {
+          console.error("Database upsert error:", upsertError);
+          toast.error(`Failed to create account: ${upsertError.message}`);
+          setLoading(false);
+          return;
         }
 
         toast.success('Signup successful! Please check your email to confirm your account.', {
