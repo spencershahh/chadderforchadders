@@ -329,23 +329,26 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         // Update prize pool
         await updatePrizePool();
 
+        // Calculate amount per week based on tier
+        const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
+
         // Update subscription amount for prize pool calculation
-        await supabase.from('subscriptions')
-          .insert({
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .upsert({
             user_id: userId,
-            amount_per_week: 0, // Assuming 0 amount per week for completed session
+            amount_per_week: amountPerWeek,
             status: 'active',
-            subscription_tier: tier
-          })
-          .onConflict('user_id')
-          .doUpdate({
-            set: {
-              amount_per_week: EXCLUDED.amount_per_week,
-              subscription_tier: EXCLUDED.subscription_tier,
-              status: EXCLUDED.status,
-              updated_at: NOW()
-            }
+            subscription_tier: tier, // Explicitly set the tier
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
           });
+
+        if (subscriptionError) {
+          console.error('Error updating subscription:', subscriptionError);
+          throw subscriptionError;
+        }
         break;
       }
 
@@ -354,7 +357,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         console.log('Subscription updated:', subscription);
         
         if (subscription.status === 'active') {
-          const userId = subscription.metadata.userId;
+          const userId = subscription.metadata.user_id;
           const tier = subscription.metadata.tier;
           
           console.log('Updating user subscription:', { userId, tier });
@@ -392,23 +395,26 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
           // Update prize pool
           await updatePrizePool();
 
+          // Calculate amount per week based on tier
+          const amountPerWeek = tier === 'common' ? 3 : tier === 'rare' ? 5 : tier === 'epic' ? 7 : 0;
+
           // Update subscription amount for prize pool calculation
-          await supabase.from('subscriptions')
-            .insert({
+          const { error: subscriptionError } = await supabase
+            .from('subscriptions')
+            .upsert({
               user_id: userId,
-              amount_per_week: 0, // Assuming 0 amount per week for active subscription
+              amount_per_week: amountPerWeek,
               status: 'active',
-              subscription_tier: tier
-            })
-            .onConflict('user_id')
-            .doUpdate({
-              set: {
-                amount_per_week: EXCLUDED.amount_per_week,
-                subscription_tier: EXCLUDED.subscription_tier,
-                status: EXCLUDED.status,
-                updated_at: NOW()
-              }
+              subscription_tier: tier, // Explicitly set the tier
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
             });
+
+          if (subscriptionError) {
+            console.error('Error updating subscription:', subscriptionError);
+            throw subscriptionError;
+          }
         }
         break;
       }
