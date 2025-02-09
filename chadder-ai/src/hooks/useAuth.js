@@ -1,113 +1,137 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-export const useAuth = () => {
+export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [subscription, setSubscription] = useState(null);
 
-  const fetchUserData = async (userId) => {
+  const fetchUserData = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('subscription_tier, subscription_status, credits, stripe_customer_id')
         .eq('id', userId)
         .single();
 
       if (error) throw error;
+      
+      setSubscription({
+        tier: data.subscription_tier || 'free',
+        status: data.subscription_status || 'inactive',
+        credits: data.credits || 0,
+        stripeCustomerId: data.stripe_customer_id
+      });
+      
       return data;
     } catch (err) {
       console.error('Error fetching user data:', err);
       return null;
     }
-  };
+  }, []);
 
   useEffect(() => {
-    let mounted = true;
+    let userSubscription = null;
+    let authSubscription = null;
 
-    const setupAuth = async () => {
+    const setupSubscriptions = async () => {
       try {
         // Get initial session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (sessionError) throw sessionError;
+        if (sessionError) {
+          setError(sessionError);
+          return;
+        }
+
+        setUser(session?.user ?? null);
 
         if (session?.user) {
-          const userData = await fetchUserData(session.user.id);
-          if (mounted) {
-            setUser(userData ? { ...session.user, ...userData } : session.user);
-          }
-        } else if (mounted) {
-          setUser(null);
+          // Fetch initial user data
+          await fetchUserData(session.user.id);
+
+          // Set up real-time subscription tracking
+          userSubscription = supabase
+            .channel('user-channel')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'users',
+                filter: `id=eq.${session.user.id}`
+              },
+              async (payload) => {
+                console.log('User data changed:', payload);
+                if (payload.new) {
+                  setSubscription({
+                    tier: payload.new.subscription_tier || 'free',
+                    status: payload.new.subscription_status || 'inactive',
+                    credits: payload.new.credits || 0,
+                    stripeCustomerId: payload.new.stripe_customer_id
+                  });
+                }
+              }
+            )
+            .subscribe();
         }
+
+        setLoading(false);
       } catch (err) {
-        console.error('Auth error:', err);
-        if (mounted) {
-          setError(err);
-          setUser(null);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        console.error('Error setting up subscriptions:', err);
+        setError(err);
+        setLoading(false);
       }
     };
 
-    setupAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (mounted) {
-        if (session?.user) {
-          const userData = await fetchUserData(session.user.id);
-          setUser(userData ? { ...session.user, ...userData } : session.user);
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
+    // Set up auth state change listener
+    authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      } else {
+        setSubscription(null);
       }
     });
 
+    setupSubscriptions();
+
+    // Cleanup
     return () => {
-      mounted = false;
-      subscription?.unsubscribe();
+      if (userSubscription) {
+        supabase.removeChannel(userSubscription);
+      }
+      if (authSubscription) {
+        authSubscription.subscription.unsubscribe();
+      }
     };
-  }, []);
+  }, [fetchUserData]);
 
   const updateUser = async (formData) => {
     try {
       if (!user) throw new Error('No user logged in');
 
-      // Update auth metadata
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          displayName: formData.displayName,
-          notifications: formData.notifications,
-          theme: formData.theme
-        }
-      });
-
-      if (authError) throw authError;
+      const updates = {
+        display_name: formData.displayName,
+        email: formData.email,
+        notifications: formData.notifications,
+        theme: formData.theme,
+        updated_at: new Date()
+      };
 
       // Update user data in the database
       const { error: dbError } = await supabase
         .from('users')
-        .update({
-          display_name: formData.displayName,
-          email: formData.email,
-          notifications: formData.notifications,
-          theme: formData.theme,
-          updated_at: new Date()
-        })
+        .update(updates)
         .eq('id', user.id);
 
       if (dbError) throw dbError;
 
       // Refresh user data
-      const userData = await fetchUserData(user.id);
-      if (userData) {
-        setUser(prev => ({ ...prev, ...userData }));
-      }
+      await fetchUserData(user.id);
 
     } catch (error) {
       console.error('Error updating user:', error);
@@ -119,6 +143,8 @@ export const useAuth = () => {
     user,
     loading,
     error,
-    updateUser
+    subscription,
+    updateUser,
+    refreshUserData: () => user && fetchUserData(user.id)
   };
-}; 
+} 

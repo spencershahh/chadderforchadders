@@ -130,7 +130,7 @@ const CreditsPage = () => {
 
       // If we have a Stripe customer ID, verify with Stripe
       if (userData?.stripe_customer_id) {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
         const response = await fetch(`${API_URL}/subscriptions/${userData.stripe_customer_id}`);
         
         if (!response.ok) {
@@ -211,7 +211,7 @@ const CreditsPage = () => {
       }
 
       // Create Stripe checkout session
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
       const siteUrl = import.meta.env.VITE_APP_URL || 'https://chadderai.vercel.app';
       
       const requestData = {

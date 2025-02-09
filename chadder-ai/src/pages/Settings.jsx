@@ -44,6 +44,26 @@ const Settings = () => {
     }
   }, [user, authLoading, authError]);
 
+  useEffect(() => {
+    if (!user) return;
+    
+    // Check for successful payment
+    const urlParams = new URLSearchParams(window.location.search);
+    const isSuccess = urlParams.get('success');
+    const sessionId = urlParams.get('session_id');
+    
+    if (isSuccess === 'true' && sessionId) {
+      toast.success('Subscription activated successfully!');
+      // Clear the URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (urlParams.get('canceled') === 'true') {
+      toast.error('Subscription was canceled.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    
+    fetchUserData();
+  }, [user]);
+
   const fetchUserData = async () => {
     try {
       setIsLoading(true);
@@ -195,7 +215,7 @@ const Settings = () => {
       }
 
       // Create portal session
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
       const response = await fetch(`${API_URL}/create-portal-session`, {
         method: 'POST',
         headers: {
@@ -303,7 +323,7 @@ const Settings = () => {
       if (userError) throw userError;
 
       if (userData?.stripe_customer_id) {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
         try {
           await fetch(`${API_URL}/cancel-subscription`, {
             method: 'POST',
@@ -359,7 +379,8 @@ const Settings = () => {
   // Add this new function to handle cancellation
   const handleCancelSubscription = async (subscriptionId) => {
     try {
-      const response = await fetch('http://localhost:3001/cancel-subscription', {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
+      const response = await fetch(`${API_URL}/cancel-subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscriptionId })
