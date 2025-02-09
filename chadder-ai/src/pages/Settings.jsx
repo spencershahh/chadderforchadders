@@ -61,7 +61,10 @@ const Settings = () => {
     const sessionId = urlParams.get('session_id');
     
     if (isSuccess === 'true' && sessionId) {
-      toast.success('Subscription activated successfully!');
+      toast.success('Subscription successfully activated! Your gems will be distributed weekly. 🎉', {
+        duration: 5000,
+        icon: '💎'
+      });
       // Clear the URL parameters
       window.history.replaceState({}, '', window.location.pathname);
     } else if (urlParams.get('canceled') === 'true') {

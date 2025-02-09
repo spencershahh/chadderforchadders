@@ -463,7 +463,7 @@ app.post('/create-checkout-session', async (req, res) => {
         price: priceId,
         quantity: 1,
       }],
-      success_url: 'https://chadderai.vercel.app/dashboard?session_id={CHECKOUT_SESSION_ID}&success=true',
+      success_url: 'https://chadderai.vercel.app/settings?session_id={CHECKOUT_SESSION_ID}&success=true',
       cancel_url: 'https://chadderai.vercel.app/credits?canceled=true',
       metadata: {
         userId: userId,
