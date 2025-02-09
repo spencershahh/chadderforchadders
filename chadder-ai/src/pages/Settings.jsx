@@ -8,7 +8,7 @@ import styles from './Settings.module.css';
 const Settings = () => {
   const { user, loading: authLoading, error: authError } = useAuth();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isEmailUpdateLoading, setIsEmailUpdateLoading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [showEmailUpdate, setShowEmailUpdate] = useState(false);
@@ -77,7 +77,7 @@ const Settings = () => {
 
   const fetchUserData = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       setError('');
       console.log('Starting fetchUserData for user:', user?.id);
 
@@ -139,7 +139,7 @@ const Settings = () => {
         navigate('/login');
       }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -265,14 +265,14 @@ const Settings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
     try {
       await updateUser(formData);
       toast.success('Settings updated successfully');
     } catch (error) {
       toast.error('Failed to update settings');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -493,7 +493,7 @@ const Settings = () => {
     );
   }
 
-  if (isLoading) {
+  if (loading) {
     console.log('Rendering loading state...');
     return (
       <div className={styles.settingsContainer}>
