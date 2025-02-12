@@ -42,6 +42,9 @@ const StreamPage = () => {
       if (!mounted) return;
       setLoading(true);
       try {
+        // Force scroll to top before loading content
+        window.scrollTo(0, 0);
+        
         await Promise.all([
           fetchUserCredits(),
           fetchVoteStats(),
@@ -55,6 +58,8 @@ const StreamPage = () => {
           setupTwitchEmbed();
           setupTwitchChatEmbed();
           setLoading(false);
+          // Ensure we're at the top after everything loads
+          window.scrollTo(0, 0);
         }
       } catch (error) {
         console.error('Error initializing page:', error);
@@ -139,6 +144,24 @@ const StreamPage = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  // Add scroll management effect
+  useEffect(() => {
+    // Scroll to top when component mounts
+    window.scrollTo(0, 0);
+    
+    // Prevent default scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    return () => {
+      // Reset scroll restoration behavior
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'auto';
+      }
     };
   }, []);
 

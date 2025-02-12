@@ -5,6 +5,7 @@
   color: #efeff1;
   background-color: #0e0e10;
   min-height: calc(100vh - 70px);
+  position: relative;
 }
 
 .stream-title {
@@ -335,6 +336,10 @@
   .stream-page {
     padding: 0;
     overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
   }
 
   .stream-title {
@@ -348,12 +353,16 @@
     background: rgba(14, 14, 16, 0.95);
     z-index: 1000;
     backdrop-filter: blur(10px);
+    height: 40px;
+    display: flex;
+    align-items: center;
   }
 
   .stream-layout {
     flex-direction: column;
     height: auto;
     gap: 0;
+    margin-top: 40px; /* Account for fixed title */
   }
 
   .stream-video-container {
@@ -361,15 +370,22 @@
     top: 40px; /* Height of title */
     z-index: 999;
     width: 100%;
-    height: auto;
+    height: 56.25vw; /* Force 16:9 aspect ratio */
     min-height: unset;
     margin: 0;
     border-radius: 0;
+    background: #000;
+  }
+
+  #twitch-embed {
+    width: 100% !important;
+    height: 100% !important;
   }
 
   .stream-right-container {
     width: 100%;
-    height: calc(100vh - 40px - 56.25vw - 60px); /* Subtract title, video (16:9 ratio), and some padding */
+    flex: 1;
+    min-height: calc(100vh - 40px - 56.25vw); /* Ensure chat fills remaining space */
     margin: 0;
   }
 
@@ -418,7 +434,8 @@
     }
 
     .stream-right-container {
-      height: calc(100vh - 40px - 56.25vw - 60px);
+      height: calc(100vh - 40px - 56.25vw);
+      min-height: 50vh; /* Ensure chat has minimum height */
     }
   }
 
@@ -430,23 +447,8 @@
     }
 
     .stream-right-container {
-      height: calc(100vh - 40px - 56.25vh - 60px);
-    }
-
-    .floating-vote-container {
-      max-width: 400px;
-      left: auto;
-      right: 1rem;
-      border-radius: 12px;
-      transform: translateY(calc(100% + 1rem));
-    }
-
-    .floating-vote-container.collapsed {
-      transform: translateY(0);
-    }
-
-    .collapse-toggle {
-      display: none;
+      height: calc(100vh - 40px - 56.25vh);
+      min-height: 30vh;
     }
   }
 }
