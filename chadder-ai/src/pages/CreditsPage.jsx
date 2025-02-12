@@ -226,21 +226,10 @@ const CreditsPage = () => {
         return;
       }
 
-      // Verify session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData?.session) {
-        // Try to refresh the session
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          throw new Error('No active session');
-        }
-      }
-
-      // Get user data
+      // Get user data with subscription info
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('email, stripe_customer_id')
+        .select('email, stripe_customer_id, subscription_status')
         .eq('id', user.id)
         .single();
 
@@ -253,15 +242,35 @@ const CreditsPage = () => {
         throw new Error('Could not retrieve user data');
       }
 
-      // Find the selected package
+      // If user already has an active subscription, redirect to customer portal
+      if (userData.stripe_customer_id && userData.subscription_status === 'active') {
+        const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
+        const response = await fetch(`${API_URL}/create-portal-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            return_url: window.location.href
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create portal session');
+        }
+
+        const { url } = await response.json();
+        window.location.href = url;
+        return;
+      }
+
+      // For new subscriptions, continue with checkout session
       const selectedPackage = subscriptionPackages.find(pkg => pkg.id === packageId);
       if (!selectedPackage) {
         throw new Error('Invalid package selected');
       }
 
-      // Create Stripe checkout session
       const API_URL = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
-      const siteUrl = import.meta.env.VITE_APP_URL || 'https://chadderai.vercel.app';
       
       const requestData = {
         userId: user.id,
@@ -288,7 +297,7 @@ const CreditsPage = () => {
     } catch (err) {
       console.error("Subscription error:", err);
       setError(err.message || 'Failed to process subscription');
-      toast.error(err.message || 'Failed to create checkout session');
+      toast.error(err.message || 'Failed to process subscription request');
       
       if (err.message?.includes('No active session') || err.message?.includes('JWT expired')) {
         setPendingPackageId(packageId);

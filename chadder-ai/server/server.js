@@ -474,10 +474,11 @@ app.get('/keep-alive', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Create portal session
 app.post('/create-portal-session', async (req, res) => {
   try {
-    const { userId } = req.body;
-    console.log('Creating portal session for:', { userId });
+    const { userId, return_url } = req.body;
+    console.log('Creating portal session for:', { userId, return_url });
 
     // Get the customer's Stripe ID from your database
     const { data: userData, error } = await supabase
@@ -498,8 +499,26 @@ app.post('/create-portal-session', async (req, res) => {
     // Create the portal session with configuration
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripe_customer_id,
-      return_url: 'https://chadderai.vercel.app/dashboard',
-      configuration: process.env.STRIPE_PORTAL_CONFIGURATION_ID
+      return_url: return_url || 'https://chadderai.vercel.app/settings',
+      flow_data: {
+        type: 'subscription_update',
+        subscription_update: {
+          features: {
+            proration_behavior: 'create_prorations',
+            subscription_pause: {
+              enabled: false
+            },
+            subscription_cancel: {
+              enabled: true,
+              mode: 'at_period_end',
+              cancellation_reason: {
+                enabled: true,
+                options: ['too_expensive', 'missing_features', 'unused', 'other']
+              }
+            }
+          }
+        }
+      }
     });
 
     console.log('Created portal session:', session.url);
