@@ -19,6 +19,7 @@ const Discover = () => {
   const [nominationStatus, setNominationStatus] = useState('');
   const navigate = useNavigate();
   const nominationSectionRef = useRef(null);
+  const streamersGridRef = useRef(null);
 
   const FREE_STREAMER_LIMIT = 5;
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -317,6 +318,16 @@ const Discover = () => {
     navigate('/signup');
   };
 
+  const handleLiveNowClick = () => {
+    setStreamersFilter('online');
+    streamersGridRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleTotalStreamersClick = () => {
+    setStreamersFilter('all');
+    streamersGridRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const renderStreamerCard = (streamer, index) => {
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
     const votes = streamerVotes[streamer.user_login] || 0;
@@ -390,13 +401,23 @@ const Discover = () => {
 
         <div className={styles.statsContainer}>
           <div className={styles.statsGrid}>
-            <div className={styles.statItem}>
+            <div 
+              className={`${styles.statItem} ${styles.clickable}`}
+              onClick={handleLiveNowClick}
+              role="button"
+              tabIndex={0}
+            >
               <span className={styles.statNumber}>
                 {streamers.filter(s => s.type === "live").length}
               </span>
               <span className={styles.statLabel}>LIVE NOW</span>
             </div>
-            <div className={styles.statItem}>
+            <div 
+              className={`${styles.statItem} ${styles.clickable}`}
+              onClick={handleTotalStreamersClick}
+              role="button"
+              tabIndex={0}
+            >
               <span className={styles.statNumber}>
                 {streamers.length}
               </span>
@@ -525,7 +546,7 @@ const Discover = () => {
         )}
       </div>
 
-      <div className={styles.streamerGrid}>
+      <div className={styles.streamerGrid} ref={streamersGridRef}>
         {sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))}
       </div>
 

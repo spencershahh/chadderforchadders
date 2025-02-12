@@ -348,15 +348,32 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
         console.log('Subscription updated:', subscription);
         
         if (subscription.status === 'active') {
-          // Get userId and tier from metadata
+          // Get userId from metadata
           const userId = subscription.metadata?.user_id || subscription.metadata?.userId;
-          const tier = subscription.metadata?.tier;
+          
+          // Get tier from price ID
+          const priceId = subscription.items.data[0].price.id;
+          let tier;
+          switch (priceId) {
+            case 'price_1QnrdfEDfrbbc35YnZ3tVoMS':
+              tier = 'common';
+              break;
+            case 'price_1Qnre1EDfrbbc35YQVAy7Z0E':
+              tier = 'rare';
+              break;
+            case 'price_1QnreLEDfrbbc35YV7TtcIld':
+              tier = 'epic';
+              break;
+            default:
+              console.error('Unknown price ID:', priceId);
+              throw new Error('Unknown subscription tier');
+          }
           
           console.log('Extracted user info:', { userId, tier });
 
-          if (!userId || !tier) {
-            console.error('Missing userId or tier:', { userId, tier });
-            throw new Error('Missing required metadata: userId or tier');
+          if (!userId) {
+            console.error('Missing userId:', subscription.metadata);
+            throw new Error('Missing required metadata: userId');
           }
 
           // Calculate amount per week based on tier
@@ -394,22 +411,18 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
             throw userError;
           }
 
-          // Only distribute credits if this is a new subscription or reactivation
-          const previousAttributes = event.data.previous_attributes || {};
-          if (previousAttributes.status !== 'active') {
-            // Process credit distribution after subscription is updated
-            const { error: renewalError } = await supabase.rpc(
-              'process_subscription_renewal',
-              {
-                p_user_id: userId,
-                p_subscription_tier: tier
-              }
-            );
-
-            if (renewalError) {
-              console.error('Error processing renewal:', renewalError);
-              throw renewalError;
+          // Process credit distribution after subscription is updated
+          const { error: renewalError } = await supabase.rpc(
+            'process_subscription_renewal',
+            {
+              p_user_id: userId,
+              p_subscription_tier: tier
             }
+          );
+
+          if (renewalError) {
+            console.error('Error processing renewal:', renewalError);
+            throw renewalError;
           }
 
           // Update prize pool

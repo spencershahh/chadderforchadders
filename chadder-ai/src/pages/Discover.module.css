@@ -1115,4 +1115,18 @@
 .signUpButton:hover {
   background: #7a2bff;
   transform: translateY(-2px);
+}
+
+.clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.clickable:hover {
+  transform: translateY(-2px);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.clickable:active {
+  transform: translateY(0);
 } 
