@@ -500,23 +500,29 @@ app.post('/create-portal-session', async (req, res) => {
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripe_customer_id,
       return_url: return_url || 'https://chadderai.vercel.app/settings',
-      flow_data: {
-        type: 'subscription_update',
-        subscription_update: {
-          features: {
-            proration_behavior: 'create_prorations',
-            subscription_pause: {
-              enabled: false
-            },
-            subscription_cancel: {
-              enabled: true,
-              mode: 'at_period_end',
-              cancellation_reason: {
-                enabled: true,
-                options: ['too_expensive', 'missing_features', 'unused', 'other']
-              }
-            }
+      features: {
+        payment_method_update: {
+          enabled: true
+        },
+        subscription_cancel: {
+          enabled: true,
+          mode: 'at_period_end',
+          cancellation_reason: {
+            enabled: true,
+            options: ['too_expensive', 'missing_features', 'unused', 'other']
           }
+        },
+        subscription_pause: {
+          enabled: false
+        },
+        subscription_update: {
+          enabled: true,
+          proration_behavior: 'create_prorations',
+          products: [
+            'prod_RhGACORNka8JO0', // Epic
+            'prod_RhGA7HpYwqCNe3', // Rare
+            'prod_RhG9lg6K0SHo1H'  // Common
+          ]
         }
       }
     });
