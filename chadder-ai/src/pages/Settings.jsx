@@ -513,6 +513,17 @@ const Settings = () => {
         <div className={styles.creditsInfo}>
           <h3>Available Credits</h3>
           <div className={styles.creditsAmount}>{credits}</div>
+          <div className={styles.creditsCallToAction}>
+            <p>Use your credits to support your favorite streamers!</p>
+            <div className={styles.ctaButtons}>
+              <Link to="/discover" className={styles.ctaButton}>
+                🔍 Discover Streamers
+              </Link>
+              <Link to="/leaderboard" className={styles.ctaButton}>
+                🏆 View Leaderboard
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -512,7 +512,7 @@ app.post('/create-portal-session', async (req, res) => {
     // Create the portal session with configuration
     const session = await stripe.billingPortal.sessions.create({
       customer: userData.stripe_customer_id,
-      return_url: return_url || 'https://chadderai.vercel.app/settings'
+      return_url: 'https://chadderai.vercel.app/settings'
     });
 
     console.log('Created portal session:', session.url);
