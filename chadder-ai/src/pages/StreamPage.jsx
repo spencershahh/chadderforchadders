@@ -248,7 +248,7 @@ const StreamPage = () => {
     const chatIframe = document.createElement("iframe");
     chatIframe.setAttribute(
       "src",
-      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app${isMobile ? '&mobile=true' : ''}`
+      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true`
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
     chatIframe.style.width = "100%";
@@ -492,83 +492,89 @@ const StreamPage = () => {
       
       <div className="stream-layout">
         <div className="stream-video-container">
-          <div id="twitch-embed" style={{ width: '100%', height: '100%' }}></div>
+          <div id="twitch-embed"></div>
         </div>
 
         <div className="stream-right-container">
           <div className="stream-chat-container" id="twitch-chat">
-            {/* Chat will be injected here by setupTwitchChatEmbed */}
+            {/* Chat iframe will be injected here */}
+            {isMobile && (
+              <div className="chat-input-container">
+                <input
+                  type="text"
+                  className="chat-input"
+                  placeholder="Send a message"
+                  aria-label="Chat input"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Only show these sections on mobile if we're not in landscape mode */}
-      {(!isMobile || !isPortrait) && (
-        <>
-          <div className="info-row">
-            {streamerInfo.bio && (
-              <div className="streamer-bio-card">
-                <div className="bio-header">
-                  {streamerInfo.profileImageUrl && (
-                    <img 
-                      src={streamerInfo.profileImageUrl} 
-                      alt={`${username}'s profile`} 
-                      className="bio-profile-image"
-                    />
-                  )}
-                  <h3>About {username}</h3>
-                </div>
-                <p className="bio-text">{streamerInfo.bio}</p>
-              </div>
-            )}
-
-            <div className="top-supporters-card">
-              <h3>💎 Top Supporters</h3>
-              <div className="supporters-list">
-                {topSupporters.map((supporter, index) => (
-                  <div 
-                    key={`${supporter.username}-${supporter.amount}-${Date.now()}`} 
-                    className="supporter-item animate-update"
-                  >
-                    <span className="rank">#{index + 1}</span>
-                    <span className="username">{supporter.username}</span>
-                    <span className="amount">{supporter.amount} 💎</span>
-                  </div>
-                ))}
-              </div>
+      {/* Show these sections on all devices */}
+      <div className="info-row">
+        {streamerInfo.bio && (
+          <div className="streamer-bio-card">
+            <div className="bio-header">
+              {streamerInfo.profileImageUrl && (
+                <img 
+                  src={streamerInfo.profileImageUrl} 
+                  alt={`${username}'s profile`} 
+                  className="bio-profile-image"
+                />
+              )}
+              <h3>About {username}</h3>
             </div>
+            <p className="bio-text">{streamerInfo.bio}</p>
           </div>
+        )}
 
-          <div className="vote-stats-container">
-            <div className="stat-box">
-              <p>Votes Today</p>
-              <h4>{voteStats.today}</h4>
-            </div>
-            <div className="stat-box">
-              <p>Votes This Week</p>
-              <h4>{voteStats.week}</h4>
-            </div>
-            <div className="stat-box">
-              <p>All Time Votes</p>
-              <h4>{voteStats.allTime}</h4>
-            </div>
+        <div className="top-supporters-card">
+          <h3>💎 Top Supporters</h3>
+          <div className="supporters-list">
+            {topSupporters.map((supporter, index) => (
+              <div 
+                key={`${supporter.username}-${supporter.amount}-${Date.now()}`} 
+                className="supporter-item animate-update"
+              >
+                <span className="rank">#{index + 1}</span>
+                <span className="username">{supporter.username}</span>
+                <span className="amount">{supporter.amount} 💎</span>
+              </div>
+            ))}
           </div>
+        </div>
+      </div>
 
-          <div className="leaderboard-info-card">
-            <h3>🏆 Current Competition</h3>
-            <div className="leaderboard-stats">
-              <div className="stat-item">
-                <p>Time Remaining</p>
-                <h4>{timeRemaining || 'Loading...'}</h4>
-              </div>
-              <div className="stat-item">
-                <p>Prize Pool</p>
-                <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
-              </div>
-            </div>
+      <div className="vote-stats-container">
+        <div className="stat-box">
+          <p>Votes Today</p>
+          <h4>{voteStats.today}</h4>
+        </div>
+        <div className="stat-box">
+          <p>Votes This Week</p>
+          <h4>{voteStats.week}</h4>
+        </div>
+        <div className="stat-box">
+          <p>All Time Votes</p>
+          <h4>{voteStats.allTime}</h4>
+        </div>
+      </div>
+
+      <div className="leaderboard-info-card">
+        <h3>🏆 Current Competition</h3>
+        <div className="leaderboard-stats">
+          <div className="stat-item">
+            <p>Time Remaining</p>
+            <h4>{timeRemaining || 'Loading...'}</h4>
           </div>
-        </>
-      )}
+          <div className="stat-item">
+            <p>Prize Pool</p>
+            <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
+          </div>
+        </div>
+      </div>
 
       <div className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}>
         <button 

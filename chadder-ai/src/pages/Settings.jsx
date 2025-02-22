@@ -83,45 +83,67 @@ const Settings = () => {
 
       // First verify we have a valid session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
       if (sessionError) {
         console.error('Session error:', sessionError);
-        throw sessionError;
+        throw new Error('Session verification failed');
       }
 
       if (!session?.user?.id) {
         console.error('No valid session found');
-        throw new Error('No valid session found');
+        throw new Error('No active session found - please log in again');
       }
 
-      console.log('Session verified for user:', session.user.id);
+      // First check if user exists
+      const { data: userExists, error: existsError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', session.user.id);
 
-      // Use proper query syntax for related tables
+      if (existsError) {
+        console.error('Error checking user existence:', existsError);
+        throw new Error('Failed to verify user account');
+      }
+
+      // If user doesn't exist, create a new user record
+      if (!userExists || userExists.length === 0) {
+        const { error: createError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: session.user.id,
+              email: session.user.email,
+              credits: 0,
+              subscription_tier: 'free',
+              subscription_status: 'inactive'
+            }
+          ]);
+
+        if (createError) {
+          console.error('Error creating user:', createError);
+          throw new Error('Failed to create user account');
+        }
+      }
+
+      // Now fetch the user data
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select(`
-          id,
-          email,
-          display_name,
-          tier,
-          credits,
-          subscription_tier,
-          subscription_status,
-          last_credit_distribution
-        `)
+        .select('*')
         .eq('id', session.user.id)
-        .single();
+        .limit(1)
+        .maybeSingle(); // Use maybeSingle() instead of single()
 
       if (userError) {
         console.error('Database error:', userError);
-        throw userError;
+        throw new Error(`Database error: ${userError.message}`);
       }
 
       if (!userData) {
         console.error('No user data found');
-        throw new Error('No user data found');
+        throw new Error('User data not found');
       }
 
-      console.log('Fetched user data:', userData);
+      console.log('Successfully fetched user data:', userData);
       setUserData(userData);
       setCredits(userData.credits || 0);
       setSubscription({
@@ -130,14 +152,18 @@ const Settings = () => {
         lastDistribution: userData.last_credit_distribution,
         nextDistribution: getNextDistributionDate(userData.last_credit_distribution)
       });
+
     } catch (error) {
       console.error('Error in fetchUserData:', error);
       setError(error.message);
-      toast.error('Failed to load user data. Please try refreshing the page.');
-      // If we have auth errors, redirect to login
-      if (error.message.includes('session') || error.message.includes('JWT')) {
+      
+      if (error.message?.includes('JWT')) {
+        toast.error('Session expired. Please log in again.');
         navigate('/login');
+        return;
       }
+      
+      toast.error(`Failed to load user data: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -516,7 +542,7 @@ const Settings = () => {
           <div className={styles.creditsCallToAction}>
             <p>Use your credits to support your favorite streamers!</p>
             <div className={styles.ctaButtons}>
-              <Link to="/discover" className={styles.ctaButton}>
+              <Link to="/" className={styles.ctaButton}>
                 🔍 Discover Streamers
               </Link>
               <Link to="/leaderboard" className={styles.ctaButton}>

@@ -334,122 +334,177 @@
 /* Mobile Styles */
 @media (max-width: 768px) {
   .stream-page {
-    padding: 0;
-    overflow-x: hidden;
-    min-height: 100vh;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 100vh !important;
+    background: #0e0e10 !important;
     display: flex;
     flex-direction: column;
-    position: relative;
   }
 
   .stream-title {
-    padding: 0.5rem;
-    margin: 0;
-    font-size: 1rem;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    background: rgba(14, 14, 16, 0.95);
-    z-index: 1000;
-    backdrop-filter: blur(10px);
     height: 40px;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    font-size: 1rem;
+    background: rgba(14, 14, 16, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
     display: flex;
     align-items: center;
   }
 
   .stream-layout {
-    flex-direction: column;
-    height: auto;
-    gap: 0;
-    margin-top: 40px; /* Account for fixed title */
+    flex-direction: column !important;
+    height: auto !important;
+    padding-top: 40px !important;
   }
 
   .stream-video-container {
-    position: sticky;
-    top: 40px; /* Height of title */
-    z-index: 999;
-    width: 100%;
-    height: 56.25vw; /* Force 16:9 aspect ratio */
-    min-height: unset;
-    margin: 0;
-    border-radius: 0;
-    background: #000;
-  }
-
-  #twitch-embed {
     width: 100% !important;
-    height: 100% !important;
+    height: 56.25vw !important; /* 16:9 aspect ratio */
+    position: sticky !important;
+    top: 40px !important;
+    z-index: 900 !important;
   }
 
   .stream-right-container {
-    width: 100%;
-    flex: 1;
-    min-height: calc(100vh - 40px - 56.25vw); /* Ensure chat fills remaining space */
-    margin: 0;
+    flex: 1 !important;
+    width: 100% !important;
+    height: 50vh !important; /* Reduced height to make room for info sections */
+    position: relative !important;
+    background: #18181b !important;
   }
 
   .stream-chat-container {
-    height: 100%;
-    border-radius: 0;
+    height: 100% !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .stream-chat-container iframe {
+    flex: 1 !important;
+    width: 100% !important;
+    height: calc(100% - 50px) !important; /* Account for input height */
+    border: none !important;
+  }
+
+  .chat-input-container {
+    height: 50px;
+    padding: 8px;
     background: #18181b;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chat-input {
+    flex: 1;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 18px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #efeff1;
+    font-size: 14px;
+  }
+
+  .chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Mobile styles for info sections */
+  .info-row {
+    flex-direction: column !important;
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+    margin-top: 1rem !important;
+  }
+
+  .streamer-bio-card,
+  .top-supporters-card {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+  }
+
+  .vote-stats-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .stat-box {
+    padding: 0.75rem !important;
+  }
+
+  .stat-box p {
+    font-size: 0.8rem !important;
+  }
+
+  .stat-box h4 {
+    font-size: 1.2rem !important;
+  }
+
+  .leaderboard-info-card {
+    margin: 0.5rem !important;
+    padding: 0.75rem !important;
+  }
+
+  .leaderboard-stats {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
   }
 
   .floating-vote-container {
-    padding: 0.5rem;
-  }
-
-  .vote-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .vote-buttons {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-  }
-
-  .vote-amount-button {
-    padding: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .collapse-toggle {
-    width: 40px;
-    height: 24px;
-    top: -24px;
-    font-size: 1rem;
+    position: sticky !important;
+    bottom: 0 !important;
+    padding: 0.75rem !important;
   }
 
   .floating-vote-container.collapsed {
-    transform: translateY(calc(100% - 30px));
+    transform: translateY(calc(100% - 30px)) !important;
   }
 
-  /* Portrait mode specific adjustments */
-  @media (orientation: portrait) {
-    .stream-video-container {
-      height: 56.25vw; /* 16:9 aspect ratio */
-    }
-
-    .stream-right-container {
-      height: calc(100vh - 40px - 56.25vw);
-      min-height: 50vh; /* Ensure chat has minimum height */
-    }
+  /* Remove display: none for previously hidden elements */
+  .info-row,
+  .vote-stats-container,
+  .leaderboard-info-card,
+  .floating-vote-container {
+    display: block !important;
   }
 
-  /* Landscape mode specific adjustments */
-  @media (orientation: landscape) {
-    .stream-video-container {
-      height: 56.25vh;
-      max-height: calc(100vh - 40px);
-    }
+  /* Adjust spacing for the bottom vote container */
+  .stream-page {
+    padding-bottom: 120px !important; /* Add space for the floating vote container */
+  }
+}
 
-    .stream-right-container {
-      height: calc(100vh - 40px - 56.25vh);
-      min-height: 30vh;
-    }
+/* Landscape mode adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .stream-video-container {
+    height: 56.25vh !important;
+  }
+
+  .stream-right-container {
+    height: 40vh !important;
+  }
+
+  /* Adjust info sections for landscape */
+  .info-row {
+    flex-direction: row !important;
+  }
+
+  .vote-stats-container {
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 }
 
@@ -474,5 +529,27 @@
 
   .stream-chat-container {
     flex: 2;
+  }
+}
+
+/* Desktop layout */
+@media (min-width: 1024px) {
+  .stream-layout {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .stream-video-container {
+    flex: 3;
+    max-width: 75%;
+  }
+
+  .stream-right-container {
+    flex: 1;
+    width: 340px;
   }
 } 
