@@ -111,22 +111,30 @@ const AdminDashboard = () => {
     try {
       // For each streamer, upsert to the database
       const promises = streamersData.map(async (streamer) => {
-        const { error } = await supabase
+        console.log('Syncing streamer to database:', streamer); // Add logging
+        const { data, error } = await supabase
           .from('streamers')
           .upsert({ 
             name: streamer.username,
             bio: streamer.bio
           }, { 
             onConflict: 'name' 
-          });
+          })
+          .select(); // Add this to get the result
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error upserting streamer:', error);
+          throw error;
+        }
+        return data;
       });
       
-      await Promise.all(promises);
-      console.log('Synced streamers to database');
+      const results = await Promise.all(promises);
+      console.log('Synced streamers to database:', results);
+      return results;
     } catch (error) {
       console.error('Error syncing streamers to database:', error);
+      throw error; // Re-throw the error to handle it in the calling function
     }
   };
 
@@ -250,8 +258,20 @@ const AdminDashboard = () => {
       
       // Update state
       setStreamers(updatedStreamers);
+      setStreamersWithTwitchData(updatedStreamers);
       setStreamersJson(JSON.stringify(updatedStreamers, null, 2));
-      toast.success('Streamer added to list! Remember to save your changes.');
+      
+      // Immediately save to database
+      try {
+        await syncStreamersToDatabase([newStreamer]);
+        toast.success('Streamer added and saved to database!');
+        
+        // Refresh the streamers list from database
+        await loadStreamers();
+      } catch (error) {
+        console.error('Error saving new streamer:', error);
+        toast.error('Failed to save streamer to database. Try using Save to Server button.');
+      }
       
       // Reset form
       setNewStreamerUrl('');
