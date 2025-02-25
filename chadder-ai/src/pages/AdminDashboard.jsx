@@ -62,24 +62,22 @@ const AdminDashboard = () => {
       // First try to load streamers from Supabase
       const { data: dbStreamers, error: dbError } = await supabase
         .from('streamers')
-        .select('name, bio')
-        .order('name');
+        .select('username, bio')
+        .order('username');
+      
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw dbError;
+      }
       
       // If we have data from Supabase, use it
-      if (!dbError && dbStreamers && dbStreamers.length > 0) {
+      if (dbStreamers && dbStreamers.length > 0) {
         console.log('Loaded streamers from Supabase:', dbStreamers.length);
-        
-        // Transform the data to use username instead of name for compatibility
-        const transformedStreamers = dbStreamers.map(streamer => ({
-          username: streamer.name,
-          bio: streamer.bio
-        }));
-        
-        setStreamers(transformedStreamers);
-        setStreamersJson(JSON.stringify(transformedStreamers, null, 2));
+        setStreamers(dbStreamers);
+        setStreamersJson(JSON.stringify(dbStreamers, null, 2));
         
         // After loading streamers, fetch their Twitch data
-        fetchTwitchDataForStreamers(transformedStreamers);
+        fetchTwitchDataForStreamers(dbStreamers);
         return;
       }
       
@@ -98,7 +96,7 @@ const AdminDashboard = () => {
       
       // If we loaded from JSON but database exists, sync to database
       if (!dbError) {
-        syncStreamersToDatabase(data);
+        await syncStreamersToDatabase(data);
       }
     } catch (error) {
       console.error('Error loading streamers:', error);
@@ -106,35 +104,34 @@ const AdminDashboard = () => {
     }
   };
   
-  // New function to sync streamers from JSON to database
   const syncStreamersToDatabase = async (streamersData) => {
     try {
-      // For each streamer, upsert to the database
-      const promises = streamersData.map(async (streamer) => {
-        console.log('Syncing streamer to database:', streamer); // Add logging
-        const { data, error } = await supabase
-          .from('streamers')
-          .upsert({ 
-            name: streamer.username,
-            bio: streamer.bio
-          }, { 
-            onConflict: 'name' 
-          })
-          .select(); // Add this to get the result
-          
-        if (error) {
-          console.error('Error upserting streamer:', error);
-          throw error;
-        }
-        return data;
-      });
+      console.log('Syncing streamers to database:', streamersData);
       
-      const results = await Promise.all(promises);
-      console.log('Synced streamers to database:', results);
-      return results;
+      // Prepare the data for upsert
+      const dbStreamers = streamersData.map(streamer => ({
+        username: streamer.username,
+        bio: streamer.bio || ''
+      }));
+      
+      // Upsert all streamers at once
+      const { data, error } = await supabase
+        .from('streamers')
+        .upsert(dbStreamers, {
+          onConflict: 'username',
+          returning: true
+        });
+      
+      if (error) {
+        console.error('Error upserting streamers:', error);
+        throw error;
+      }
+      
+      console.log('Successfully synced streamers:', data);
+      return data;
     } catch (error) {
-      console.error('Error syncing streamers to database:', error);
-      throw error; // Re-throw the error to handle it in the calling function
+      console.error('Error in syncStreamersToDatabase:', error);
+      throw error;
     }
   };
 
@@ -250,33 +247,29 @@ const AdminDashboard = () => {
       // Add the new streamer
       const newStreamer = {
         username: username,
-        bio: newStreamerBio || 'No bio available.'
+        bio: newStreamerBio || ''
       };
       
-      // Create a copy of existing streamers and add the new one
-      const updatedStreamers = [...streamers, newStreamer];
-      
-      // Update state
-      setStreamers(updatedStreamers);
-      setStreamersWithTwitchData(updatedStreamers);
-      setStreamersJson(JSON.stringify(updatedStreamers, null, 2));
-      
-      // Immediately save to database
+      // Try to add directly to database first
       try {
-        await syncStreamersToDatabase([newStreamer]);
-        toast.success('Streamer added and saved to database!');
+        const { data, error } = await supabase
+          .from('streamers')
+          .insert([newStreamer])
+          .select();
+          
+        if (error) throw error;
         
-        // Refresh the streamers list from database
+        // If successful, reload the streamers list
         await loadStreamers();
-      } catch (error) {
-        console.error('Error saving new streamer:', error);
-        toast.error('Failed to save streamer to database. Try using Save to Server button.');
+        toast.success('Streamer added successfully!');
+        
+        // Reset form
+        setNewStreamerUrl('');
+        setNewStreamerBio('');
+      } catch (dbError) {
+        console.error('Failed to add streamer to database:', dbError);
+        toast.error('Failed to add streamer to database');
       }
-      
-      // Reset form
-      setNewStreamerUrl('');
-      setNewStreamerBio('');
-      
     } catch (error) {
       console.error('Error adding streamer:', error);
       toast.error('Failed to add streamer');
@@ -328,54 +321,16 @@ const AdminDashboard = () => {
     try {
       toast.loading('Saving streamers list...');
       
-      // Convert streamers data to the format expected by the database
-      const dbStreamers = streamers.map(streamer => ({
-        name: streamer.username,
-        bio: streamer.bio
-      }));
-      
       // Try to save directly to Supabase first (faster)
       try {
-        await syncStreamersToDatabase(streamers);
+        const result = await syncStreamersToDatabase(streamers);
         toast.dismiss();
         toast.success('Streamers list updated in database!');
         return;
       } catch (dbError) {
-        console.warn('Direct database update failed, trying API:', dbError);
-        // Continue to API method
+        console.warn('Direct database update failed:', dbError);
+        throw dbError; // Let the outer catch handle the error
       }
-      
-      // Get the current user's session for the auth token
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        throw new Error('Authentication error. Please log in again.');
-      }
-      
-      // In development environment - display a message
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        toast.dismiss();
-        toast.success('Development mode: Streamers saved to database.');
-        return;
-      }
-      
-      // Call the API with proper authentication
-      const response = await fetch('/api/update-streamers', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(dbStreamers),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to update streamers: ${response.status} ${errorText || response.statusText}`);
-      }
-      
-      toast.dismiss();
-      toast.success('Streamers list successfully updated!');
     } catch (error) {
       console.error('Error saving streamers to server:', error);
       toast.dismiss();
