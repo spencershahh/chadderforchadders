@@ -62,17 +62,24 @@ const AdminDashboard = () => {
       // First try to load streamers from Supabase
       const { data: dbStreamers, error: dbError } = await supabase
         .from('streamers')
-        .select('username, bio')
-        .order('username');
+        .select('name, bio')
+        .order('name');
       
       // If we have data from Supabase, use it
       if (!dbError && dbStreamers && dbStreamers.length > 0) {
         console.log('Loaded streamers from Supabase:', dbStreamers.length);
-        setStreamers(dbStreamers);
-        setStreamersJson(JSON.stringify(dbStreamers, null, 2));
+        
+        // Transform the data to use username instead of name for compatibility
+        const transformedStreamers = dbStreamers.map(streamer => ({
+          username: streamer.name,
+          bio: streamer.bio
+        }));
+        
+        setStreamers(transformedStreamers);
+        setStreamersJson(JSON.stringify(transformedStreamers, null, 2));
         
         // After loading streamers, fetch their Twitch data
-        fetchTwitchDataForStreamers(dbStreamers);
+        fetchTwitchDataForStreamers(transformedStreamers);
         return;
       }
       
@@ -107,10 +114,10 @@ const AdminDashboard = () => {
         const { error } = await supabase
           .from('streamers')
           .upsert({ 
-            username: streamer.username,
+            name: streamer.username,
             bio: streamer.bio
           }, { 
-            onConflict: 'username' 
+            onConflict: 'name' 
           });
           
         if (error) throw error;
@@ -301,6 +308,12 @@ const AdminDashboard = () => {
     try {
       toast.loading('Saving streamers list...');
       
+      // Convert streamers data to the format expected by the database
+      const dbStreamers = streamers.map(streamer => ({
+        name: streamer.username,
+        bio: streamer.bio
+      }));
+      
       // Try to save directly to Supabase first (faster)
       try {
         await syncStreamersToDatabase(streamers);
@@ -333,7 +346,7 @@ const AdminDashboard = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify(streamers),
+        body: JSON.stringify(dbStreamers),
       });
       
       if (!response.ok) {
