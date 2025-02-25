@@ -354,4 +354,34 @@
   font-size: 12px;
   color: #a0a0bd;
   margin-top: auto;
-} 
+}
+
+/* Empty Data States */
+.emptyDataContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  width: 100%;
+  background-color: rgba(26, 26, 26, 0.5);
+  border-radius: 8px;
+}
+
+.emptyDataMessage {
+  text-align: center;
+  padding: 20px;
+  max-width: 80%;
+}
+
+.emptyDataMessage h3 {
+  color: #ccc;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.emptyDataMessage p {
+  color: #999;
+  font-size: 14px;
+}
+
+/* End of file */ 

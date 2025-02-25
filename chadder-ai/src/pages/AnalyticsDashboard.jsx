@@ -170,9 +170,6 @@ const AnalyticsDashboard = () => {
   // Fetch business health metrics
   const fetchBusinessHealthMetrics = async () => {
     try {
-      // In a production app, you would fetch real data from your database
-      // For this example, we'll generate sample metrics
-      
       // Monthly Revenue - calculate based on subscriptions
       const { data: subscriptionData, error: subError } = await supabase
         .from('users')
@@ -180,7 +177,7 @@ const AnalyticsDashboard = () => {
       
       if (subError) throw subError;
       
-      // Sample subscription prices
+      // Subscription prices - ideally stored in database or configuration
       const subscriptionPrices = {
         'free': 0,
         'common': 4.99,
@@ -188,6 +185,7 @@ const AnalyticsDashboard = () => {
         'epic': 19.99
       };
       
+      // Calculate actual monthly revenue from subscriptions
       let monthlyRevenue = 0;
       subscriptionData.forEach(user => {
         if (user.subscription_status === 'active' && user.subscription_tier !== 'free') {
@@ -195,35 +193,73 @@ const AnalyticsDashboard = () => {
         }
       });
       
-      // Get previous month's data for growth calculation
-      // In a real app, you'd fetch historical data
-      const previousMonthRevenue = monthlyRevenue * (0.8 + Math.random() * 0.3); // Random previous month (80-110% of current)
+      // Try to get previous month's data from analytics table
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      const lastMonthName = lastMonth.toLocaleString('en-US', { month: 'short' });
+      
+      const { data: previousMonthData, error: prevMonthError } = await supabase
+        .from('analytics')
+        .select('revenue')
+        .eq('month', lastMonthName)
+        .maybeSingle();
+      
+      // Calculate growth based on previous month data or use 0
+      let previousMonthRevenue = 0;
+      if (!prevMonthError && previousMonthData && previousMonthData.revenue) {
+        previousMonthRevenue = previousMonthData.revenue;
+      }
+      
       const monthlyGrowth = previousMonthRevenue > 0 
         ? ((monthlyRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 
         : 0;
       
       // Calculate ARPU (Average Revenue Per User)
-      const activeUsers = overviewMetrics.totalUsers || 1; // Avoid division by zero
+      const { count: activeUsersCount, error: countError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact' })
+        .eq('subscription_status', 'active');
+        
+      if (countError) throw countError;
+      
+      const activeUsers = activeUsersCount || 1; // Avoid division by zero
       const arpu = monthlyRevenue / activeUsers;
       
-      // Simulate other metrics
-      // In a real app, you'd calculate these from actual usage data
-      const userRetention = 65 + Math.random() * 15; // Random 65-80% retention
-      const avgSessionTime = 8 + Math.random() * 7; // Random 8-15 minutes
-      const conversionRate = 3 + Math.random() * 5; // Random 3-8% conversion rate
+      // For retention, session time, and conversion rate, we need actual usage data
+      // If that's not available, we'll set these to 0 for now
+      
+      // Check if we have analytics metrics in a table
+      const { data: metricsData, error: metricsError } = await supabase
+        .from('metrics')
+        .select('user_retention, avg_session_time, conversion_rate')
+        .order('created_at', { ascending: false })
+        .limit(1);
+        
+      // Use real metrics if available, otherwise zeros
+      const metrics = (!metricsError && metricsData && metricsData.length > 0) 
+        ? metricsData[0] 
+        : { user_retention: 0, avg_session_time: 0, conversion_rate: 0 };
       
       setBusinessMetrics({
         monthlyRevenue,
         monthlyGrowth,
         arpu,
-        userRetention,
-        avgSessionTime,
-        conversionRate
+        userRetention: metrics.user_retention,
+        avgSessionTime: metrics.avg_session_time,
+        conversionRate: metrics.conversion_rate
       });
       
     } catch (error) {
       console.error('Error fetching business health metrics:', error);
-      throw error;
+      // Set zeros in case of error
+      setBusinessMetrics({
+        monthlyRevenue: 0,
+        monthlyGrowth: 0,
+        arpu: 0,
+        userRetention: 0,
+        avgSessionTime: 0,
+        conversionRate: 0
+      });
     }
   };
 
@@ -289,60 +325,96 @@ const AnalyticsDashboard = () => {
 
   // Fetch streamer popularity data
   const fetchStreamerPopularity = async () => {
-    // In a production app, this would fetch from your votes/streamers table
-    // For now, generate sample data based on the streamers from the JSON file
     try {
+      // Get streamers from our public JSON file
       const response = await fetch('/streamers.json');
       const streamers = await response.json();
       
-      // Generate sample view/vote data
-      const streamerStats = streamers.slice(0, 10).map((streamer, index) => ({
-        name: streamer.username,
-        votes: Math.floor(Math.random() * 1000) + 100,
-        credits: Math.floor(Math.random() * 5000) + 500,
-        viewers: Math.floor(Math.random() * 2000) + 200,
-      }));
+      // For actual popularity data, we'd need to query the database
+      // Fetch any votes or interactions related to streamers
+      const { data: streamersData, error: streamersError } = await supabase
+        .from('streamers')
+        .select('username, votes, credits, viewers');
+      
+      if (streamersError) {
+        console.log('No streamer data table found, using streamers from JSON only');
+        
+        const streamerStats = streamers.slice(0, 10).map((streamer) => ({
+          name: streamer.username,
+          votes: 0,
+          credits: 0,
+          viewers: 0,
+        }));
+        
+        setStreamerPopularityData(streamerStats);
+        return;
+      }
+      
+      // Map the streamers with their data
+      const streamerStats = streamers.slice(0, 10).map((streamer) => {
+        const dbStreamer = streamersData.find(s => s.username === streamer.username) || {};
+        
+        return {
+          name: streamer.username,
+          votes: dbStreamer.votes || 0,
+          credits: dbStreamer.credits || 0,
+          viewers: dbStreamer.viewers || 0,
+        };
+      });
       
       // Sort by votes
       streamerStats.sort((a, b) => b.votes - a.votes);
       
       setStreamerPopularityData(streamerStats);
-      
     } catch (error) {
       console.error('Error fetching streamer popularity data:', error);
-      throw error;
+      // Set empty data in case of error
+      setStreamerPopularityData([]);
     }
   };
 
   // Fetch revenue data
   const fetchRevenueData = async () => {
-    // In a production app, you would fetch actual revenue data from your database
-    // For now, generate sample data
     try {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const currentMonth = new Date().getMonth();
+      // Fetch revenue data from database if available
+      const { data: revenueData, error: revenueError } = await supabase
+        .from('analytics')
+        .select('month, revenue, expenses, profit')
+        .order('month');
       
-      // Generate revenue data for the past 12 months
-      const revenueStats = Array.from({ length: 12 }, (_, i) => {
-        const monthIndex = (currentMonth - 11 + i) % 12;
-        return {
-          name: months[monthIndex],
-          revenue: Math.floor(Math.random() * 3000) + 1000,
-          expenses: Math.floor(Math.random() * 1000) + 400,
-          profit: 0 // Will be calculated
-        };
-      });
+      if (revenueError || !revenueData || revenueData.length === 0) {
+        console.log('No revenue data found in database');
+        // Set empty data for now
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const currentMonth = new Date().getMonth();
+        
+        // Generate empty data structure with zeroes
+        const emptyRevenueStats = Array.from({ length: 12 }, (_, i) => {
+          const monthIndex = (currentMonth - 11 + i) % 12;
+          return {
+            name: months[monthIndex],
+            revenue: 0,
+            expenses: 0,
+            profit: 0
+          };
+        });
+        
+        setRevenueData(emptyRevenueStats);
+        return;
+      }
       
-      // Calculate profit
-      revenueStats.forEach(month => {
-        month.profit = month.revenue - month.expenses;
-      });
+      // Format the data for display
+      const formattedData = revenueData.map(item => ({
+        name: item.month,
+        revenue: item.revenue || 0,
+        expenses: item.expenses || 0,
+        profit: item.profit || 0
+      }));
       
-      setRevenueData(revenueStats);
-      
+      setRevenueData(formattedData);
     } catch (error) {
       console.error('Error fetching revenue data:', error);
-      throw error;
+      setRevenueData([]);
     }
   };
 
@@ -466,6 +538,34 @@ const AnalyticsDashboard = () => {
       );
     }
     return null;
+  };
+
+  // Component to display when there's no data
+  const EmptyDataMessage = ({ type }) => {
+    return (
+      <div className={styles.emptyDataContainer}>
+        <div className={styles.emptyDataMessage}>
+          <h3>No {type} Data Available</h3>
+          <p>As chadder.ai grows, real data will appear here.</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper to check if data is empty
+  const isDataEmpty = (data) => {
+    if (!data || data.length === 0) return true;
+    
+    // For arrays, check if all values are zero
+    if (Array.isArray(data)) {
+      return data.every(item => {
+        // Check if all numeric properties have zero value
+        const values = Object.values(item).filter(v => typeof v === 'number');
+        return values.length > 0 && values.every(v => v === 0);
+      });
+    }
+    
+    return false;
   };
 
   if (loading) {
@@ -620,26 +720,30 @@ const AnalyticsDashboard = () => {
         <div className={styles.chartCard}>
           <h3>User Growth Over Time</h3>
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart
-                data={userGrowthData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis dataKey="name" stroke="#ccc" />
-                <YAxis stroke="#ccc" />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="users" 
-                  name="Total Users" 
-                  stroke="#8884d8" 
-                  fill="#8884d8" 
-                  fillOpacity={0.5} 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isDataEmpty(userGrowthData) ? (
+              <EmptyDataMessage type="User Growth" />
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart
+                  data={userGrowthData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                  <XAxis dataKey="name" stroke="#ccc" />
+                  <YAxis stroke="#ccc" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Area 
+                    type="monotone" 
+                    dataKey="users" 
+                    name="Total Users" 
+                    stroke="#8884d8" 
+                    fill="#8884d8" 
+                    fillOpacity={0.5} 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -647,50 +751,51 @@ const AnalyticsDashboard = () => {
         <div className={styles.chartCard}>
           <h3>Credit Distribution by Subscription Tier</h3>
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height={300}>
-              <div className={styles.splitChart}>
-                <div className={styles.pieChartContainer}>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
+            {isDataEmpty(creditDistributionData) ? (
+              <EmptyDataMessage type="Credit Distribution" />
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <div className={styles.splitChart}>
+                  <div className={styles.pieChartContainer}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={creditDistributionData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="credits"
+                        >
+                          {creditDistributionData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className={styles.barChartContainer}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
                         data={creditDistributionData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="credits"
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                       >
-                        {creditDistributionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#444" horizontal={false} />
+                        <XAxis type="number" stroke="#ccc" />
+                        <YAxis dataKey="name" type="category" stroke="#ccc" width={100} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend />
+                        <Bar dataKey="credits" name="Credits" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-                <div className={styles.barChartContainer}>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart
-                      data={creditDistributionData}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                      <XAxis dataKey="name" stroke="#ccc" />
-                      <YAxis stroke="#ccc" />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Bar dataKey="credits" name="Credits" fill="#8884d8">
-                        {creditDistributionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -698,62 +803,70 @@ const AnalyticsDashboard = () => {
         <div className={styles.chartCard}>
           <h3>Top Streamers by Popularity</h3>
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={streamerPopularityData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                layout="vertical"
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis type="number" stroke="#ccc" />
-                <YAxis dataKey="name" type="category" stroke="#ccc" width={100} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar dataKey="votes" name="Votes" fill="#00C49F" />
-                <Bar dataKey="credits" name="Credits" fill="#FFBB28" />
-              </BarChart>
-            </ResponsiveContainer>
+            {isDataEmpty(streamerPopularityData) ? (
+              <EmptyDataMessage type="Streamer Popularity" />
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={streamerPopularityData}
+                  layout="horizontal"
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                  <XAxis dataKey="name" stroke="#ccc" />
+                  <YAxis stroke="#ccc" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Bar dataKey="votes" name="Votes" fill="#00C49F" />
+                  <Bar dataKey="credits" name="Credits" fill="#FFBB28" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {/* Financial Chart */}
+        {/* Revenue Analysis Chart */}
         <div className={styles.chartCard}>
           <h3>Revenue Analysis</h3>
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart
-                data={revenueData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis dataKey="name" stroke="#ccc" />
-                <YAxis stroke="#ccc" />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  name="Revenue" 
-                  stroke="#00C49F" 
-                  strokeWidth={2}
-                  activeDot={{ r: 8 }} 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="expenses" 
-                  name="Expenses" 
-                  stroke="#FF8042" 
-                  strokeWidth={2}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="profit" 
-                  name="Profit" 
-                  stroke="#0088FE" 
-                  strokeWidth={3}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {isDataEmpty(revenueData) ? (
+              <EmptyDataMessage type="Revenue" />
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={revenueData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                  <XAxis dataKey="name" stroke="#ccc" />
+                  <YAxis stroke="#ccc" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    name="Revenue" 
+                    stroke="#00C49F" 
+                    strokeWidth={2}
+                    activeDot={{ r: 8 }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="expenses" 
+                    name="Expenses" 
+                    stroke="#FF8042" 
+                    strokeWidth={2}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="profit" 
+                    name="Profit" 
+                    stroke="#0088FE" 
+                    strokeWidth={3}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>
@@ -765,7 +878,6 @@ const AnalyticsDashboard = () => {
           <li>Credit distribution shows how credits are allocated across different subscription tiers</li>
           <li>Streamer popularity shows the streamers with the most votes and credits received</li>
           <li>Revenue analysis shows financial performance over the last 12 months</li>
-          <li>Some data may be simulated for demonstration purposes</li>
         </ul>
       </div>
     </div>
