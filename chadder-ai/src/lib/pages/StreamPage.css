@@ -1,0 +1,555 @@
+.stream-page {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #efeff1;
+  background-color: #0e0e10;
+  min-height: calc(100vh - 70px);
+  position: relative;
+}
+
+.stream-title {
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-weight: bold;
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+  text-align: left;
+}
+
+.stream-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  height: calc(100vh - 180px); /* Account for navbar and title */
+}
+
+.stream-video-container {
+  flex: 1;
+  width: 100%;
+  background: #0e0e10;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  min-height: 200px;
+}
+
+.stream-right-container {
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stream-chat-container {
+  flex: 1;
+  background: #18181b;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 400px;
+}
+
+.stream-chat-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .info-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.streamer-bio-card,
+.top-supporters-card {
+  background: rgba(20, 20, 20, 0.7);
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(145, 71, 255, 0.2);
+}
+
+.bio-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bio-profile-image {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #9147ff;
+}
+
+.bio-text {
+  color: #a8a8a8;
+  line-height: 1.6;
+}
+
+.supporters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.supporter-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+  background: rgba(145, 71, 255, 0.1);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+@keyframes updateFlash {
+  0% {
+    background: rgba(145, 71, 255, 0.4);
+    transform: translateX(-4px);
+  }
+  100% {
+    background: rgba(145, 71, 255, 0.1);
+    transform: translateX(0);
+  }
+}
+
+.animate-update {
+  animation: updateFlash 0.5s ease-out;
+}
+
+.rank {
+  font-weight: bold;
+  color: #9147ff;
+  min-width: 30px;
+}
+
+.username {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amount {
+  color: #9147ff;
+  font-weight: bold;
+}
+
+.vote-stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.stat-box {
+  background: rgba(20, 20, 20, 0.7);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid rgba(145, 71, 255, 0.2);
+}
+
+.stat-box p {
+  color: #a8a8a8;
+  margin-bottom: 0.5rem;
+}
+
+.stat-box h4 {
+  font-size: 1.5rem;
+  color: #9147ff;
+}
+
+.leaderboard-info-card {
+  background: rgba(20, 20, 20, 0.7);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1rem;
+  border: 1px solid rgba(145, 71, 255, 0.2);
+  text-align: center;
+}
+
+.leaderboard-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 480px) {
+  .leaderboard-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-item p {
+  color: #a8a8a8;
+  margin-bottom: 0.5rem;
+}
+
+.stat-item h4 {
+  font-size: 1.25rem;
+  color: #9147ff;
+}
+
+.floating-vote-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(145, 71, 255, 0.2);
+  padding: 1rem;
+  transition: transform 0.3s ease;
+  z-index: 100;
+}
+
+.floating-vote-container.collapsed {
+  transform: translateY(calc(100% - 40px));
+}
+
+.collapse-toggle {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(145, 71, 255, 0.2);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  width: 60px;
+  height: 30px;
+  cursor: pointer;
+  color: #9147ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.vote-title {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.vote-amount-button {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vote-amount-button:hover,
+.vote-amount-button.selected {
+  background: rgba(145, 71, 255, 0.2);
+  border-color: #9147ff;
+}
+
+.custom-amount-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.custom-amount-input {
+  padding: 0.5rem 2rem 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  width: 100px;
+}
+
+.custom-amount-icon {
+  position: absolute;
+  right: 0.5rem;
+  color: #9147ff;
+  content: "💎";
+}
+
+.vote-submit-button {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  display: block;
+  padding: 1rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #9147ff, #6441a5);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.vote-submit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+}
+
+.vote-submit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.vote-submit-button.success {
+  background: linear-gradient(90deg, #44ff44, #22cc22);
+}
+
+.credit-balance {
+  text-align: center;
+  margin-top: 0.5rem;
+  color: #a8a8a8;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .stream-page {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 100vh !important;
+    background: #0e0e10 !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stream-title {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    font-size: 1rem;
+    background: rgba(14, 14, 16, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+  }
+
+  .stream-layout {
+    flex-direction: column !important;
+    height: auto !important;
+    padding-top: 40px !important;
+  }
+
+  .stream-video-container {
+    width: 100% !important;
+    height: 56.25vw !important; /* 16:9 aspect ratio */
+    position: sticky !important;
+    top: 40px !important;
+    z-index: 900 !important;
+  }
+
+  .stream-right-container {
+    flex: 1 !important;
+    width: 100% !important;
+    height: 50vh !important; /* Reduced height to make room for info sections */
+    position: relative !important;
+    background: #18181b !important;
+  }
+
+  .stream-chat-container {
+    height: 100% !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .stream-chat-container iframe {
+    flex: 1 !important;
+    width: 100% !important;
+    height: calc(100% - 50px) !important; /* Account for input height */
+    border: none !important;
+  }
+
+  .chat-input-container {
+    height: 50px;
+    padding: 8px;
+    background: #18181b;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chat-input {
+    flex: 1;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 18px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #efeff1;
+    font-size: 14px;
+  }
+
+  .chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Mobile styles for info sections */
+  .info-row {
+    flex-direction: column !important;
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+    margin-top: 1rem !important;
+  }
+
+  .streamer-bio-card,
+  .top-supporters-card {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+  }
+
+  .vote-stats-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .stat-box {
+    padding: 0.75rem !important;
+  }
+
+  .stat-box p {
+    font-size: 0.8rem !important;
+  }
+
+  .stat-box h4 {
+    font-size: 1.2rem !important;
+  }
+
+  .leaderboard-info-card {
+    margin: 0.5rem !important;
+    padding: 0.75rem !important;
+  }
+
+  .leaderboard-stats {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .floating-vote-container {
+    position: sticky !important;
+    bottom: 0 !important;
+    padding: 0.75rem !important;
+  }
+
+  .floating-vote-container.collapsed {
+    transform: translateY(calc(100% - 30px)) !important;
+  }
+
+  /* Remove display: none for previously hidden elements */
+  .info-row,
+  .vote-stats-container,
+  .leaderboard-info-card,
+  .floating-vote-container {
+    display: block !important;
+  }
+
+  /* Adjust spacing for the bottom vote container */
+  .stream-page {
+    padding-bottom: 120px !important; /* Add space for the floating vote container */
+  }
+}
+
+/* Landscape mode adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .stream-video-container {
+    height: 56.25vh !important;
+  }
+
+  .stream-right-container {
+    height: 40vh !important;
+  }
+
+  /* Adjust info sections for landscape */
+  .info-row {
+    flex-direction: row !important;
+  }
+
+  .vote-stats-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Tablet Styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .stream-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .stream-video-container {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .stream-right-container {
+    width: 100%;
+    flex-direction: row;
+    height: auto;
+    min-height: 400px;
+  }
+
+  .stream-chat-container {
+    flex: 2;
+  }
+}
+
+/* Desktop layout */
+@media (min-width: 1024px) {
+  .stream-layout {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .stream-video-container {
+    flex: 3;
+    max-width: 75%;
+  }
+
+  .stream-right-container {
+    flex: 1;
+    width: 340px;
+  }
+} 

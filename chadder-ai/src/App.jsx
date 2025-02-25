@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import GlowEffect from './components/GlowEffect';
 import Navbar from './components/Navbar';
 import { Elements } from '@stripe/react-stripe-js';
@@ -17,6 +18,7 @@ import StreamPage from "./pages/StreamPage";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import CreditsPage from './pages/CreditsPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 import "./App.css";
 
@@ -89,6 +91,14 @@ const App = () => {
                 <ProtectedRoute>
                   <CreditsPage />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
               }
             />
           </Routes>

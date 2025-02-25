@@ -23,30 +23,14 @@ const Login = () => {
 
       if (error) {
         toast.error(`Login error: ${error.message}`);
-        setLoading(false);
         return;
       }
 
       if (data.session) {
-        // Check if the user is an admin
-        const userId = data.session.user.id;
-        
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-        
         toast.success('Login successful!', {
           duration: 3000,
         });
-        
-        // Redirect admin users to the admin dashboard, regular users to the home page
-        if (!adminError && adminData) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
+        navigate("/"); // Redirect user to home or dashboard
       }
     } catch (error) {
       toast.error(`Unexpected error: ${error.message}`);
