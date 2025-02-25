@@ -57,8 +57,11 @@ const AdminDashboard = () => {
 
   const loadStreamers = async () => {
     try {
-      // Fetch streamers from the JSON file
-      const response = await fetch('/src/data/streamers.json');
+      // Fetch streamers from the JSON file with a proper path for production
+      const response = await fetch('/streamers.json');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch streamers: ${response.status} ${response.statusText}`);
+      }
       const data = await response.json();
       setStreamers(data);
       setStreamersJson(JSON.stringify(data, null, 2));
@@ -177,20 +180,35 @@ const AdminDashboard = () => {
   };
 
   const handleSaveToServer = async () => {
-    // This would be the place to make an API call to save to server
-    // For now, we'll just show a success message
-    toast.success('Streamers list updated. This would save to the server in a production environment.');
-    
-    // In production, you would have an API endpoint to update the JSON file
-    // const response = await fetch('/api/update-streamers', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(streamers),
-    // });
-    
-    // if (!response.ok) {
-    //   throw new Error('Failed to update streamers');
-    // }
+    try {
+      toast.loading('Saving streamers list...');
+      
+      // For development environment - display a message about how this would work in production
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        toast.dismiss();
+        toast.success('In development mode. To save changes, copy the JSON and update the file manually.');
+        return;
+      }
+      
+      // In production, you would have an API endpoint to update the JSON file
+      const response = await fetch('/api/update-streamers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(streamers),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update streamers: ${response.status} ${errorText || response.statusText}`);
+      }
+      
+      toast.dismiss();
+      toast.success('Streamers list successfully updated on the server.');
+    } catch (error) {
+      console.error('Error saving streamers to server:', error);
+      toast.dismiss();
+      toast.error(`Failed to save to server: ${error.message}`);
+    }
   };
 
   const copyToClipboard = () => {

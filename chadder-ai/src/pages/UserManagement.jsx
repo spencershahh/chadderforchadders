@@ -48,8 +48,7 @@ const UserManagement = () => {
       let query = supabase
         .from('users')
         .select(`
-          *,
-          admins!admins_user_id_fkey(id)
+          *
         `)
         .range(page * pageSize, (page * pageSize) + pageSize - 1);
       
@@ -68,10 +67,22 @@ const UserManagement = () => {
       
       if (userError) throw userError;
       
-      // Enhance the users with isAdmin property for easier UI logic
+      // Check admin status separately to avoid the relationship error
+      const { data: adminsData, error: adminsError } = await supabase
+        .from('admins')
+        .select('user_id');
+        
+      if (adminsError) {
+        console.warn('Could not fetch admin data:', adminsError);
+      }
+      
+      // Create a Set of admin user IDs for quick lookup
+      const adminUserIds = new Set((adminsData || []).map(admin => admin.user_id));
+      
+      // Enhance the users with isAdmin property
       const enhancedUsers = userData.map(user => ({
         ...user,
-        isAdmin: user.admins && user.admins.length > 0
+        isAdmin: adminUserIds.has(user.id)
       }));
       
       setUsers(enhancedUsers);

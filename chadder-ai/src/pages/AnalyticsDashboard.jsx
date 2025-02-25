@@ -43,14 +43,36 @@ const AnalyticsDashboard = () => {
       setLoading(true);
       setError(null);
       
-      // Load all the different analytics data
-      await Promise.all([
-        fetchOverviewMetrics(),
-        fetchUserGrowthData(),
-        fetchCreditDistribution(),
-        fetchStreamerPopularity(),
-        fetchRevenueData()
-      ]);
+      // Try to load each analytic component separately to prevent one failure from breaking all
+      try {
+        await fetchOverviewMetrics();
+      } catch (err) {
+        console.error('Error fetching overview metrics:', err);
+      }
+      
+      try {
+        await fetchUserGrowthData();
+      } catch (err) {
+        console.error('Error fetching user growth data:', err);
+      }
+      
+      try {
+        await fetchCreditDistribution();
+      } catch (err) {
+        console.error('Error fetching credit distribution:', err);
+      }
+      
+      try {
+        await fetchStreamerPopularity();
+      } catch (err) {
+        console.error('Error fetching streamer popularity data:', err);
+      }
+      
+      try {
+        await fetchRevenueData();
+      } catch (err) {
+        console.error('Error fetching revenue data:', err);
+      }
       
     } catch (error) {
       console.error('Error loading analytics data:', error);
