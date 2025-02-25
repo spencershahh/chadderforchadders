@@ -17,6 +17,7 @@ const Settings = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState(1);
   const [credits, setCredits] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [subscription, setSubscription] = useState({
     tier: 'free',
     status: 'inactive',
@@ -75,6 +76,27 @@ const Settings = () => {
     fetchUserData();
   }, [user]);
 
+  // Function to check if the user is an admin
+  const checkAdminStatus = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+      }
+      
+      return !!data; // Returns true if data exists (user is admin)
+    } catch (error) {
+      console.error('Error in admin check:', error);
+      return false;
+    }
+  };
+
   const fetchUserData = async () => {
     try {
       setLoading(true);
@@ -93,6 +115,10 @@ const Settings = () => {
         console.error('No valid session found');
         throw new Error('No active session found - please log in again');
       }
+
+      // Check if user is an admin
+      const isAdminUser = await checkAdminStatus(session.user.id);
+      setIsAdmin(isAdminUser);
 
       // First check if user exists
       const { data: userExists, error: existsError } = await supabase
@@ -528,7 +554,7 @@ const Settings = () => {
     );
   }
 
-  console.log('Rendering settings page with data:', { userData, credits, subscription });
+  console.log('Rendering settings page with data:', { userData, credits, subscription, isAdmin });
 
   return (
     <div className={styles.settingsContainer}>
@@ -630,6 +656,17 @@ const Settings = () => {
             >
               Change Password
             </button>
+            
+            {/* Admin dashboard button - only visible to admins */}
+            {isAdmin && (
+              <div className={styles.adminSection}>
+                <h3>Admin Access</h3>
+                <p>You have administrator privileges.</p>
+                <Link to="/admin" className={styles.adminButton}>
+                  Go to Admin Dashboard
+                </Link>
+              </div>
+            )}
           </div>
         </section>
 
