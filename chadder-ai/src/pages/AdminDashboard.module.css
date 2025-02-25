@@ -17,6 +17,40 @@
   padding-bottom: 10px;
 }
 
+/* Tab Navigation Styles */
+.tabBar {
+  display: flex;
+  margin-bottom: 30px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tabButton {
+  flex: 1;
+  padding: 15px 20px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #ccc;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.tabButton:hover {
+  background-color: #222;
+  color: #fff;
+}
+
+.activeTab {
+  background-color: #222;
+  border-bottom: 3px solid #00ccff;
+  color: #00ccff;
+}
+
 .section {
   margin-bottom: 40px;
   background-color: #1a1a1a;
@@ -269,5 +303,20 @@
   .removeButton {
     margin-top: 12px;
     align-self: flex-end;
+  }
+  
+  .tabBar {
+    flex-direction: column;
+  }
+  
+  .tabButton {
+    padding: 12px;
+    border-bottom: none;
+    border-left: 3px solid transparent;
+  }
+  
+  .activeTab {
+    border-bottom: none;
+    border-left: 3px solid #00ccff;
   }
 } 

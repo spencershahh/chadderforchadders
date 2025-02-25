@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import axios from 'axios';
 import styles from './AdminDashboard.module.css';
+import UserManagement from './UserManagement';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -13,6 +15,7 @@ const AdminDashboard = () => {
   const [newStreamerBio, setNewStreamerBio] = useState('');
   const [streamersJson, setStreamersJson] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('streamers'); // 'streamers', 'users', or 'analytics'
   const textareaRef = useRef(null);
   const navigate = useNavigate();
 
@@ -209,11 +212,8 @@ const AdminDashboard = () => {
     return null; // Will redirect in useEffect
   }
 
-  return (
-    <div className={styles.adminDashboard}>
-      <Toaster position="top-center" />
-      <h1 className={styles.title}>Admin Dashboard</h1>
-      
+  const renderStreamerManagement = () => (
+    <>
       <div className={styles.section}>
         <h2>Add New Streamer</h2>
         <form onSubmit={handleAddStreamer} className={styles.addStreamerForm}>
@@ -328,6 +328,48 @@ const AdminDashboard = () => {
           <li>In a production environment, the "Save to Server" button would update the file directly</li>
         </ol>
       </div>
+    </>
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'users':
+        return <UserManagement />;
+      case 'analytics':
+        return <AnalyticsDashboard />;
+      case 'streamers':
+      default:
+        return renderStreamerManagement();
+    }
+  };
+
+  return (
+    <div className={styles.adminDashboard}>
+      <Toaster position="top-center" />
+      <h1 className={styles.title}>Admin Dashboard</h1>
+      
+      <div className={styles.tabBar}>
+        <button 
+          className={`${styles.tabButton} ${activeTab === 'streamers' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('streamers')}
+        >
+          Streamer Management
+        </button>
+        <button 
+          className={`${styles.tabButton} ${activeTab === 'users' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          User Management
+        </button>
+        <button 
+          className={`${styles.tabButton} ${activeTab === 'analytics' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics & Insights
+        </button>
+      </div>
+      
+      {renderTabContent()}
     </div>
   );
 };

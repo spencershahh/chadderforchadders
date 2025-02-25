@@ -1,0 +1,419 @@
+.userManagement {
+  width: 100%;
+  padding-bottom: 30px;
+}
+
+.controlPanel {
+  margin-bottom: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.controlPanel h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #f4f4f4;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+}
+
+.searchBar {
+  flex: 1;
+  min-width: 250px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 12px;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #00ccff;
+  box-shadow: 0 0 0 2px rgba(0, 204, 255, 0.2);
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+}
+
+.filterSelect,
+.sortSelect {
+  padding: 12px;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  min-width: 150px;
+}
+
+.filterSelect:focus,
+.sortSelect:focus {
+  outline: none;
+  border-color: #00ccff;
+}
+
+.refreshButton {
+  padding: 12px 16px;
+  background-color: #00ccff;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background-color: #00bfed;
+  transform: translateY(-2px);
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorMessage {
+  padding: 15px;
+  background-color: rgba(255, 68, 68, 0.1);
+  border-left: 4px solid #ff4444;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.errorMessage p {
+  margin: 0;
+  color: #ff4444;
+}
+
+.retryButton {
+  padding: 8px 12px;
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.retryButton:hover {
+  background-color: #e54242;
+}
+
+.userListContainer {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.userList {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.userList th,
+.userList td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.userList th {
+  background-color: #222;
+  color: #ccc;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.userList tbody tr:hover {
+  background-color: #222;
+}
+
+.loadingCell,
+.emptyCell {
+  text-align: center !important;
+  padding: 30px !important;
+  color: #999;
+}
+
+.adminRow {
+  background-color: rgba(156, 39, 176, 0.08);
+}
+
+.adminRow:hover {
+  background-color: rgba(156, 39, 176, 0.12) !important;
+}
+
+.subscriptionBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.free {
+  background-color: #444;
+  color: #ddd;
+}
+
+.common {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.rare {
+  background-color: #3F51B5;
+  color: white;
+}
+
+.epic {
+  background-color: #9C27B0;
+  color: white;
+}
+
+.adminBadge,
+.notAdminBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.adminBadge {
+  background-color: #9C27B0;
+  color: white;
+}
+
+.notAdminBadge {
+  background-color: #444;
+  color: #ddd;
+}
+
+.viewButton {
+  padding: 6px 10px;
+  background-color: #00ccff;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.viewButton:hover {
+  background-color: #00bfed;
+  transform: translateY(-1px);
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  gap: 15px;
+}
+
+.paginationButton {
+  padding: 8px 15px;
+  background-color: #2a2a2a;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: #3a3a3a;
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  color: #ccc;
+  font-size: 14px;
+}
+
+/* User Detail Panel */
+.userDetailOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.userDetailPanel {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.closeButton {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.closeButton:hover {
+  color: #fff;
+}
+
+.userDetailHeader {
+  padding: 25px 25px 15px;
+  border-bottom: 1px solid #333;
+}
+
+.userDetailHeader h3 {
+  margin: 0;
+  font-size: 22px;
+  color: #f4f4f4;
+}
+
+.userEmail {
+  margin: 8px 0 0;
+  color: #aaa;
+  font-size: 16px;
+}
+
+.userDetailContent {
+  padding: 25px;
+}
+
+.userStats {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.statLabel {
+  color: #aaa;
+  font-size: 14px;
+}
+
+.statValue {
+  color: #f4f4f4;
+  font-weight: 500;
+}
+
+.adminControls {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.grantButton,
+.revokeButton {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 16px;
+}
+
+.grantButton {
+  background-color: #9C27B0;
+  color: white;
+}
+
+.grantButton:hover:not(:disabled) {
+  background-color: #7B1FA2;
+  transform: translateY(-2px);
+}
+
+.revokeButton {
+  background-color: #FF5722;
+  color: white;
+}
+
+.revokeButton:hover:not(:disabled) {
+  background-color: #E64A19;
+  transform: translateY(-2px);
+}
+
+.grantButton:disabled,
+.revokeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filters {
+    flex-direction: column;
+  }
+  
+  .userList th,
+  .userList td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  
+  .userDetailPanel {
+    max-width: 100%;
+  }
+} 
