@@ -62,8 +62,8 @@ const AdminDashboard = () => {
       // First try to load streamers from Supabase
       const { data: dbStreamers, error: dbError } = await supabase
         .from('streamers')
-        .select('username, bio')
-        .order('username');
+        .select('name, bio')
+        .order('name');
       
       if (dbError) {
         console.error('Database error:', dbError);
@@ -73,11 +73,18 @@ const AdminDashboard = () => {
       // If we have data from Supabase, use it
       if (dbStreamers && dbStreamers.length > 0) {
         console.log('Loaded streamers from Supabase:', dbStreamers.length);
-        setStreamers(dbStreamers);
-        setStreamersJson(JSON.stringify(dbStreamers, null, 2));
+        
+        // Transform the data to use username for frontend compatibility
+        const transformedStreamers = dbStreamers.map(streamer => ({
+          username: streamer.name,
+          bio: streamer.bio
+        }));
+        
+        setStreamers(transformedStreamers);
+        setStreamersJson(JSON.stringify(transformedStreamers, null, 2));
         
         // After loading streamers, fetch their Twitch data
-        fetchTwitchDataForStreamers(dbStreamers);
+        fetchTwitchDataForStreamers(transformedStreamers);
         return;
       }
       
@@ -108,22 +115,31 @@ const AdminDashboard = () => {
     try {
       console.log('Syncing streamers to database:', streamersData);
       
-      // Prepare the data for upsert
+      // Prepare the data for insert
       const dbStreamers = streamersData.map(streamer => ({
-        username: streamer.username,
+        name: streamer.username,
         bio: streamer.bio || ''
       }));
       
-      // Upsert all streamers at once
+      // First, clear existing streamers
+      const { error: deleteError } = await supabase
+        .from('streamers')
+        .delete()
+        .neq('name', 'placeholder'); // Keep any placeholder entries
+        
+      if (deleteError) {
+        console.error('Error clearing existing streamers:', deleteError);
+        throw deleteError;
+      }
+      
+      // Now insert all streamers
       const { data, error } = await supabase
         .from('streamers')
-        .upsert(dbStreamers, {
-          onConflict: 'username',
-          returning: true
-        });
+        .insert(dbStreamers)
+        .select();
       
       if (error) {
-        console.error('Error upserting streamers:', error);
+        console.error('Error inserting streamers:', error);
         throw error;
       }
       
@@ -238,7 +254,17 @@ const AdminDashboard = () => {
       }
       
       // Check if streamer already exists
-      const existingStreamer = streamers.find(s => s.username.toLowerCase() === username.toLowerCase());
+      const { data: existingStreamer, error: checkError } = await supabase
+        .from('streamers')
+        .select('name')
+        .eq('name', username)
+        .single();
+      
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows returned
+        console.error('Error checking for existing streamer:', checkError);
+        throw checkError;
+      }
+      
       if (existingStreamer) {
         toast.error('This streamer is already in the list');
         return;
@@ -246,30 +272,28 @@ const AdminDashboard = () => {
       
       // Add the new streamer
       const newStreamer = {
-        username: username,
+        name: username,
         bio: newStreamerBio || ''
       };
       
-      // Try to add directly to database first
-      try {
-        const { data, error } = await supabase
-          .from('streamers')
-          .insert([newStreamer])
-          .select();
-          
-        if (error) throw error;
+      // Try to add to database
+      const { error: insertError } = await supabase
+        .from('streamers')
+        .insert([newStreamer]);
         
-        // If successful, reload the streamers list
-        await loadStreamers();
-        toast.success('Streamer added successfully!');
-        
-        // Reset form
-        setNewStreamerUrl('');
-        setNewStreamerBio('');
-      } catch (dbError) {
-        console.error('Failed to add streamer to database:', dbError);
-        toast.error('Failed to add streamer to database');
+      if (insertError) {
+        console.error('Error adding streamer:', insertError);
+        throw insertError;
       }
+      
+      // If successful, reload the streamers list
+      await loadStreamers();
+      toast.success('Streamer added successfully!');
+      
+      // Reset form
+      setNewStreamerUrl('');
+      setNewStreamerBio('');
+      
     } catch (error) {
       console.error('Error adding streamer:', error);
       toast.error('Failed to add streamer');
