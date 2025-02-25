@@ -127,6 +127,102 @@ For production use, you'll need to implement two API endpoints:
 
 These endpoints are already set up in the `server/api` directory and need to be connected to your production server.
 
+## Setting Up the Streamers Database
+
+The admin dashboard now uses a Supabase database to store streamer information, which allows for proper functioning in production environments like Vercel.
+
+### 1. Create the Streamers Table
+
+Run the following SQL migration in your Supabase SQL Editor:
+
+```sql
+-- From migrations/create_streamers_table.sql
+-- Create the streamers table
+CREATE TABLE IF NOT EXISTS public.streamers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  username TEXT NOT NULL,
+  bio TEXT,
+  votes INTEGER DEFAULT 0,
+  credits INTEGER DEFAULT 0,
+  viewers INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  CONSTRAINT unique_streamer_username UNIQUE (username)
+);
+
+-- Enable RLS on streamers table
+ALTER TABLE public.streamers ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for public read access
+CREATE POLICY "Streamers are readable by everyone"
+  ON public.streamers
+  FOR SELECT
+  USING (true);
+
+-- Create policy for admin write access
+CREATE POLICY "Admins can manage streamers"
+  ON public.streamers
+  FOR ALL
+  USING (
+    auth.uid() IN (
+      SELECT user_id FROM public.admins
+    )
+  );
+
+-- Create function to upsert streamers
+CREATE OR REPLACE FUNCTION upsert_streamers(streamers_data JSONB)
+RETURNS INTEGER AS $$
+DECLARE
+  streamer JSONB;
+  username TEXT;
+  bio TEXT;
+  counter INTEGER := 0;
+BEGIN
+  -- Clear existing streamers
+  DELETE FROM public.streamers;
+  
+  -- Insert new streamers
+  FOR streamer IN SELECT * FROM jsonb_array_elements(streamers_data)
+  LOOP
+    username := streamer->>'username';
+    bio := streamer->>'bio';
+    
+    INSERT INTO public.streamers (username, bio)
+    VALUES (username, bio)
+    ON CONFLICT (username) 
+    DO UPDATE SET bio = EXCLUDED.bio, updated_at = now();
+    
+    counter := counter + 1;
+  END LOOP;
+  
+  RETURN counter;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### 2. Import Existing Streamers
+
+If you already have streamers in your JSON file, you can import them to the database:
+
+1. Make sure your `.env` file contains the following variables:
+```
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+2. Run the import script:
+```bash
+node scripts/import-streamers.js
+```
+
+### 3. Configure Vercel Environment
+
+Make sure your Vercel project has the following environment variables set:
+
+1. `SUPABASE_URL`: Your Supabase project URL
+2. `SUPABASE_ANON_KEY`: Your Supabase anon key (for client access)
+3. `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key (for admin operations)
+
 ## Troubleshooting
 
 - If you're unable to access the admin dashboard, verify your admin status in the Supabase database
@@ -137,4 +233,22 @@ These endpoints are already set up in the `server/api` directory and need to be 
 
 - Keep your Supabase service role key confidential
 - Only grant admin access to trusted users
-- Consider implementing additional security measures for production use, such as rate limiting and IP restrictions 
+- Consider implementing additional security measures for production use, such as rate limiting and IP restrictions
+
+## Troubleshooting Streamer Management
+
+If you encounter issues with the streamer management functionality:
+
+1. **"Failed to save to server: Failed to update streamers: 405"**
+   - Check if your Vercel serverless function for `/api/update-streamers` is properly deployed
+   - Verify that your environment variables are set correctly
+   - Try using the direct database update method which should work regardless of API status
+
+2. **"This streamer is already in the list"**
+   - This is a validation error to prevent duplicate streamers
+   - Check if a streamer with the same username already exists
+
+3. **Changes not persisting after refresh**
+   - Make sure you click "Save to Server" after making changes
+   - Check the browser console for any errors during the save process
+   - Verify that your admin account has the proper permissions 

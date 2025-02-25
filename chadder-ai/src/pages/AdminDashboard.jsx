@@ -59,7 +59,25 @@ const AdminDashboard = () => {
 
   const loadStreamers = async () => {
     try {
-      // Fetch streamers from the JSON file with a proper path for production
+      // First try to load streamers from Supabase
+      const { data: dbStreamers, error: dbError } = await supabase
+        .from('streamers')
+        .select('username, bio')
+        .order('username');
+      
+      // If we have data from Supabase, use it
+      if (!dbError && dbStreamers && dbStreamers.length > 0) {
+        console.log('Loaded streamers from Supabase:', dbStreamers.length);
+        setStreamers(dbStreamers);
+        setStreamersJson(JSON.stringify(dbStreamers, null, 2));
+        
+        // After loading streamers, fetch their Twitch data
+        fetchTwitchDataForStreamers(dbStreamers);
+        return;
+      }
+      
+      // Fall back to loading from JSON file
+      console.log('No streamers in database, falling back to JSON file');
       const response = await fetch('/streamers.json');
       if (!response.ok) {
         throw new Error(`Failed to fetch streamers: ${response.status} ${response.statusText}`);
@@ -70,9 +88,38 @@ const AdminDashboard = () => {
       
       // After loading streamers, fetch their Twitch data
       fetchTwitchDataForStreamers(data);
+      
+      // If we loaded from JSON but database exists, sync to database
+      if (!dbError) {
+        syncStreamersToDatabase(data);
+      }
     } catch (error) {
       console.error('Error loading streamers:', error);
       toast.error('Failed to load streamers');
+    }
+  };
+  
+  // New function to sync streamers from JSON to database
+  const syncStreamersToDatabase = async (streamersData) => {
+    try {
+      // For each streamer, upsert to the database
+      const promises = streamersData.map(async (streamer) => {
+        const { error } = await supabase
+          .from('streamers')
+          .upsert({ 
+            username: streamer.username,
+            bio: streamer.bio
+          }, { 
+            onConflict: 'username' 
+          });
+          
+        if (error) throw error;
+      });
+      
+      await Promise.all(promises);
+      console.log('Synced streamers to database');
+    } catch (error) {
+      console.error('Error syncing streamers to database:', error);
     }
   };
 
@@ -142,12 +189,28 @@ const AdminDashboard = () => {
 
   const getTwitchUserInfo = async (username) => {
     try {
-      // Set up server endpoint to fetch Twitch user info to avoid exposing API keys
-      const response = await axios.get(`/api/twitch-user?username=${username}`);
-      return response.data;
+      // First try with API endpoint
+      try {
+        const response = await fetch(`/api/twitch-user?username=${encodeURIComponent(username)}`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        return await response.json();
+      } catch (apiError) {
+        console.warn(`API error for Twitch user ${username}:`, apiError);
+        // Fall back to a simpler object with basic info
+        return {
+          username: username,
+          is_live: false,
+          display_name: username,
+          profile_image_url: null,
+          follower_count: null,
+          viewer_count: null
+        };
+      }
     } catch (error) {
       console.error('Error fetching Twitch user info:', error);
-      throw new Error('Failed to fetch Twitch user info');
+      throw error;
     }
   };
 
@@ -238,17 +301,38 @@ const AdminDashboard = () => {
     try {
       toast.loading('Saving streamers list...');
       
-      // For development environment - display a message about how this would work in production
+      // Try to save directly to Supabase first (faster)
+      try {
+        await syncStreamersToDatabase(streamers);
+        toast.dismiss();
+        toast.success('Streamers list updated in database!');
+        return;
+      } catch (dbError) {
+        console.warn('Direct database update failed, trying API:', dbError);
+        // Continue to API method
+      }
+      
+      // Get the current user's session for the auth token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Authentication error. Please log in again.');
+      }
+      
+      // In development environment - display a message
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         toast.dismiss();
-        toast.success('In development mode. To save changes, copy the JSON and update the file manually.');
+        toast.success('Development mode: Streamers saved to database.');
         return;
       }
       
-      // In production, you would have an API endpoint to update the JSON file
+      // Call the API with proper authentication
       const response = await fetch('/api/update-streamers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(streamers),
       });
       
@@ -258,7 +342,7 @@ const AdminDashboard = () => {
       }
       
       toast.dismiss();
-      toast.success('Streamers list successfully updated on the server.');
+      toast.success('Streamers list successfully updated!');
     } catch (error) {
       console.error('Error saving streamers to server:', error);
       toast.dismiss();
