@@ -128,8 +128,15 @@ const Discover = () => {
       }
     };
 
+    // Initial fetch
     fetchData();
-  }, []);
+
+    // Set up polling every 30 seconds
+    const pollInterval = setInterval(fetchData, 30000);
+
+    // Cleanup on unmount
+    return () => clearInterval(pollInterval);
+  }, []); // Empty dependency array since we want this to run once on mount
 
   useEffect(() => {
     const timer = setInterval(() => {

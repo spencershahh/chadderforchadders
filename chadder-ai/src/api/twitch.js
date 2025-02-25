@@ -1,5 +1,5 @@
 import axios from "axios";
-import streamers from "../data/streamers.json";
+import { supabase } from "../supabaseClient";
 
 export const getTwitchAccessToken = async () => {
   try {
@@ -22,7 +22,18 @@ export const fetchStreamers = async () => {
   if (!accessToken) return [];
 
   try {
-    const usernames = streamers.map((streamer) => streamer.username);
+    // First, fetch streamers from Supabase
+    const { data: dbStreamers, error } = await supabase
+      .from('streamers')
+      .select('name, bio')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching streamers from Supabase:', error);
+      return [];
+    }
+
+    const usernames = dbStreamers.map((streamer) => streamer.name);
 
     // Fetch user information (includes profile images)
     const userResponse = await axios.get("https://api.twitch.tv/helix/users", {
@@ -69,7 +80,7 @@ export const fetchStreamers = async () => {
     return users.map((user) => {
       const stream = liveStreams.find((s) => s.user_id === user.id);
       const game = games.find((g) => g.id === stream?.game_id);
-      const streamerInfo = streamers.find((s) => s.username.toLowerCase() === user.login.toLowerCase());
+      const streamerInfo = dbStreamers.find((s) => s.name.toLowerCase() === user.login.toLowerCase());
 
       return {
         id: user.id,
