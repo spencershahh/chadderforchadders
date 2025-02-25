@@ -177,52 +177,125 @@
   background-color: #f57c00;
 }
 
+/* Streamer List Styling */
 .streamerList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .streamerItem {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: flex-start;
   padding: 16px;
-  background-color: #222;
-  border-radius: 6px;
-  border-left: 4px solid #00ccff;
+  background-color: #1f1f1f;
+  border-radius: 8px;
+  border: 1px solid #333;
 }
 
 .streamerInfo {
   flex: 1;
 }
 
-.streamerInfo strong {
-  display: block;
-  font-size: 18px;
-  margin-bottom: 6px;
-  color: #f4f4f4;
+.streamerHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.streamerInfo p {
-  color: #aaa;
-  margin: 0;
+.streamerHeader strong {
+  font-size: 18px;
+}
+
+.twitchInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 14px;
 }
 
-.removeButton {
-  background-color: #ff4a4a;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s;
+.liveNow {
+  color: #ff4d4d;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
 }
 
-.removeButton:hover {
-  background-color: #e54242;
+.offline {
+  color: #999;
+  display: flex;
+  align-items: center;
+}
+
+.followers, .viewers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.streamDetails {
+  margin-top: 12px;
+  background-color: #2a2a2a;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.streamDetails > div {
+  margin-bottom: 6px;
+}
+
+.streamDetails > div:last-child {
+  margin-bottom: 0;
+}
+
+.streamCategory, .streamTitle, .streamDuration {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.streamTitle {
+  word-break: break-word;
+}
+
+.streamerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.viewButton {
+  background-color: #6441a5; /* Twitch purple */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.viewButton:hover {
+  background-color: #7d5bbe;
+}
+
+.refreshButton {
+  background-color: #4b367c;
+  color: white;
+}
+
+.refreshButton:hover {
+  background-color: #5d4494;
+}
+
+.refreshButton:disabled {
+  background-color: #3a2b5e;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .jsonEditorWrapper {

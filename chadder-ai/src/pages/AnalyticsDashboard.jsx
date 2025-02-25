@@ -19,6 +19,14 @@ const AnalyticsDashboard = () => {
     newUsersThisMonth: 0,
     growthRate: 0
   });
+  const [businessMetrics, setBusinessMetrics] = useState({
+    monthlyRevenue: 0,
+    monthlyGrowth: 0,
+    arpu: 0,
+    userRetention: 0,
+    avgSessionTime: 0,
+    conversionRate: 0
+  });
   const [userGrowthData, setUserGrowthData] = useState([]);
   const [creditDistributionData, setCreditDistributionData] = useState([]);
   const [streamerPopularityData, setStreamerPopularityData] = useState([]);
@@ -48,6 +56,12 @@ const AnalyticsDashboard = () => {
         await fetchOverviewMetrics();
       } catch (err) {
         console.error('Error fetching overview metrics:', err);
+      }
+      
+      try {
+        await fetchBusinessHealthMetrics();
+      } catch (err) {
+        console.error('Error fetching business health metrics:', err);
       }
       
       try {
@@ -153,6 +167,66 @@ const AnalyticsDashboard = () => {
     }
   };
 
+  // Fetch business health metrics
+  const fetchBusinessHealthMetrics = async () => {
+    try {
+      // In a production app, you would fetch real data from your database
+      // For this example, we'll generate sample metrics
+      
+      // Monthly Revenue - calculate based on subscriptions
+      const { data: subscriptionData, error: subError } = await supabase
+        .from('users')
+        .select('subscription_tier, subscription_status');
+      
+      if (subError) throw subError;
+      
+      // Sample subscription prices
+      const subscriptionPrices = {
+        'free': 0,
+        'common': 4.99,
+        'rare': 9.99,
+        'epic': 19.99
+      };
+      
+      let monthlyRevenue = 0;
+      subscriptionData.forEach(user => {
+        if (user.subscription_status === 'active' && user.subscription_tier !== 'free') {
+          monthlyRevenue += subscriptionPrices[user.subscription_tier] || 0;
+        }
+      });
+      
+      // Get previous month's data for growth calculation
+      // In a real app, you'd fetch historical data
+      const previousMonthRevenue = monthlyRevenue * (0.8 + Math.random() * 0.3); // Random previous month (80-110% of current)
+      const monthlyGrowth = previousMonthRevenue > 0 
+        ? ((monthlyRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 
+        : 0;
+      
+      // Calculate ARPU (Average Revenue Per User)
+      const activeUsers = overviewMetrics.totalUsers || 1; // Avoid division by zero
+      const arpu = monthlyRevenue / activeUsers;
+      
+      // Simulate other metrics
+      // In a real app, you'd calculate these from actual usage data
+      const userRetention = 65 + Math.random() * 15; // Random 65-80% retention
+      const avgSessionTime = 8 + Math.random() * 7; // Random 8-15 minutes
+      const conversionRate = 3 + Math.random() * 5; // Random 3-8% conversion rate
+      
+      setBusinessMetrics({
+        monthlyRevenue,
+        monthlyGrowth,
+        arpu,
+        userRetention,
+        avgSessionTime,
+        conversionRate
+      });
+      
+    } catch (error) {
+      console.error('Error fetching business health metrics:', error);
+      throw error;
+    }
+  };
+
   // Fetch user growth data for the chart
   const fetchUserGrowthData = async () => {
     try {
@@ -218,7 +292,7 @@ const AnalyticsDashboard = () => {
     // In a production app, this would fetch from your votes/streamers table
     // For now, generate sample data based on the streamers from the JSON file
     try {
-      const response = await fetch('/src/data/streamers.json');
+      const response = await fetch('/streamers.json');
       const streamers = await response.json();
       
       // Generate sample view/vote data
@@ -367,6 +441,16 @@ const AnalyticsDashboard = () => {
     return num.toString();
   };
 
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -432,6 +516,52 @@ const AnalyticsDashboard = () => {
           >
             Refresh Data
           </button>
+        </div>
+      </div>
+
+      {/* Business Health Dashboard */}
+      <div className={styles.businessHealthDashboard}>
+        <h3>Business Health Overview</h3>
+        <div className={styles.businessMetricsGrid}>
+          <div className={styles.businessMetricCard}>
+            <div className={styles.metricLabel}>Monthly Revenue</div>
+            <div className={styles.metricValue}>{formatCurrency(businessMetrics.monthlyRevenue)}</div>
+            <div className={`${styles.metricChange} ${businessMetrics.monthlyGrowth >= 0 ? styles.positive : styles.negative}`}>
+              {businessMetrics.monthlyGrowth >= 0 ? '↑' : '↓'} {Math.abs(businessMetrics.monthlyGrowth).toFixed(1)}%
+            </div>
+          </div>
+          
+          <div className={styles.businessMetricCard}>
+            <div className={styles.metricLabel}>Avg. Revenue Per User</div>
+            <div className={styles.metricValue}>{formatCurrency(businessMetrics.arpu)}</div>
+            <div className={styles.metricSubtext}>Monthly</div>
+          </div>
+          
+          <div className={styles.businessMetricCard}>
+            <div className={styles.metricLabel}>User Retention</div>
+            <div className={styles.metricValue}>{businessMetrics.userRetention.toFixed(1)}%</div>
+            <div className={styles.metricSubtext}>30-day retention</div>
+          </div>
+          
+          <div className={styles.businessMetricCard}>
+            <div className={styles.metricLabel}>Avg. Session Time</div>
+            <div className={styles.metricValue}>{businessMetrics.avgSessionTime.toFixed(1)} min</div>
+            <div className={styles.metricSubtext}>Time on site</div>
+          </div>
+          
+          <div className={styles.businessMetricCard}>
+            <div className={styles.metricLabel}>Conversion Rate</div>
+            <div className={styles.metricValue}>{businessMetrics.conversionRate.toFixed(1)}%</div>
+            <div className={styles.metricSubtext}>Free to paid</div>
+          </div>
+          
+          <div className={styles.businessMetricCard}>
+            <div className={styles.metricLabel}>Active Subscribers</div>
+            <div className={styles.metricValue}>{formatNumber(overviewMetrics.activeSubscribers)}</div>
+            <div className={styles.metricSubtext}>
+              {((overviewMetrics.activeSubscribers / overviewMetrics.totalUsers) * 100).toFixed(1)}% of users
+            </div>
+          </div>
         </div>
       </div>
 

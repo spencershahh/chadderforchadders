@@ -290,4 +290,68 @@
   .chartContainer {
     height: auto;
   }
+}
+
+/* Business Health Dashboard */
+.businessHealthDashboard {
+  background-color: #1e1e2d;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.businessHealthDashboard h3 {
+  font-size: 18px;
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: #f0f0f0;
+}
+
+.businessMetricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.businessMetricCard {
+  background-color: #282836;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metricLabel {
+  font-size: 14px;
+  color: #a0a0bd;
+  margin-bottom: 8px;
+}
+
+.metricValue {
+  font-size: 28px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.metricChange {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.positive {
+  color: #4caf50;
+}
+
+.negative {
+  color: #f44336;
+}
+
+.metricSubtext {
+  font-size: 12px;
+  color: #a0a0bd;
+  margin-top: auto;
 } 

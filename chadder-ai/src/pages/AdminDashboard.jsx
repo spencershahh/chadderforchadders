@@ -11,11 +11,13 @@ const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [streamers, setStreamers] = useState([]);
+  const [streamersWithTwitchData, setStreamersWithTwitchData] = useState([]);
   const [newStreamerUrl, setNewStreamerUrl] = useState('');
   const [newStreamerBio, setNewStreamerBio] = useState('');
   const [streamersJson, setStreamersJson] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('streamers'); // 'streamers', 'users', or 'analytics'
+  const [loadingTwitchData, setLoadingTwitchData] = useState(false);
   const textareaRef = useRef(null);
   const navigate = useNavigate();
 
@@ -65,10 +67,63 @@ const AdminDashboard = () => {
       const data = await response.json();
       setStreamers(data);
       setStreamersJson(JSON.stringify(data, null, 2));
+      
+      // After loading streamers, fetch their Twitch data
+      fetchTwitchDataForStreamers(data);
     } catch (error) {
       console.error('Error loading streamers:', error);
       toast.error('Failed to load streamers');
     }
+  };
+
+  // Fetch Twitch data for all streamers
+  const fetchTwitchDataForStreamers = async (streamersList) => {
+    try {
+      setLoadingTwitchData(true);
+      
+      // Batch usernames to avoid too many API calls
+      const usernames = streamersList.map(s => s.username);
+      
+      // For safety, process in batches of 10
+      const batchSize = 10;
+      const enhancedStreamers = [...streamersList];
+      
+      for (let i = 0; i < usernames.length; i += batchSize) {
+        const batch = usernames.slice(i, i + batchSize);
+        
+        // Execute batch requests in parallel
+        await Promise.all(batch.map(async (username, index) => {
+          try {
+            const twitchData = await getTwitchUserInfo(username);
+            
+            // Find corresponding streamer in our array
+            const streamerIndex = i + index;
+            if (streamerIndex < enhancedStreamers.length) {
+              enhancedStreamers[streamerIndex] = {
+                ...enhancedStreamers[streamerIndex],
+                twitchData: twitchData
+              };
+            }
+          } catch (error) {
+            console.warn(`Could not fetch data for ${username}:`, error);
+            // Still keep the streamer, just without Twitch data
+          }
+        }));
+      }
+      
+      setStreamersWithTwitchData(enhancedStreamers);
+    } catch (error) {
+      console.error('Error fetching Twitch data:', error);
+      toast.error('Failed to fetch some Twitch data');
+    } finally {
+      setLoadingTwitchData(false);
+    }
+  };
+
+  // Function to manually refresh Twitch data
+  const refreshTwitchData = () => {
+    fetchTwitchDataForStreamers(streamers);
+    toast.success('Refreshing Twitch data...');
   };
 
   const extractUsernameFromUrl = (url) => {
@@ -269,12 +324,21 @@ const AdminDashboard = () => {
           <h2>Manage Streamers</h2>
           <div className={styles.buttonGroup}>
             {!isEditing ? (
-              <button 
-                className={`${styles.button} ${styles.editButton}`}
-                onClick={handleEditStreamersJson}
-              >
-                Edit as JSON
-              </button>
+              <>
+                <button 
+                  className={`${styles.button} ${styles.refreshButton}`}
+                  onClick={refreshTwitchData}
+                  disabled={loadingTwitchData}
+                >
+                  {loadingTwitchData ? 'Refreshing...' : 'Refresh Twitch Data'}
+                </button>
+                <button 
+                  className={`${styles.button} ${styles.editButton}`}
+                  onClick={handleEditStreamersJson}
+                >
+                  Edit as JSON
+                </button>
+              </>
             ) : (
               <>
                 <button 
@@ -318,20 +382,79 @@ const AdminDashboard = () => {
           </div>
         ) : (
           <div className={styles.streamerList}>
-            {streamers.map((streamer) => (
-              <div key={streamer.username} className={styles.streamerItem}>
-                <div className={styles.streamerInfo}>
-                  <strong>{streamer.username}</strong>
-                  <p>{streamer.bio}</p>
+            {streamersWithTwitchData.length > 0 ? 
+              streamersWithTwitchData.map((streamer) => (
+                <div key={streamer.username} className={styles.streamerItem}>
+                  <div className={styles.streamerInfo}>
+                    <div className={styles.streamerHeader}>
+                      <strong>{streamer.username}</strong>
+                      {streamer.twitchData && (
+                        <div className={styles.twitchInfo}>
+                          <span className={streamer.twitchData.is_live ? styles.liveNow : styles.offline}>
+                            {streamer.twitchData.is_live ? '● LIVE NOW' : 'Offline'}
+                          </span>
+                          {streamer.twitchData.follower_count && (
+                            <span className={styles.followers}>
+                              <span role="img" aria-label="followers">👥</span> {formatNumber(streamer.twitchData.follower_count)}
+                            </span>
+                          )}
+                          {streamer.twitchData.viewer_count && streamer.twitchData.is_live && (
+                            <span className={styles.viewers}>
+                              <span role="img" aria-label="viewers">👁️</span> {formatNumber(streamer.twitchData.viewer_count)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p>{streamer.bio}</p>
+                    {streamer.twitchData && streamer.twitchData.stream_info && (
+                      <div className={styles.streamDetails}>
+                        <div className={styles.streamCategory}>
+                          <strong>Playing:</strong> {streamer.twitchData.stream_info.game_name || 'Unknown'}
+                        </div>
+                        <div className={styles.streamTitle}>
+                          <strong>Title:</strong> {streamer.twitchData.stream_info.title}
+                        </div>
+                        {streamer.twitchData.stream_info.started_at && (
+                          <div className={styles.streamDuration}>
+                            <strong>Live for:</strong> {calculateStreamDuration(streamer.twitchData.stream_info.started_at)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.streamerActions}>
+                    <button 
+                      className={styles.viewButton}
+                      onClick={() => window.open(`https://twitch.tv/${streamer.username}`, '_blank')}
+                    >
+                      View on Twitch
+                    </button>
+                    <button 
+                      className={styles.removeButton}
+                      onClick={() => handleRemoveStreamer(streamer.username)}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <button 
-                  className={styles.removeButton}
-                  onClick={() => handleRemoveStreamer(streamer.username)}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+              ))
+              :
+              streamers.map((streamer) => (
+                <div key={streamer.username} className={styles.streamerItem}>
+                  <div className={styles.streamerInfo}>
+                    <strong>{streamer.username}</strong>
+                    <p>{streamer.bio}</p>
+                  </div>
+                  <button 
+                    className={styles.removeButton}
+                    onClick={() => handleRemoveStreamer(streamer.username)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))
+            }
           </div>
         )}
       </div>
@@ -341,6 +464,7 @@ const AdminDashboard = () => {
         <p>To update streamers:</p>
         <ol>
           <li>Add or remove streamers using the controls above</li>
+          <li>Refresh Twitch data to see current status and metrics</li>
           <li>Alternatively, edit the JSON directly</li>
           <li>Copy the JSON to update your streamers.json file</li>
           <li>In a production environment, the "Save to Server" button would update the file directly</li>
@@ -348,6 +472,30 @@ const AdminDashboard = () => {
       </div>
     </>
   );
+
+  // Helper function to format large numbers
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+  };
+
+  // Calculate how long a stream has been live
+  const calculateStreamDuration = (startedAt) => {
+    const startTime = new Date(startedAt);
+    const currentTime = new Date();
+    const durationMs = currentTime - startTime;
+    
+    // Convert to hours and minutes
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
