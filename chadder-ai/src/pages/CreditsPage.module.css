@@ -7,13 +7,14 @@
 
 .header {
   text-align: center;
-  margin: 2rem 0;
-  padding: 0 1rem;
+  margin: 3rem 0;
+  padding: 2rem 1rem;
 }
 
 .headerTitle {
   font-size: clamp(2rem, 6vw, 3rem);
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
   background: linear-gradient(90deg, #9147ff, #6441a5);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

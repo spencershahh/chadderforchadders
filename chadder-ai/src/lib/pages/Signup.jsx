@@ -163,6 +163,16 @@ const Signup = () => {
           required
           className="auth-input"
         />
+        <p className="terms-text" style={{ fontSize: '0.8rem', color: '#a8a8a8', marginBottom: '1rem', textAlign: 'center' }}>
+          By signing up, you agree to our{' '}
+          <a href="https://www.chadder.ai/Terms" target="_blank" rel="noopener noreferrer" style={{ color: '#9147ff' }}>
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="https://www.chadder.ai/Privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#9147ff' }}>
+            Privacy Policy
+          </a>
+        </p>
         <button type="submit" disabled={loading} className="auth-button">
           {loading ? "Signing up..." : "Sign Up"}
         </button>
