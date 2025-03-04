@@ -588,7 +588,7 @@ const StreamPage = () => {
         <div className="vote-options">
           <h3 className="vote-title">Vote for {username}</h3>
           <div className="vote-buttons">
-            {[5, 25, 50, 100, 200].map((amount) => (
+            {[5, 10, 25, 50, 100].map((amount) => (
               <button
                 key={amount}
                 className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
