@@ -7,7 +7,6 @@ import { dirname } from 'path';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
-import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -640,7 +639,7 @@ app.get('/api/twitch/token', async (req, res) => {
       return res.status(500).json({ error: 'Server configuration error' });
     }
     
-    // Request a token from Twitch
+    // Request a token from Twitch (using built-in fetch in Node.js 18+)
     const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
       method: 'POST',
       headers: {
