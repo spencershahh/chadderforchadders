@@ -36,29 +36,79 @@ const getTwitchAccessToken = async () => {
 
 export const fetchStreamers = async () => {
   try {
+    console.log("Starting fetchStreamers process...");
+    
     // First, fetch streamers from Supabase
     const { data: dbStreamers, error } = await supabase
       .from('streamers')
-      .select('name, bio')
-      .order('name');
+      .select('*')
+      .order('username');
 
     if (error) {
       console.error('Error fetching streamers from Supabase:', error);
-      return [];
+      // Fall back to the local JSON file if database query fails
+      try {
+        console.log('Falling back to local streamers.json file');
+        const response = await fetch('/streamers.json');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch from JSON: ${response.status}`);
+        }
+        const localStreamers = await response.json();
+        console.log('Loaded streamers from JSON:', localStreamers);
+        return processTwitchData(localStreamers);
+      } catch (jsonError) {
+        console.error('Error loading from JSON file:', jsonError);
+        return [];
+      }
     }
 
     if (!dbStreamers || dbStreamers.length === 0) {
-      console.log('No streamers found in database');
-      return [];
+      console.warn('No streamers found in database, trying JSON file');
+      try {
+        const response = await fetch('/streamers.json');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch from JSON: ${response.status}`);
+        }
+        const localStreamers = await response.json();
+        console.log('Loaded streamers from JSON:', localStreamers);
+        return processTwitchData(localStreamers);
+      } catch (jsonError) {
+        console.error('Error loading from JSON file:', jsonError);
+        return [];
+      }
     }
 
+    console.log('Found streamers in database:', dbStreamers);
+    return processTwitchData(dbStreamers);
+
+  } catch (error) {
+    console.error("Error in fetchStreamers:", error);
+    return [];
+  }
+};
+
+// Helper function to process Twitch data for streamers
+const processTwitchData = async (streamers) => {
+  try {
     const accessToken = await getTwitchAccessToken();
     if (!accessToken) {
       console.error('Failed to get Twitch access token');
-      return [];
+      return streamers.map(streamer => ({
+        id: null,
+        user_id: null,
+        user_login: (streamer.username || streamer.name || '').toLowerCase(),
+        user_name: streamer.username || streamer.name || 'Unknown',
+        profile_image_url: null,
+        title: "Offline",
+        type: "offline",
+        viewer_count: null,
+        game_name: "N/A",
+        thumbnail_url: "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg",
+        bio: streamer.bio || "No bio available.",
+      }));
     }
 
-    const usernames = dbStreamers.map(streamer => streamer.name);
+    const usernames = streamers.map(streamer => streamer.username || streamer.name);
     console.log('Fetching data for streamers:', usernames);
 
     // Fetch user information (includes profile images)
@@ -70,12 +120,31 @@ export const fetchStreamers = async () => {
     });
 
     if (!userResponse.ok) {
+      console.error(`Twitch API error! status: ${userResponse.status}`);
+      console.error('Response:', await userResponse.text());
       throw new Error(`HTTP error! status: ${userResponse.status}`);
     }
 
     const userData = await userResponse.json();
     const users = userData.data;
-    console.log('Received user data:', users);
+    console.log('Received user data from Twitch:', users);
+
+    if (!users || users.length === 0) {
+      console.warn('No users found from Twitch API');
+      return streamers.map(streamer => ({
+        id: null,
+        user_id: null,
+        user_login: (streamer.username || streamer.name || '').toLowerCase(),
+        user_name: streamer.username || streamer.name || 'Unknown',
+        profile_image_url: null,
+        title: "Offline",
+        type: "offline",
+        viewer_count: null,
+        game_name: "N/A",
+        thumbnail_url: "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg",
+        bio: streamer.bio || "No bio available.",
+      }));
+    }
 
     const userIds = users.map((user) => user.id);
 
@@ -91,26 +160,35 @@ export const fetchStreamers = async () => {
     });
 
     const liveStreams = streamsResponse.data.data;
-    const gameIds = liveStreams.map((stream) => stream.game_id);
+    console.log('Live streams data:', liveStreams);
 
-    // Fetch game names
-    const gamesResponse = await axios.get("https://api.twitch.tv/helix/games", {
-      headers: {
-        "Client-ID": TWITCH_CLIENT_ID,
-        "Authorization": `Bearer ${accessToken}`,
-      },
-      params: {
-        id: gameIds,
-      },
-    });
-
-    const games = gamesResponse.data.data;
+    let games = [];
+    if (liveStreams && liveStreams.length > 0) {
+      const gameIds = liveStreams.map((stream) => stream.game_id).filter(id => id);
+      
+      if (gameIds.length > 0) {
+        // Fetch game names
+        const gamesResponse = await axios.get("https://api.twitch.tv/helix/games", {
+          headers: {
+            "Client-ID": TWITCH_CLIENT_ID,
+            "Authorization": `Bearer ${accessToken}`,
+          },
+          params: {
+            id: gameIds,
+          },
+        });
+        games = gamesResponse.data.data || [];
+      }
+    }
 
     // Combine all the data
     return users.map((user) => {
       const stream = liveStreams.find((s) => s.user_id === user.id);
       const game = games.find((g) => g.id === stream?.game_id);
-      const streamerInfo = dbStreamers.find((s) => s.name.toLowerCase() === user.login.toLowerCase());
+      const streamerInfo = streamers.find((s) => 
+        (s.username?.toLowerCase() === user.login.toLowerCase()) ||
+        (s.name?.toLowerCase() === user.login.toLowerCase())
+      );
 
       return {
         id: user.id,
@@ -129,8 +207,21 @@ export const fetchStreamers = async () => {
       };
     });
   } catch (error) {
-    console.error("Error in fetchStreamers:", error);
-    return [];
+    console.error("Error processing Twitch data:", error);
+    // Return basic streamer data if Twitch API fails
+    return streamers.map(streamer => ({
+      id: null,
+      user_id: null,
+      user_login: (streamer.username || streamer.name || '').toLowerCase(),
+      user_name: streamer.username || streamer.name || 'Unknown',
+      profile_image_url: null,
+      title: "Offline",
+      type: "offline",
+      viewer_count: null,
+      game_name: "N/A",
+      thumbnail_url: "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg",
+      bio: streamer.bio || "No bio available.",
+    }));
   }
 };
 
