@@ -79,64 +79,18 @@ const Discover = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const loadStreamers = async () => {
       try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-
-        // Fetch streamers and votes
-        const [streamersData, votesData] = await Promise.all([
-          fetchStreamers(),
-          fetchVotes()
-        ]);
-
+        const streamersData = await fetchStreamers();
+        console.log('Loaded streamers:', streamersData);
         setStreamers(streamersData);
-        setStreamerVotes(votesData);
-
-        // Find top streamer
-        if (votesData) {
-          const topStreamerLogin = Object.entries(votesData)
-            .sort(([, a], [, b]) => b - a)[0]?.[0];
-          
-          const topStreamerData = streamersData.find(
-            s => s.user_login.toLowerCase() === topStreamerLogin?.toLowerCase()
-          );
-          
-          if (topStreamerData) {
-            setTopStreamer({
-              ...topStreamerData,
-              weeklyVotes: votesData[topStreamerLogin] || 0
-            });
-          }
-        }
-
-        // Fetch user balance if logged in
-        if (user) {
-          const { data: balanceData } = await supabase
-            .from('users')
-            .select('credits')
-            .eq('id', user.id)
-            .single();
-          
-          setUserBalance(balanceData?.credits || 0);
-        }
-
-        await fetchTotalDonations();
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error('Error loading streamers:', error);
       }
     };
 
-    // Initial fetch
-    fetchData();
-
-    // Set up polling every 30 seconds
-    const pollInterval = setInterval(fetchData, 30000);
-
-    // Cleanup on unmount
-    return () => clearInterval(pollInterval);
-  }, []); // Empty dependency array since we want this to run once on mount
+    loadStreamers();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {

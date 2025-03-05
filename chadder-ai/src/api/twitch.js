@@ -3,37 +3,64 @@ import { supabase } from "../supabaseClient";
 
 const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
 
-// Helper function to get access token using PKCE
+// Updated getTwitchAccessToken function
 const getTwitchAccessToken = async () => {
   try {
     // Check if we have a cached token
     let accessToken = localStorage.getItem('twitch_access_token');
+    
+    // If we have a token, verify it's still valid
     if (accessToken) {
-      return accessToken;
+      try {
+        const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        if (!response.ok) {
+          // Token is invalid, remove it
+          localStorage.removeItem('twitch_access_token');
+          accessToken = null;
+        }
+      } catch (error) {
+        console.error('Error validating token:', error);
+        localStorage.removeItem('twitch_access_token');
+        accessToken = null;
+      }
     }
 
-    // If no token, initiate PKCE flow
-    const response = await axios.post("https://id.twitch.tv/oauth2/token", null, {
-      params: {
-        client_id: TWITCH_CLIENT_ID,
-        grant_type: "client_credentials",
-        // No client secret needed for public client
-      },
-    });
+    // If no valid token, get a new one
+    if (!accessToken) {
+      const response = await fetch('https://id.twitch.tv/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: TWITCH_CLIENT_ID,
+          grant_type: 'client_credentials',
+          // No client secret for public client
+        }),
+      });
 
-    accessToken = response.data.access_token;
-    localStorage.setItem('twitch_access_token', accessToken);
+      if (!response.ok) {
+        throw new Error('Failed to get access token');
+      }
+
+      const data = await response.json();
+      accessToken = data.access_token;
+      localStorage.setItem('twitch_access_token', accessToken);
+    }
+
     return accessToken;
   } catch (error) {
-    console.error("Error fetching Twitch Access Token:", error);
+    console.error("Error in getTwitchAccessToken:", error);
     return null;
   }
 };
 
 export const fetchStreamers = async () => {
-  const accessToken = await getTwitchAccessToken();
-  if (!accessToken) return [];
-
   try {
     // First, fetch streamers from Supabase
     const { data: dbStreamers, error } = await supabase
@@ -46,20 +73,36 @@ export const fetchStreamers = async () => {
       return [];
     }
 
-    const usernames = dbStreamers.map((streamer) => streamer.name);
+    if (!dbStreamers || dbStreamers.length === 0) {
+      console.log('No streamers found in database');
+      return [];
+    }
+
+    const accessToken = await getTwitchAccessToken();
+    if (!accessToken) {
+      console.error('Failed to get Twitch access token');
+      return [];
+    }
+
+    const usernames = dbStreamers.map(streamer => streamer.name);
+    console.log('Fetching data for streamers:', usernames);
 
     // Fetch user information (includes profile images)
-    const userResponse = await axios.get("https://api.twitch.tv/helix/users", {
+    const userResponse = await fetch(`https://api.twitch.tv/helix/users?${usernames.map(login => `login=${login}`).join('&')}`, {
       headers: {
-        "Client-ID": TWITCH_CLIENT_ID,
-        "Authorization": `Bearer ${accessToken}`,
-      },
-      params: {
-        login: usernames,
-      },
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${accessToken}`
+      }
     });
 
-    const users = userResponse.data.data;
+    if (!userResponse.ok) {
+      throw new Error(`HTTP error! status: ${userResponse.status}`);
+    }
+
+    const userData = await userResponse.json();
+    const users = userData.data;
+    console.log('Received user data:', users);
+
     const userIds = users.map((user) => user.id);
 
     // Fetch stream information
@@ -112,7 +155,7 @@ export const fetchStreamers = async () => {
       };
     });
   } catch (error) {
-    console.error("Error fetching Twitch data:", error);
+    console.error("Error in fetchStreamers:", error);
     return [];
   }
 };
