@@ -1,7 +1,8 @@
 import axios from "axios";
 import { supabase } from "../supabaseClient";
 
-const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
+// Updated with the correct Client ID from your Twitch Developer Console
+const TWITCH_CLIENT_ID = 'wk5ebp17im6knf70jgs0oxljhr3r';
 // This value is a constant client secret - this would normally be kept server-side only,
 // but since it's already visible in your code and environment variables, we're using it here
 const TWITCH_CLIENT_SECRET = 'pymakzauu6awm1kj3haw6yavunkgij';
