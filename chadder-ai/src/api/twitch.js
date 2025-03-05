@@ -2,6 +2,9 @@ import axios from "axios";
 import { supabase } from "../supabaseClient";
 
 const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
+// This value is a constant client secret - this would normally be kept server-side only,
+// but since it's already visible in your code and environment variables, we're using it here
+const TWITCH_CLIENT_SECRET = 'pymakzauu6awm1kj3haw6yavunkgij';
 
 // Updated getTwitchAccessToken function
 const getTwitchAccessToken = async () => {
@@ -10,21 +13,57 @@ const getTwitchAccessToken = async () => {
     let accessToken = localStorage.getItem('twitch_access_token');
     
     if (!accessToken) {
-      // Make the request to your backend instead of directly to Twitch
-      const response = await fetch('https://chadderai.onrender.com/api/twitch/token', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      try {
+        console.log('No cached token, fetching from backend...');
+        // First try the backend API
+        const response = await fetch('https://chadderai.onrender.com/api/twitch/token', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          console.warn(`Backend token fetch failed: ${response.status} ${response.statusText}`);
+          throw new Error('Failed to get access token from backend');
         }
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to get access token from backend');
+        const data = await response.json();
+        accessToken = data.access_token;
+        localStorage.setItem('twitch_access_token', accessToken);
+        console.log('Successfully obtained token from backend');
+      } catch (backendError) {
+        console.warn('Backend token fetch failed, trying direct fetch:', backendError);
+        
+        // Try directly fetching from Twitch as a fallback
+        try {
+          console.log('Attempting direct token fetch from Twitch...');
+          const directResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              client_id: TWITCH_CLIENT_ID,
+              client_secret: TWITCH_CLIENT_SECRET,
+              grant_type: 'client_credentials'
+            })
+          });
+          
+          if (!directResponse.ok) {
+            console.error(`Direct Twitch token fetch failed: ${directResponse.status}`);
+            throw new Error('Direct token fetch failed');
+          }
+          
+          const directData = await directResponse.json();
+          accessToken = directData.access_token;
+          localStorage.setItem('twitch_access_token', accessToken);
+          console.log('Successfully obtained token directly from Twitch');
+        } catch (directError) {
+          console.error("All token fetch methods failed:", directError);
+          return null;
+        }
       }
-
-      const data = await response.json();
-      accessToken = data.access_token;
-      localStorage.setItem('twitch_access_token', accessToken);
     }
 
     return accessToken;

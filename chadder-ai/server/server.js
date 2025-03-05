@@ -7,6 +7,7 @@ import { dirname } from 'path';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -619,6 +620,64 @@ app.get('/prize-pool', async (req, res) => {
   } catch (error) {
     console.error('Error fetching prize pool:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Add Twitch token endpoint - this is what your frontend is trying to call
+app.get('/api/twitch/token', async (req, res) => {
+  try {
+    console.log('Twitch token endpoint called');
+    
+    // Get client id and secret from environment variables
+    const clientId = process.env.VITE_TWITCH_CLIENT_ID;
+    const clientSecret = process.env.VITE_TWITCH_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      console.error('Missing Twitch credentials:', { 
+        hasClientId: !!clientId, 
+        hasClientSecret: !!clientSecret 
+      });
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
+    // Request a token from Twitch
+    const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'client_credentials'
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Twitch token fetch failed:', { 
+        status: tokenResponse.status, 
+        statusText: tokenResponse.statusText,
+        errorText
+      });
+      return res.status(tokenResponse.status).json({ 
+        error: 'Failed to obtain Twitch token',
+        details: errorText
+      });
+    }
+    
+    const tokenData = await tokenResponse.json();
+    console.log('Successfully obtained Twitch token');
+    
+    // Return the token data to the client
+    res.json({
+      access_token: tokenData.access_token,
+      expires_in: tokenData.expires_in,
+      token_type: tokenData.token_type
+    });
+  } catch (error) {
+    console.error('Error in Twitch token endpoint:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
