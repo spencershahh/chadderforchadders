@@ -15,8 +15,8 @@ const getTwitchAccessToken = async () => {
     if (!accessToken) {
       try {
         console.log('No cached token, fetching from backend...');
-        // First try the backend API
-        const response = await fetch('https://chadderai.onrender.com/api/twitch/token', {
+        // First try the backend API - using the correct backend URL
+        const response = await fetch('https://chadderforchadders.onrender.com/api/twitch/token', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -51,7 +51,14 @@ const getTwitchAccessToken = async () => {
           });
           
           if (!directResponse.ok) {
-            console.error(`Direct Twitch token fetch failed: ${directResponse.status}`);
+            const errorText = await directResponse.text();
+            console.error(`Direct Twitch token fetch failed: ${directResponse.status}`, {
+              responseText: errorText,
+              requestedWith: {
+                client_id: TWITCH_CLIENT_ID,
+                client_secret: '***' // Don't log the actual secret
+              }
+            });
             throw new Error('Direct token fetch failed');
           }
           
@@ -60,8 +67,8 @@ const getTwitchAccessToken = async () => {
           localStorage.setItem('twitch_access_token', accessToken);
           console.log('Successfully obtained token directly from Twitch');
         } catch (directError) {
-          console.error("All token fetch methods failed:", directError);
-          return null;
+          console.error('All token fetch methods failed:', directError);
+          throw directError;
         }
       }
     }
@@ -76,6 +83,7 @@ const getTwitchAccessToken = async () => {
 export const fetchStreamers = async () => {
   try {
     console.log("Starting fetchStreamers process...");
+    let streamers = [];
     
     // First, fetch streamers from Supabase
     const { data: dbStreamers, error } = await supabase
@@ -86,40 +94,45 @@ export const fetchStreamers = async () => {
     if (error) {
       console.error('Error fetching streamers from Supabase:', error);
       // Fall back to the local JSON file if database query fails
-      try {
-        console.log('Falling back to local streamers.json file');
-        const response = await fetch('/streamers.json');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch from JSON: ${response.status}`);
-        }
-        const localStreamers = await response.json();
-        console.log('Loaded streamers from JSON:', localStreamers);
-        return processTwitchData(localStreamers);
-      } catch (jsonError) {
-        console.error('Error loading from JSON file:', jsonError);
-        return [];
-      }
-    }
-
-    if (!dbStreamers || dbStreamers.length === 0) {
+    } else if (dbStreamers && dbStreamers.length > 0) {
+      console.log('Found streamers in database:', dbStreamers.length);
+      streamers = dbStreamers;
+    } else {
       console.warn('No streamers found in database, trying JSON file');
+    }
+    
+    // If we don't have streamers yet, try loading from JSON
+    if (streamers.length === 0) {
       try {
+        console.log('Attempting to load streamers from JSON file');
         const response = await fetch('/streamers.json');
         if (!response.ok) {
           throw new Error(`Failed to fetch from JSON: ${response.status}`);
         }
         const localStreamers = await response.json();
-        console.log('Loaded streamers from JSON:', localStreamers);
-        return processTwitchData(localStreamers);
+        console.log('Loaded streamers from JSON:', localStreamers.length);
+        streamers = localStreamers;
       } catch (jsonError) {
         console.error('Error loading from JSON file:', jsonError);
-        return [];
+        
+        // If we still have no streamers, use hardcoded fallback data
+        if (streamers.length === 0) {
+          console.log('Using fallback streamer data');
+          streamers = [
+            { username: 'drewskisquad22', bio: 'Twitch Streamer' },
+            { username: 'fatstronaut', bio: 'Twitch Streamer' },
+            { username: 'ferretsoftware', bio: 'Twitch Streamer' },
+            { username: 'fuslie', bio: 'Twitch Streamer' },
+            { username: 'hanner', bio: 'Twitch Streamer' }
+          ];
+        }
       }
     }
-
-    console.log('Found streamers in database:', dbStreamers);
-    return processTwitchData(dbStreamers);
-
+    
+    console.log('Processing streamer data with Twitch API, count:', streamers.length);
+    // Now process the data with Twitch API
+    return processTwitchData(streamers);
+    
   } catch (error) {
     console.error("Error in fetchStreamers:", error);
     return [];
