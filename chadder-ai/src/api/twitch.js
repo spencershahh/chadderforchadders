@@ -9,43 +9,17 @@ const getTwitchAccessToken = async () => {
     // Check if we have a cached token
     let accessToken = localStorage.getItem('twitch_access_token');
     
-    // If we have a token, verify it's still valid
-    if (accessToken) {
-      try {
-        const response = await fetch('https://id.twitch.tv/oauth2/validate', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        
-        if (!response.ok) {
-          // Token is invalid, remove it
-          localStorage.removeItem('twitch_access_token');
-          accessToken = null;
-        }
-      } catch (error) {
-        console.error('Error validating token:', error);
-        localStorage.removeItem('twitch_access_token');
-        accessToken = null;
-      }
-    }
-
-    // If no valid token, get a new one
     if (!accessToken) {
-      const response = await fetch('https://id.twitch.tv/oauth2/token', {
-        method: 'POST',
+      // Make the request to your backend instead of directly to Twitch
+      const response = await fetch('https://chadderai.onrender.com/api/twitch/token', {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: TWITCH_CLIENT_ID,
-          grant_type: 'client_credentials',
-          // No client secret for public client
-        }),
+          'Content-Type': 'application/json',
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get access token');
+        throw new Error('Failed to get access token from backend');
       }
 
       const data = await response.json();
