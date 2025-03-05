@@ -340,20 +340,13 @@ const StreamPage = () => {
 
   const fetchStreamerInfo = async () => {
     try {
-      // First get the access token - you'll need to set these up in your environment variables
       const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
       
-      const tokenResponse = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`, {
-        method: 'POST'
-      });
-      const tokenData = await tokenResponse.json();
-      
-      // Then fetch the user info
-      const response = await fetch(`https://api.twitch.tv/helix/users?login=${normalizedUsername}`, {
+      // Use your backend API instead of direct Twitch calls
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/twitch/user?login=${normalizedUsername}`, {
         headers: {
           'Client-ID': clientId,
-          'Authorization': `Bearer ${tokenData.access_token}`
+          'Authorization': `Bearer ${localStorage.getItem('twitch_access_token')}`
         }
       });
       

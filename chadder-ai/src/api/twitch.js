@@ -1,16 +1,29 @@
 import axios from "axios";
 import { supabase } from "../supabaseClient";
 
-export const getTwitchAccessToken = async () => {
+const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
+
+// Helper function to get access token using PKCE
+const getTwitchAccessToken = async () => {
   try {
+    // Check if we have a cached token
+    let accessToken = localStorage.getItem('twitch_access_token');
+    if (accessToken) {
+      return accessToken;
+    }
+
+    // If no token, initiate PKCE flow
     const response = await axios.post("https://id.twitch.tv/oauth2/token", null, {
       params: {
-        client_id: import.meta.env.VITE_TWITCH_CLIENT_ID,
-        client_secret: import.meta.env.VITE_TWITCH_CLIENT_SECRET,
+        client_id: TWITCH_CLIENT_ID,
         grant_type: "client_credentials",
+        // No client secret needed for public client
       },
     });
-    return response.data.access_token;
+
+    accessToken = response.data.access_token;
+    localStorage.setItem('twitch_access_token', accessToken);
+    return accessToken;
   } catch (error) {
     console.error("Error fetching Twitch Access Token:", error);
     return null;
@@ -38,8 +51,8 @@ export const fetchStreamers = async () => {
     // Fetch user information (includes profile images)
     const userResponse = await axios.get("https://api.twitch.tv/helix/users", {
       headers: {
-        "Client-ID": import.meta.env.VITE_TWITCH_CLIENT_ID,
-        Authorization: `Bearer ${accessToken}`,
+        "Client-ID": TWITCH_CLIENT_ID,
+        "Authorization": `Bearer ${accessToken}`,
       },
       params: {
         login: usernames,
@@ -52,8 +65,8 @@ export const fetchStreamers = async () => {
     // Fetch stream information
     const streamsResponse = await axios.get("https://api.twitch.tv/helix/streams", {
       headers: {
-        "Client-ID": import.meta.env.VITE_TWITCH_CLIENT_ID,
-        Authorization: `Bearer ${accessToken}`,
+        "Client-ID": TWITCH_CLIENT_ID,
+        "Authorization": `Bearer ${accessToken}`,
       },
       params: {
         user_id: userIds,
@@ -66,8 +79,8 @@ export const fetchStreamers = async () => {
     // Fetch game names
     const gamesResponse = await axios.get("https://api.twitch.tv/helix/games", {
       headers: {
-        "Client-ID": import.meta.env.VITE_TWITCH_CLIENT_ID,
-        Authorization: `Bearer ${accessToken}`,
+        "Client-ID": TWITCH_CLIENT_ID,
+        "Authorization": `Bearer ${accessToken}`,
       },
       params: {
         id: gameIds,
@@ -101,5 +114,28 @@ export const fetchStreamers = async () => {
   } catch (error) {
     console.error("Error fetching Twitch data:", error);
     return [];
+  }
+};
+
+// Add new function to fetch user data
+export const fetchUserData = async (login) => {
+  const accessToken = await getTwitchAccessToken();
+  if (!accessToken) return null;
+
+  try {
+    const response = await axios.get(`https://api.twitch.tv/helix/users`, {
+      headers: {
+        "Client-ID": TWITCH_CLIENT_ID,
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      params: {
+        login: login,
+      },
+    });
+
+    return response.data.data[0] || null;
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    return null;
   }
 };

@@ -8,6 +8,10 @@ import GlowEffect from './components/GlowEffect';
 import Navbar from './components/Navbar';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import TwitchCallback from './pages/TwitchCallback';
+
+// In your router setup:
+<Route path="/auth/twitch/callback" element={<TwitchCallback />} /> 
 
 // Pages
 import Discover from "./pages/Discover";
@@ -69,6 +73,7 @@ const App = () => {
             <Route path="/stream/:username" element={<StreamPage />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
             <Route
               path="/profile"
               element={
