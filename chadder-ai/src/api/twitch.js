@@ -4,6 +4,43 @@ import { supabase } from "../supabaseClient";
 // Updated with the correct Client ID from your Twitch Developer Console
 const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
 
+// Define fallback data for when API calls fail
+const FALLBACK_STREAMERS = [
+  { 
+    username: 'drewskisquad22', 
+    name: 'drewskisquad22',
+    bio: 'Twitch Streamer',
+    profile_image_url: null
+  },
+  { 
+    username: 'fatstronaut', 
+    name: 'fatstronaut',
+    bio: 'Twitch Streamer',
+    profile_image_url: null
+  },
+  { 
+    username: 'ferretsoftware', 
+    name: 'ferretsoftware',
+    bio: 'Twitch Streamer',
+    profile_image_url: null
+  },
+  { 
+    username: 'fuslie', 
+    name: 'fuslie',
+    bio: 'Twitch Streamer',
+    profile_image_url: null
+  },
+  { 
+    username: 'hanner', 
+    name: 'hanner',
+    bio: 'Twitch Streamer',
+    profile_image_url: null
+  }
+];
+
+// API URL for your backend (if available)
+const API_URL = import.meta.env.VITE_API_URL;
+
 // Get an app access token for public client
 const getTwitchAccessToken = async () => {
   try {
@@ -63,109 +100,37 @@ export const fetchStreamers = async () => {
       streamers = dbStreamers;
     } else {
       console.warn('No streamers found in database, using fallback data');
-      streamers = [
-        { username: 'drewskisquad22', bio: 'Twitch Streamer' },
-        { username: 'fatstronaut', bio: 'Twitch Streamer' },
-        { username: 'ferretsoftware', bio: 'Twitch Streamer' },
-        { username: 'fuslie', bio: 'Twitch Streamer' },
-        { username: 'hanner', bio: 'Twitch Streamer' }
-      ];
+      streamers = FALLBACK_STREAMERS;
     }
     
-    console.log('Processing streamer data with Twitch API, count:', streamers.length);
-    return processTwitchData(streamers);
+    // Process with fallback data first to ensure we always have something to display
+    const processedStreamers = getFallbackStreamerData(streamers);
     
+    // Try to get enriched data from Twitch if possible
+    try {
+      if (API_URL) {
+        // Try to fetch enriched data from our backend proxy
+        const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamers.map(s => s.username || s.name).join(',')}`);
+        
+        if (response.ok) {
+          const enrichedData = await response.json();
+          
+          if (enrichedData && enrichedData.length > 0) {
+            console.log('Successfully fetched enriched data from backend');
+            // Return the enriched data instead
+            return enrichedData;
+          }
+        }
+      }
+    } catch (enrichError) {
+      console.warn('Could not fetch enriched data:', enrichError);
+    }
+    
+    // Return the fallback data if we couldn't get enriched data
+    return processedStreamers;
   } catch (error) {
     console.error("Error in fetchStreamers:", error);
-    return [];
-  }
-};
-
-// Helper function to process Twitch data for streamers
-const processTwitchData = async (streamers) => {
-  try {
-    const usernames = streamers.map(streamer => streamer.username || streamer.name);
-    console.log('Fetching data for streamers:', usernames);
-
-    const headers = await getTwitchHeaders();
-
-    // Fetch user information (includes profile images)
-    const userResponse = await fetch(`https://api.twitch.tv/helix/users?${usernames.map(login => `login=${login}`).join('&')}`, {
-      headers
-    });
-
-    if (!userResponse.ok) {
-      console.error(`Twitch API error! status: ${userResponse.status}`);
-      console.error('Response:', await userResponse.text());
-      throw new Error(`HTTP error! status: ${userResponse.status}`);
-    }
-
-    const userData = await userResponse.json();
-    const users = userData.data;
-    console.log('Received user data from Twitch:', users);
-
-    if (!users || users.length === 0) {
-      console.warn('No users found from Twitch API');
-      return getFallbackStreamerData(streamers);
-    }
-
-    const userIds = users.map((user) => user.id);
-
-    // Fetch stream information
-    const streamsResponse = await axios.get("https://api.twitch.tv/helix/streams", {
-      headers,
-      params: {
-        user_id: userIds,
-      },
-    });
-
-    const liveStreams = streamsResponse.data.data;
-    console.log('Live streams data:', liveStreams);
-
-    let games = [];
-    if (liveStreams && liveStreams.length > 0) {
-      const gameIds = liveStreams.map((stream) => stream.game_id).filter(id => id);
-      
-      if (gameIds.length > 0) {
-        // Fetch game names
-        const gamesResponse = await axios.get("https://api.twitch.tv/helix/games", {
-          headers,
-          params: {
-            id: gameIds,
-          },
-        });
-        games = gamesResponse.data.data || [];
-      }
-    }
-
-    // Combine all the data
-    return users.map((user) => {
-      const stream = liveStreams.find((s) => s.user_id === user.id);
-      const game = games.find((g) => g.id === stream?.game_id);
-      const streamerInfo = streamers.find((s) => 
-        (s.username?.toLowerCase() === user.login.toLowerCase()) ||
-        (s.name?.toLowerCase() === user.login.toLowerCase())
-      );
-
-      return {
-        id: user.id,
-        user_id: user.id,
-        user_login: user.login.toLowerCase(),
-        user_name: user.display_name,
-        profile_image_url: user.profile_image_url,
-        title: stream ? stream.title : "Offline",
-        type: stream ? "live" : "offline",
-        viewer_count: stream ? stream.viewer_count : null,
-        game_name: game ? game.name : "N/A",
-        thumbnail_url: stream
-          ? stream.thumbnail_url.replace("{width}", "320").replace("{height}", "180")
-          : "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg",
-        bio: streamerInfo?.bio || "No bio available.",
-      };
-    });
-  } catch (error) {
-    console.error("Error processing Twitch data:", error);
-    return getFallbackStreamerData(streamers);
+    return getFallbackStreamerData(FALLBACK_STREAMERS);
   }
 };
 
@@ -176,7 +141,7 @@ const getFallbackStreamerData = (streamers) => {
     user_id: null,
     user_login: (streamer.username || streamer.name || '').toLowerCase(),
     user_name: streamer.username || streamer.name || 'Unknown',
-    profile_image_url: null,
+    profile_image_url: streamer.profile_image_url || null,
     title: "Offline",
     type: "offline",
     viewer_count: null,
@@ -189,15 +154,25 @@ const getFallbackStreamerData = (streamers) => {
 // Function to fetch user data
 export const fetchUserData = async (login) => {
   try {
-    const headers = await getTwitchHeaders();
-    const response = await axios.get(`https://api.twitch.tv/helix/users`, {
-      headers,
-      params: {
-        login: login,
-      },
-    });
-
-    return response.data.data[0] || null;
+    // Try to get user data from backend proxy if available
+    if (API_URL) {
+      try {
+        const response = await fetch(`${API_URL}/api/twitch/user/${login}`);
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        console.warn(`Could not fetch user data for ${login} from backend:`, error);
+      }
+    }
+    
+    // Return basic fallback data if backend fetch failed
+    return {
+      login: login,
+      display_name: login,
+      profile_image_url: null,
+      description: "No bio available."
+    };
   } catch (error) {
     console.error("Error fetching user data:", error);
     return null;

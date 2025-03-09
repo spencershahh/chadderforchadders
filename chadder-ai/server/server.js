@@ -7,6 +7,7 @@ import { dirname } from 'path';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
+import twitchApiRouter from './api/twitch-api.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -74,6 +75,9 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature']
 }));
+
+// Add Twitch API routes
+app.use('/api/twitch', twitchApiRouter);
 
 // Updated price IDs
 const SUBSCRIPTION_PRICES = {
