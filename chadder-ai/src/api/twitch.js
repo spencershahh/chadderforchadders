@@ -4,29 +4,12 @@ import { supabase } from "../supabaseClient";
 // Updated with the correct Client ID from your Twitch Developer Console
 const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
 
-// Updated getTwitchAccessToken function for public client using Implicit Grant Flow
-const getTwitchAccessToken = async () => {
-  try {
-    // Check if we have a cached token
-    let accessToken = localStorage.getItem('twitch_access_token');
-    
-    if (!accessToken) {
-      // For public clients, we need to use the Implicit Grant Flow
-      // This will redirect to Twitch for authentication
-      const redirectUri = `${window.location.origin}/auth/twitch`;
-      const scope = 'user:read:email'; // Add any scopes you need
-
-      const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
-      
-      window.location.href = authUrl;
-      return null;
-    }
-
-    return accessToken;
-  } catch (error) {
-    console.error("Error in getTwitchAccessToken:", error);
-    return null;
-  }
+// For public clients, we can make API calls directly with just the Client ID
+const getTwitchHeaders = () => {
+  return {
+    'Client-ID': TWITCH_CLIENT_ID,
+    'Authorization': 'Bearer ' + TWITCH_CLIENT_ID
+  };
 };
 
 export const fetchStreamers = async () => {
@@ -73,9 +56,7 @@ const processTwitchData = async (streamers) => {
 
     // Fetch user information (includes profile images)
     const userResponse = await fetch(`https://api.twitch.tv/helix/users?${usernames.map(login => `login=${login}`).join('&')}`, {
-      headers: {
-        'Client-ID': TWITCH_CLIENT_ID
-      }
+      headers: getTwitchHeaders()
     });
 
     if (!userResponse.ok) {
@@ -97,9 +78,7 @@ const processTwitchData = async (streamers) => {
 
     // Fetch stream information
     const streamsResponse = await axios.get("https://api.twitch.tv/helix/streams", {
-      headers: {
-        "Client-ID": TWITCH_CLIENT_ID
-      },
+      headers: getTwitchHeaders(),
       params: {
         user_id: userIds,
       },
@@ -115,9 +94,7 @@ const processTwitchData = async (streamers) => {
       if (gameIds.length > 0) {
         // Fetch game names
         const gamesResponse = await axios.get("https://api.twitch.tv/helix/games", {
-          headers: {
-            "Client-ID": TWITCH_CLIENT_ID
-          },
+          headers: getTwitchHeaders(),
           params: {
             id: gameIds,
           },
@@ -178,9 +155,7 @@ const getFallbackStreamerData = (streamers) => {
 export const fetchUserData = async (login) => {
   try {
     const response = await axios.get(`https://api.twitch.tv/helix/users`, {
-      headers: {
-        "Client-ID": TWITCH_CLIENT_ID
-      },
+      headers: getTwitchHeaders(),
       params: {
         login: login,
       },
