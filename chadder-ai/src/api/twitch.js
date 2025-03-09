@@ -1,8 +1,8 @@
 import axios from "axios";
 import { supabase } from "../supabaseClient";
 
-// Updated with the correct Client ID from your Twitch Developer Console
-const TWITCH_CLIENT_ID = 'ngu1x9g67l2icpdxw6sa2uumvot5hz';
+// API URL for your backend
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Define fallback data for when API calls fail
 const FALLBACK_STREAMERS = [
@@ -38,90 +38,6 @@ const FALLBACK_STREAMERS = [
   }
 ];
 
-// API URL for your backend (if available)
-const API_URL = import.meta.env.VITE_API_URL;
-
-// Get an app access token for public client
-const getTwitchAccessToken = async () => {
-  try {
-    // Check if we have a cached token
-    let accessToken = localStorage.getItem('twitch_access_token');
-    let tokenExpiry = localStorage.getItem('twitch_token_expiry');
-    
-    // If token exists and is not expired, return it
-    if (accessToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
-      console.log('Using cached Twitch access token');
-      return accessToken;
-    }
-    
-    // Clear any existing token data as it's expired or invalid
-    localStorage.removeItem('twitch_access_token');
-    localStorage.removeItem('twitch_token_expiry');
-
-    // Try to get a token from our backend proxy
-    if (API_URL) {
-      try {
-        console.log('Requesting new Twitch access token from backend');
-        const response = await fetch(`${API_URL}/api/twitch/token`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.access_token) {
-            console.log('Received new Twitch access token');
-            accessToken = data.access_token;
-            
-            // Store token and its expiry
-            localStorage.setItem('twitch_access_token', accessToken);
-            localStorage.setItem('twitch_token_expiry', Date.now() + (data.expires_in * 1000));
-            
-            return accessToken;
-          } else if (data.message) {
-            // This is the case where backend couldn't get a token but returned client ID
-            console.log('Backend message:', data.message);
-            return null;
-          }
-        } else {
-          console.warn('Failed to get token from backend, status:', response.status);
-        }
-      } catch (error) {
-        console.warn('Error getting token from backend:', error.message);
-      }
-    } else {
-      console.warn('No API_URL configured, cannot get Twitch access token');
-    }
-    
-    // If we couldn't get a token from the backend, we'll proceed without one
-    return null;
-  } catch (error) {
-    console.error("Unexpected error in getTwitchAccessToken:", error);
-    return null;
-  }
-};
-
-// Get headers for Twitch API requests
-const getTwitchHeaders = async () => {
-  // Always include the Client-ID
-  const headers = {
-    'Client-ID': TWITCH_CLIENT_ID
-  };
-  
-  try {
-    // Try to get an access token, but don't fail if we can't
-    const accessToken = await getTwitchAccessToken();
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-      console.log('Using access token in request headers');
-    } else {
-      console.log('No access token available, using client ID only in headers');
-    }
-  } catch (error) {
-    console.warn('Error setting authorization header:', error.message);
-  }
-  
-  return headers;
-};
-
 export const fetchStreamers = async () => {
   try {
     console.log("Starting fetchStreamers process...");
@@ -152,12 +68,12 @@ export const fetchStreamers = async () => {
     const processedStreamers = getFallbackStreamerData(streamers);
     console.log('Generated fallback data for', processedStreamers.length, 'streamers');
     
-    // Try to get enriched data from Twitch if possible
+    // Try to get enriched data from backend
     if (API_URL) {
       try {
-        // Try to fetch enriched data from our backend proxy
+        // Fetch enriched data from our backend API
         const streamerLogins = streamers.map(s => s.username || s.name).join(',');
-        console.log(`Fetching enriched data for streamers: ${streamerLogins}`);
+        console.log(`Fetching enriched data for streamers from backend: ${streamerLogins}`);
         
         const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
         
@@ -177,7 +93,7 @@ export const fetchStreamers = async () => {
               });
             }
             
-            // Return the enriched data instead
+            // Return the enriched data
             return enrichedData;
           } else {
             console.warn('Backend returned empty enriched data');
@@ -227,7 +143,7 @@ const getFallbackStreamerData = (streamers) => {
 // Function to fetch user data
 export const fetchUserData = async (login) => {
   try {
-    // Try to get user data from backend proxy if available
+    // Get user data from backend API
     if (API_URL) {
       try {
         console.log(`Fetching user data for ${login} from backend`);
@@ -250,14 +166,13 @@ export const fetchUserData = async (login) => {
           }
         }
       } catch (error) {
-        console.warn(`Error fetching user data for ${login} from backend:`, error.message);
+        console.error(`Error fetching user data for ${login}:`, error.message);
       }
     } else {
-      console.warn('No API_URL configured, skipping user data fetch');
+      console.warn('No API_URL configured, cannot fetch user data');
     }
     
-    // Return basic fallback data if backend fetch failed
-    console.log(`Returning fallback data for user ${login}`);
+    // Return fallback data if we couldn't get the user data
     return {
       login: login,
       display_name: login,
@@ -265,13 +180,12 @@ export const fetchUserData = async (login) => {
       description: "No bio available."
     };
   } catch (error) {
-    console.error(`Critical error fetching user data for ${login}:`, error);
-    // Return a minimal fallback
+    console.error(`Error in fetchUserData for ${login}:`, error);
     return {
       login: login,
       display_name: login,
       profile_image_url: null,
-      description: "Error loading bio."
+      description: "No bio available."
     };
   }
 };

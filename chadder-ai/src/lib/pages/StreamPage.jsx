@@ -340,29 +340,29 @@ const StreamPage = () => {
 
   const fetchStreamerInfo = async () => {
     try {
-      // First get the access token - you'll need to set these up in your environment variables
-      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+      const normalizedUsername = username.toLowerCase();
+      console.log(`Fetching streamer info for: ${normalizedUsername}`);
       
-      const tokenResponse = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`, {
-        method: 'POST'
-      });
-      const tokenData = await tokenResponse.json();
+      // Fetch user data using the backend API
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) {
+        console.error('API URL not configured');
+        return;
+      }
       
-      // Then fetch the user info
-      const response = await fetch(`https://api.twitch.tv/helix/users?login=${normalizedUsername}`, {
-        headers: {
-          'Client-ID': clientId,
-          'Authorization': `Bearer ${tokenData.access_token}`
-        }
-      });
+      // Use the backend API endpoint
+      const response = await fetch(`${apiUrl}/api/twitch/user/${normalizedUsername}`);
       
-      const data = await response.json();
-      if (data.data && data.data[0]) {
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('Streamer data:', userData);
+        
         setStreamerInfo({
-          bio: data.data[0].description,
-          profileImageUrl: data.data[0].profile_image_url
+          bio: userData.description,
+          profileImageUrl: userData.profile_image_url
         });
+      } else {
+        console.error('Failed to fetch streamer info, status:', response.status);
       }
     } catch (error) {
       console.error('Error fetching streamer info:', error);
