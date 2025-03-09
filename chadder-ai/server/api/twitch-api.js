@@ -61,14 +61,23 @@ router.get('/streamers', async (req, res) => {
     }
     
     const usernames = logins.split(',');
-    const accessToken = await getTwitchAccessToken();
     
-    // Fetch user information (includes profile images)
-    const headers = {
-      'Client-ID': TWITCH_CLIENT_ID,
-      'Authorization': `Bearer ${accessToken}`
+    // Try to get access token, but don't fail if we can't
+    let accessToken = null;
+    let headers = {
+      'Client-ID': TWITCH_CLIENT_ID
     };
     
+    try {
+      accessToken = await getTwitchAccessToken();
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+    } catch (tokenError) {
+      console.warn('Could not get access token, proceeding with client ID only:', tokenError);
+    }
+    
+    // Fetch user information (includes profile images)
     const userResponse = await axios.get(`https://api.twitch.tv/helix/users`, {
       headers,
       params: {
@@ -148,12 +157,19 @@ router.get('/user/:login', async (req, res) => {
       return res.status(400).json({ error: 'Missing login parameter' });
     }
     
-    const accessToken = await getTwitchAccessToken();
-    
-    const headers = {
-      'Client-ID': TWITCH_CLIENT_ID,
-      'Authorization': `Bearer ${accessToken}`
+    // Try to get access token, but don't fail if we can't
+    let headers = {
+      'Client-ID': TWITCH_CLIENT_ID
     };
+    
+    try {
+      const accessToken = await getTwitchAccessToken();
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+    } catch (tokenError) {
+      console.warn('Could not get access token for user endpoint, proceeding with client ID only:', tokenError);
+    }
     
     const response = await axios.get(`https://api.twitch.tv/helix/users`, {
       headers,

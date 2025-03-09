@@ -53,20 +53,27 @@ const getTwitchAccessToken = async () => {
       return accessToken;
     }
 
-    // Get a new token using client credentials flow
-    const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
-      params: {
-        client_id: TWITCH_CLIENT_ID,
-        grant_type: 'client_credentials'
+    // Try to get a token from our backend proxy
+    if (API_URL) {
+      try {
+        const response = await fetch(`${API_URL}/api/twitch/token`);
+        if (response.ok) {
+          const data = await response.json();
+          accessToken = data.access_token;
+          
+          // Store token and its expiry
+          localStorage.setItem('twitch_access_token', accessToken);
+          localStorage.setItem('twitch_token_expiry', Date.now() + (data.expires_in * 1000));
+          
+          return accessToken;
+        }
+      } catch (error) {
+        console.warn('Could not get token from backend:', error);
       }
-    });
-
-    accessToken = response.data.access_token;
-    // Store token and its expiry (expires_in is in seconds)
-    localStorage.setItem('twitch_access_token', accessToken);
-    localStorage.setItem('twitch_token_expiry', Date.now() + (response.data.expires_in * 1000));
-
-    return accessToken;
+    }
+    
+    // If we couldn't get a token from the backend, we'll proceed without one
+    return null;
   } catch (error) {
     console.error("Error getting Twitch access token:", error);
     return null;
@@ -75,11 +82,16 @@ const getTwitchAccessToken = async () => {
 
 // Get headers for Twitch API requests
 const getTwitchHeaders = async () => {
-  const accessToken = await getTwitchAccessToken();
-  return {
-    'Client-ID': TWITCH_CLIENT_ID,
-    'Authorization': `Bearer ${accessToken}`
+  const headers = {
+    'Client-ID': TWITCH_CLIENT_ID
   };
+  
+  const accessToken = await getTwitchAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  return headers;
 };
 
 export const fetchStreamers = async () => {
@@ -110,20 +122,29 @@ export const fetchStreamers = async () => {
     try {
       if (API_URL) {
         // Try to fetch enriched data from our backend proxy
-        const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamers.map(s => s.username || s.name).join(',')}`);
+        const streamerLogins = streamers.map(s => s.username || s.name).join(',');
+        console.log(`Fetching enriched data for streamers: ${streamerLogins}`);
+        
+        const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
         
         if (response.ok) {
           const enrichedData = await response.json();
           
           if (enrichedData && enrichedData.length > 0) {
-            console.log('Successfully fetched enriched data from backend');
+            console.log('Successfully fetched enriched data from backend:', enrichedData.length);
             // Return the enriched data instead
             return enrichedData;
+          } else {
+            console.warn('Backend returned empty enriched data');
           }
+        } else {
+          console.warn('Backend returned error status:', response.status);
         }
+      } else {
+        console.warn('No API_URL configured, skipping enriched data fetch');
       }
     } catch (enrichError) {
-      console.warn('Could not fetch enriched data:', enrichError);
+      console.error('Could not fetch enriched data:', enrichError);
     }
     
     // Return the fallback data if we couldn't get enriched data
@@ -157,13 +178,21 @@ export const fetchUserData = async (login) => {
     // Try to get user data from backend proxy if available
     if (API_URL) {
       try {
+        console.log(`Fetching user data for ${login} from backend`);
         const response = await fetch(`${API_URL}/api/twitch/user/${login}`);
+        
         if (response.ok) {
-          return await response.json();
+          const userData = await response.json();
+          console.log(`Successfully fetched user data for ${login}`);
+          return userData;
+        } else {
+          console.warn(`Backend returned error status for user ${login}:`, response.status);
         }
       } catch (error) {
         console.warn(`Could not fetch user data for ${login} from backend:`, error);
       }
+    } else {
+      console.warn('No API_URL configured, skipping user data fetch');
     }
     
     // Return basic fallback data if backend fetch failed

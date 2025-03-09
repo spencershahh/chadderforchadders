@@ -368,6 +368,7 @@ const Discover = () => {
   };
 
   const renderStreamerCard = (streamer, index) => {
+    // Only lock cards if user is not logged in AND index is beyond the free limit
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
     const votes = streamerVotes[streamer.user_login] || 0;
 
@@ -382,6 +383,10 @@ const Discover = () => {
             className={styles.streamerThumbnail}
             src={streamer.thumbnail_url || OFFLINE_THUMBNAIL}
             alt={`${streamer.user_name}'s stream`}
+            onError={(e) => {
+              console.log(`Failed to load thumbnail for ${streamer.user_name}, using fallback`);
+              e.target.src = OFFLINE_THUMBNAIL;
+            }}
           />
           {streamer.type === "live" && <span className={styles.liveBadge}>LIVE</span>}
         </div>
@@ -390,6 +395,10 @@ const Discover = () => {
             className={styles.streamerProfileImage}
             src={streamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
             alt={`${streamer.user_name}'s profile`}
+            onError={(e) => {
+              console.log(`Failed to load profile image for ${streamer.user_name}, using fallback`);
+              e.target.src = DEFAULT_PROFILE_IMAGE;
+            }}
           />
           <div className={styles.streamerInfo}>
             <h3 className={styles.streamerName}>{streamer.user_name}</h3>
