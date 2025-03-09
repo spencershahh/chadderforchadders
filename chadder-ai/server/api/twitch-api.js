@@ -13,13 +13,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const router = express.Router();
 
 // Twitch API credentials from environment variables
-const TWITCH_CLIENT_ID = process.env.VITE_TWITCH_CLIENT_ID;
+// Use dedicated server variables, falling back to the frontend variables if needed
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || process.env.VITE_TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
 
-// Log initialization status
-console.log(`Twitch API Router initialized, Client ID available: ${Boolean(TWITCH_CLIENT_ID)}`);
-if (!TWITCH_CLIENT_ID) {
-  console.warn('WARNING: Twitch Client ID is missing. API calls may fail.');
-}
+// Log initialization info
+console.log('Twitch API Router initialized, Client ID available:', !!TWITCH_CLIENT_ID);
+console.log('Client Secret available:', !!TWITCH_CLIENT_SECRET);
 
 // Variables to store the access token and its expiry
 let twitchAccessToken = null;
@@ -33,31 +33,34 @@ async function getTwitchAccessToken() {
       return twitchAccessToken;
     }
 
-    // Try to get a new token using client credentials flow
-    try {
-      console.log('Attempting to get Twitch access token with client ID only');
-      
-      const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
-        params: {
-          client_id: TWITCH_CLIENT_ID,
-          grant_type: 'client_credentials'
-        }
-      });
-
-      twitchAccessToken = response.data.access_token;
-      // Token expires in seconds, convert to milliseconds
-      tokenExpiry = Date.now() + (response.data.expires_in * 1000);
-      
-      console.log('Successfully obtained Twitch access token');
-      return twitchAccessToken;
-    } catch (tokenError) {
-      console.error('Error in client credentials flow:', tokenError.message);
-      console.log('Proceeding without access token, will use client ID only');
-      return null;
+    if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+      console.error('Missing Twitch credentials! Need both Client ID and Client Secret');
+      throw new Error('Missing Twitch API credentials');
     }
+
+    console.log('Getting new Twitch access token with Client Credentials flow');
+    
+    const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+      params: {
+        client_id: TWITCH_CLIENT_ID,
+        client_secret: TWITCH_CLIENT_SECRET,
+        grant_type: 'client_credentials'
+      }
+    });
+
+    twitchAccessToken = response.data.access_token;
+    // Token expires in seconds, convert to milliseconds
+    tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+    
+    console.log('Successfully obtained Twitch access token');
+    return twitchAccessToken;
   } catch (error) {
-    console.error('Unexpected error in getTwitchAccessToken:', error);
-    return null;
+    console.error('Error fetching Twitch access token:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
+    throw new Error('Failed to get Twitch access token');
   }
 }
 
@@ -65,20 +68,10 @@ async function getTwitchAccessToken() {
 router.get('/token', async (req, res) => {
   try {
     const token = await getTwitchAccessToken();
-    
-    if (token) {
-      res.json({ 
-        access_token: token,
-        expires_in: Math.floor((tokenExpiry - Date.now()) / 1000) // Convert to seconds
-      });
-    } else {
-      // Instead of returning an error, inform the client that no token is available
-      // but they can still use the client ID
-      res.json({ 
-        message: 'No access token available, use client ID only',
-        client_id: TWITCH_CLIENT_ID
-      });
-    }
+    res.json({ 
+      access_token: token,
+      expires_in: Math.floor((tokenExpiry - Date.now()) / 1000) // Convert to seconds
+    });
   } catch (error) {
     console.error('Error in token endpoint:', error);
     res.status(500).json({ error: 'Failed to get access token' });
@@ -94,29 +87,21 @@ router.get('/streamers', async (req, res) => {
       return res.status(400).json({ error: 'Missing logins parameter' });
     }
     
+    console.log('Fetch streamers request for logins:', logins);
     const usernames = logins.split(',');
-    console.log(`Fetching streamers data for: ${usernames.join(', ')}`);
     
-    // Set up headers with client ID always included
-    const headers = {
-      'Client-ID': TWITCH_CLIENT_ID
-    };
-    
-    // Try to get an access token, but don't fail if we can't
     try {
+      // Get access token - this will throw an error if it fails
       const accessToken = await getTwitchAccessToken();
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-        console.log('Using access token for streamers request');
-      } else {
-        console.log('No access token available, using client ID only');
-      }
-    } catch (tokenError) {
-      console.warn('Error getting access token:', tokenError.message);
-    }
     
-    // Fetch user information (includes profile images)
-    try {
+      // Fetch user information (includes profile images)
+      const headers = {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${accessToken}`
+      };
+      
+      console.log('Making Twitch API request for users with valid token');
+      
       const userResponse = await axios.get(`https://api.twitch.tv/helix/users`, {
         headers,
         params: {
@@ -125,16 +110,17 @@ router.get('/streamers', async (req, res) => {
       });
       
       const users = userResponse.data.data;
+      console.log(`Received ${users?.length || 0} users from Twitch API`);
       
       if (!users || users.length === 0) {
         console.log('No users found from Twitch API');
         return res.json([]);
       }
       
-      console.log(`Found ${users.length} users from Twitch API`);
       const userIds = users.map(user => user.id);
       
       // Fetch stream information
+      console.log('Fetching stream information for', userIds.length, 'users');
       const streamsResponse = await axios.get('https://api.twitch.tv/helix/streams', {
         headers,
         params: {
@@ -143,7 +129,7 @@ router.get('/streamers', async (req, res) => {
       });
       
       const liveStreams = streamsResponse.data.data;
-      console.log(`Found ${liveStreams?.length || 0} live streams`);
+      console.log(`Received ${liveStreams?.length || 0} live streams from Twitch API`);
       
       // Fetch game information if needed
       let games = [];
@@ -151,6 +137,7 @@ router.get('/streamers', async (req, res) => {
         const gameIds = liveStreams.map(stream => stream.game_id).filter(id => id);
         
         if (gameIds.length > 0) {
+          console.log('Fetching game information for', gameIds.length, 'games');
           const gamesResponse = await axios.get('https://api.twitch.tv/helix/games', {
             headers,
             params: {
@@ -158,13 +145,13 @@ router.get('/streamers', async (req, res) => {
             }
           });
           games = gamesResponse.data.data || [];
-          console.log(`Found ${games.length} games`);
+          console.log(`Received ${games.length} games from Twitch API`);
         }
       }
       
       // Combine all the data
       const result = users.map(user => {
-        const stream = liveStreams?.find(s => s.user_id === user.id);
+        const stream = liveStreams.find(s => s.user_id === user.id);
         const game = games.find(g => g.id === stream?.game_id);
         
         return {
@@ -186,16 +173,14 @@ router.get('/streamers', async (req, res) => {
       
       console.log(`Returning ${result.length} processed streamers`);
       res.json(result);
-    } catch (apiError) {
-      console.error('Error making Twitch API requests:', apiError.message);
-      if (apiError.response) {
-        console.error('API Error Details:', apiError.response.data);
-      }
-      res.status(500).json({ error: 'Failed to fetch streamer data from Twitch API' });
+    } catch (twitchError) {
+      console.error('Twitch API error:', twitchError.message);
+      // Return empty result on error
+      res.status(500).json({ error: 'Failed to fetch data from Twitch API', details: twitchError.message });
     }
   } catch (error) {
-    console.error('Unexpected error in /streamers endpoint:', error);
-    res.status(500).json({ error: 'Server error processing streamer request' });
+    console.error('Error in /streamers endpoint:', error.message);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -208,27 +193,14 @@ router.get('/user/:login', async (req, res) => {
       return res.status(400).json({ error: 'Missing login parameter' });
     }
     
-    console.log(`Fetching user data for: ${login}`);
-    
-    // Set up headers with client ID always included
-    const headers = {
-      'Client-ID': TWITCH_CLIENT_ID
-    };
-    
-    // Try to get an access token, but don't fail if we can't
     try {
       const accessToken = await getTwitchAccessToken();
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-        console.log('Using access token for user request');
-      } else {
-        console.log('No access token available, using client ID only');
-      }
-    } catch (tokenError) {
-      console.warn('Error getting access token for user request:', tokenError.message);
-    }
-    
-    try {
+      
+      const headers = {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${accessToken}`
+      };
+      
       const response = await axios.get(`https://api.twitch.tv/helix/users`, {
         headers,
         params: {
@@ -237,22 +209,44 @@ router.get('/user/:login', async (req, res) => {
       });
       
       if (response.data.data && response.data.data.length > 0) {
-        console.log(`Successfully fetched user data for ${login}`);
         res.json(response.data.data[0]);
       } else {
-        console.log(`User not found: ${login}`);
         res.status(404).json({ error: 'User not found' });
       }
-    } catch (apiError) {
-      console.error(`Error fetching user ${login}:`, apiError.message);
-      if (apiError.response) {
-        console.error('API Error Details:', apiError.response.data);
-      }
-      res.status(500).json({ error: 'Failed to fetch user data from Twitch API' });
+    } catch (twitchError) {
+      console.error('Twitch API error:', twitchError.message);
+      res.status(500).json({ error: 'Failed to fetch user from Twitch API', details: twitchError.message });
     }
   } catch (error) {
-    console.error('Unexpected error in /user endpoint:', error);
-    res.status(500).json({ error: 'Server error processing user request' });
+    console.error('Error in /user endpoint:', error.message);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Add a test endpoint to verify connectivity
+router.get('/test', async (req, res) => {
+  try {
+    const clientId = TWITCH_CLIENT_ID;
+    const clientSecret = TWITCH_CLIENT_SECRET;
+    
+    console.log('Test endpoint called, client ID:', clientId ? 'Present' : 'Missing');
+    console.log('Client Secret:', clientSecret ? 'Present' : 'Missing');
+    
+    // Return status information
+    res.json({
+      status: 'ok',
+      environment: {
+        clientIdPresent: !!clientId,
+        clientIdFirstChars: clientId ? clientId.substring(0, 5) + '...' : 'N/A',
+        clientSecretPresent: !!clientSecret,
+        clientSecretFirstChars: clientSecret ? clientSecret.substring(0, 5) + '...' : 'N/A',
+        nodeVersion: process.version,
+        environment: process.env.NODE_ENV
+      }
+    });
+  } catch (error) {
+    console.error('Error in test endpoint:', error);
+    res.status(500).json({ error: 'Test endpoint failed', details: error.message });
   }
 });
 
