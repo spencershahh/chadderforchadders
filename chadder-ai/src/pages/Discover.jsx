@@ -143,6 +143,28 @@ const Discover = () => {
   };
 
   useEffect(() => {
+    // Check user authentication state
+    const checkAuth = async () => {
+      try {
+        const { data: { user: currentUser }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error('Error checking auth:', error);
+        } else if (currentUser) {
+          console.log('User is authenticated:', currentUser.id);
+          setUser(currentUser);
+        } else {
+          console.log('No authenticated user');
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Unexpected error checking auth:', error);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
     const loadStreamers = async () => {
       try {
         console.log('Starting to load streamers...');
@@ -368,13 +390,19 @@ const Discover = () => {
   };
 
   const renderStreamerCard = (streamer, index) => {
+    // Early return if streamer data is invalid
+    if (!streamer || !streamer.user_name) {
+      console.error('Invalid streamer data:', streamer);
+      return null;
+    }
+    
     // Only lock cards if user is not logged in AND index is beyond the free limit
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
     const votes = streamerVotes[streamer.user_login] || 0;
 
     return (
       <div 
-        key={streamer.user_id}
+        key={streamer.user_id || `streamer-${index}`}
         className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''}`}
         onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(streamer.user_login)}
       >
@@ -403,9 +431,9 @@ const Discover = () => {
           <div className={styles.streamerInfo}>
             <h3 className={styles.streamerName}>{streamer.user_name}</h3>
             {streamer.type === "live" && (
-              <span className={styles.viewerCount}>{streamer.viewer_count} viewers</span>
+              <span className={styles.viewerCount}>{streamer.viewer_count || 0} viewers</span>
             )}
-            <span className={styles.gameName}>{streamer.game_name}</span>
+            <span className={styles.gameName}>{streamer.game_name || 'N/A'}</span>
             {votes > 0 && <span className={styles.votesBadge}>{votes} votes this week</span>}
           </div>
         </div>

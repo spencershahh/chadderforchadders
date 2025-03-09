@@ -50,45 +50,73 @@ const getTwitchAccessToken = async () => {
     
     // If token exists and is not expired, return it
     if (accessToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+      console.log('Using cached Twitch access token');
       return accessToken;
     }
+    
+    // Clear any existing token data as it's expired or invalid
+    localStorage.removeItem('twitch_access_token');
+    localStorage.removeItem('twitch_token_expiry');
 
     // Try to get a token from our backend proxy
     if (API_URL) {
       try {
+        console.log('Requesting new Twitch access token from backend');
         const response = await fetch(`${API_URL}/api/twitch/token`);
+        
         if (response.ok) {
           const data = await response.json();
-          accessToken = data.access_token;
           
-          // Store token and its expiry
-          localStorage.setItem('twitch_access_token', accessToken);
-          localStorage.setItem('twitch_token_expiry', Date.now() + (data.expires_in * 1000));
-          
-          return accessToken;
+          if (data.access_token) {
+            console.log('Received new Twitch access token');
+            accessToken = data.access_token;
+            
+            // Store token and its expiry
+            localStorage.setItem('twitch_access_token', accessToken);
+            localStorage.setItem('twitch_token_expiry', Date.now() + (data.expires_in * 1000));
+            
+            return accessToken;
+          } else if (data.message) {
+            // This is the case where backend couldn't get a token but returned client ID
+            console.log('Backend message:', data.message);
+            return null;
+          }
+        } else {
+          console.warn('Failed to get token from backend, status:', response.status);
         }
       } catch (error) {
-        console.warn('Could not get token from backend:', error);
+        console.warn('Error getting token from backend:', error.message);
       }
+    } else {
+      console.warn('No API_URL configured, cannot get Twitch access token');
     }
     
     // If we couldn't get a token from the backend, we'll proceed without one
     return null;
   } catch (error) {
-    console.error("Error getting Twitch access token:", error);
+    console.error("Unexpected error in getTwitchAccessToken:", error);
     return null;
   }
 };
 
 // Get headers for Twitch API requests
 const getTwitchHeaders = async () => {
+  // Always include the Client-ID
   const headers = {
     'Client-ID': TWITCH_CLIENT_ID
   };
   
-  const accessToken = await getTwitchAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+  try {
+    // Try to get an access token, but don't fail if we can't
+    const accessToken = await getTwitchAccessToken();
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+      console.log('Using access token in request headers');
+    } else {
+      console.log('No access token available, using client ID only in headers');
+    }
+  } catch (error) {
+    console.warn('Error setting authorization header:', error.message);
   }
   
   return headers;
@@ -100,27 +128,33 @@ export const fetchStreamers = async () => {
     let streamers = [];
     
     // First, fetch streamers from Supabase
-    const { data: dbStreamers, error } = await supabase
-      .from('streamers')
-      .select('*')
-      .order('username');
-
-    if (error) {
-      console.error('Error fetching streamers from Supabase:', error);
-    } else if (dbStreamers && dbStreamers.length > 0) {
-      console.log('Found streamers in database:', dbStreamers.length);
-      streamers = dbStreamers;
-    } else {
-      console.warn('No streamers found in database, using fallback data');
+    try {
+      const { data: dbStreamers, error } = await supabase
+        .from('streamers')
+        .select('*')
+        .order('username');
+  
+      if (error) {
+        console.error('Error fetching streamers from Supabase:', error);
+      } else if (dbStreamers && dbStreamers.length > 0) {
+        console.log('Found streamers in database:', dbStreamers.length);
+        streamers = dbStreamers;
+      } else {
+        console.warn('No streamers found in database, using fallback data');
+        streamers = FALLBACK_STREAMERS;
+      }
+    } catch (dbError) {
+      console.error('Error querying Supabase:', dbError);
       streamers = FALLBACK_STREAMERS;
     }
     
     // Process with fallback data first to ensure we always have something to display
     const processedStreamers = getFallbackStreamerData(streamers);
+    console.log('Generated fallback data for', processedStreamers.length, 'streamers');
     
     // Try to get enriched data from Twitch if possible
-    try {
-      if (API_URL) {
+    if (API_URL) {
+      try {
         // Try to fetch enriched data from our backend proxy
         const streamerLogins = streamers.map(s => s.username || s.name).join(',');
         console.log(`Fetching enriched data for streamers: ${streamerLogins}`);
@@ -131,7 +165,18 @@ export const fetchStreamers = async () => {
           const enrichedData = await response.json();
           
           if (enrichedData && enrichedData.length > 0) {
-            console.log('Successfully fetched enriched data from backend:', enrichedData.length);
+            console.log('Successfully fetched enriched data from backend:', enrichedData.length, 'streamers');
+            
+            // Log the first streamer data to help with debugging
+            if (enrichedData[0]) {
+              console.log('Sample enriched streamer data:', {
+                name: enrichedData[0].user_name,
+                status: enrichedData[0].type,
+                thumbnail: enrichedData[0].thumbnail_url ? 'present' : 'missing',
+                profile: enrichedData[0].profile_image_url ? 'present' : 'missing'
+              });
+            }
+            
             // Return the enriched data instead
             return enrichedData;
           } else {
@@ -139,18 +184,25 @@ export const fetchStreamers = async () => {
           }
         } else {
           console.warn('Backend returned error status:', response.status);
+          try {
+            const errorData = await response.json();
+            console.warn('Error details:', errorData);
+          } catch (e) {
+            console.warn('Could not parse error response');
+          }
         }
-      } else {
-        console.warn('No API_URL configured, skipping enriched data fetch');
+      } catch (enrichError) {
+        console.error('Error fetching enriched data:', enrichError.message);
       }
-    } catch (enrichError) {
-      console.error('Could not fetch enriched data:', enrichError);
+    } else {
+      console.warn('No API_URL configured, skipping enriched data fetch');
     }
     
     // Return the fallback data if we couldn't get enriched data
+    console.log('Returning fallback streamer data');
     return processedStreamers;
   } catch (error) {
-    console.error("Error in fetchStreamers:", error);
+    console.error("Critical error in fetchStreamers:", error);
     return getFallbackStreamerData(FALLBACK_STREAMERS);
   }
 };
@@ -183,19 +235,29 @@ export const fetchUserData = async (login) => {
         
         if (response.ok) {
           const userData = await response.json();
-          console.log(`Successfully fetched user data for ${login}`);
+          console.log(`Successfully fetched user data for ${login}`, {
+            has_profile_image: userData.profile_image_url ? 'yes' : 'no',
+            has_description: userData.description ? 'yes' : 'no'
+          });
           return userData;
         } else {
           console.warn(`Backend returned error status for user ${login}:`, response.status);
+          try {
+            const errorData = await response.json();
+            console.warn('Error details:', errorData);
+          } catch (e) {
+            console.warn('Could not parse error response');
+          }
         }
       } catch (error) {
-        console.warn(`Could not fetch user data for ${login} from backend:`, error);
+        console.warn(`Error fetching user data for ${login} from backend:`, error.message);
       }
     } else {
       console.warn('No API_URL configured, skipping user data fetch');
     }
     
     // Return basic fallback data if backend fetch failed
+    console.log(`Returning fallback data for user ${login}`);
     return {
       login: login,
       display_name: login,
@@ -203,7 +265,13 @@ export const fetchUserData = async (login) => {
       description: "No bio available."
     };
   } catch (error) {
-    console.error("Error fetching user data:", error);
-    return null;
+    console.error(`Critical error fetching user data for ${login}:`, error);
+    // Return a minimal fallback
+    return {
+      login: login,
+      display_name: login,
+      profile_image_url: null,
+      description: "Error loading bio."
+    };
   }
 };
