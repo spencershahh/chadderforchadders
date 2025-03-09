@@ -15,6 +15,42 @@ const router = express.Router();
 // Twitch API credentials - we only need the Client ID for public data
 const TWITCH_CLIENT_ID = process.env.VITE_TWITCH_CLIENT_ID;
 
+// Variables to store the access token and its expiry
+let twitchAccessToken = null;
+let tokenExpiry = 0;
+
+// Function to get Twitch App Access Token
+async function getTwitchAccessToken() {
+  try {
+    // Check if token is still valid
+    if (twitchAccessToken && Date.now() < tokenExpiry) {
+      return twitchAccessToken;
+    }
+
+    console.log('Getting new Twitch App Access Token');
+    
+    const response = await axios.post(`https://id.twitch.tv/oauth2/token`, null, {
+      params: {
+        client_id: TWITCH_CLIENT_ID,
+        grant_type: 'client_credentials'
+      }
+    });
+
+    twitchAccessToken = response.data.access_token;
+    tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+    
+    console.log('Successfully obtained Twitch App Access Token');
+    return twitchAccessToken;
+  } catch (error) {
+    console.error('Error fetching Twitch App Access Token:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
+    throw new Error('Failed to get Twitch App Access Token');
+  }
+}
+
 // Log initialization info
 console.log('Twitch API Router initialized, Client ID available:', !!TWITCH_CLIENT_ID);
 console.log('Client ID value first 5 chars:', TWITCH_CLIENT_ID ? TWITCH_CLIENT_ID.substring(0, 5) : 'N/A');
@@ -32,9 +68,13 @@ router.get('/streamers', async (req, res) => {
     const usernames = logins.split(',');
     
     try {
-      // Headers for Twitch API - only need Client-ID for public data
+      // Get App Access Token
+      const accessToken = await getTwitchAccessToken();
+      
+      // Headers for Twitch API
       const headers = {
-        'Client-ID': TWITCH_CLIENT_ID
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${accessToken}`
       };
       
       console.log('Making Twitch API request for users');
@@ -140,28 +180,43 @@ router.get('/user/:login', async (req, res) => {
     if (!login) {
       return res.status(400).json({ error: 'Missing login parameter' });
     }
-    
-    const headers = {
-      'Client-ID': TWITCH_CLIENT_ID
-    };
-    
-    console.log(`Making Twitch API request for user: ${login}`);
-    
-    const response = await axios.get(`https://api.twitch.tv/helix/users`, {
-      headers,
-      params: {
-        login
+
+    try {
+      // Get App Access Token
+      const accessToken = await getTwitchAccessToken();
+      
+      const headers = {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Authorization': `Bearer ${accessToken}`
+      };
+      
+      console.log(`Making Twitch API request for user: ${login}`);
+      
+      const response = await axios.get(`https://api.twitch.tv/helix/users`, {
+        headers,
+        params: {
+          login
+        }
+      });
+      
+      if (response.data.data && response.data.data.length > 0) {
+        console.log(`Successfully retrieved data for user: ${login}`);
+        return res.json(response.data.data[0]);
+      } else {
+        console.log(`User not found: ${login}`);
+        return res.status(404).json({ error: 'User not found' });
       }
-    });
-    
-    if (response.data.data && response.data.data.length > 0) {
-      console.log(`Successfully retrieved data for user: ${login}`);
-      return res.json(response.data.data[0]);
-    } else {
-      console.log(`User not found: ${login}`);
-      return res.status(404).json({ error: 'User not found' });
+    } catch (twitchError) {
+      console.error('Twitch API error:', twitchError.message);
+      if (twitchError.response) {
+        console.error('Status:', twitchError.response.status);
+        console.error('Response data:', twitchError.response.data);
+      }
+      return res.status(500).json({ 
+        error: 'Failed to fetch user from Twitch API', 
+        details: twitchError.message
+      });
     }
-    
   } catch (error) {
     console.error('Error in /user endpoint:', error.message);
     return res.status(500).json({ 
