@@ -76,8 +76,13 @@ export const fetchStreamers = async () => {
         const streamerLogins = streamers.map(s => s.username || s.name).join(',');
         console.log(`Fetching enriched data for streamers from backend: ${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
         
-        const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
-        console.log('Backend response status:', response.status);
+        const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamerLogins}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
         
         if (response.ok) {
           const enrichedData = await response.json();
@@ -103,8 +108,8 @@ export const fetchStreamers = async () => {
         } else {
           console.warn('Backend returned error status:', response.status);
           try {
-            const errorText = await response.text();
-            console.warn('Error details:', errorText);
+            const errorData = await response.json();
+            console.warn('Error details:', errorData);
           } catch (e) {
             console.warn('Could not parse error response');
           }
@@ -113,7 +118,7 @@ export const fetchStreamers = async () => {
         console.error('Error fetching enriched data:', enrichError.message);
       }
     } else {
-      console.warn('No API_URL configured, skipping enriched data fetch');
+      console.warn('No API_URL configured, skipping enriched data fetch. Current API_URL:', API_URL);
     }
     
     // Return the fallback data if we couldn't get enriched data
