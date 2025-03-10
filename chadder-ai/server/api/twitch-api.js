@@ -14,8 +14,8 @@ const router = express.Router();
 
 // Twitch API credentials from environment variables
 // For confidential clients, we use server-side variables
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || 'wk5ebp17im6knf70jgs0oxijihr3r';
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'dmiq88zc5sp69i4une5wcqkxt0ozel';
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || 'wk5ebp17im6knf70jgs0oxiljihr3r';
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'dmlq88lzc5sp69j4une5wcqkx0o2el';
 
 // Log initialization info
 console.log('Twitch API Router initialized, Client ID available:', !!TWITCH_CLIENT_ID);

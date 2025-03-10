@@ -632,16 +632,19 @@ app.get('/api/twitch/token', async (req, res) => {
     console.log('Twitch token endpoint called');
     
     // Get client id and secret from environment variables
-    const clientId = process.env.VITE_TWITCH_CLIENT_ID;
-    const clientSecret = process.env.VITE_TWITCH_CLIENT_SECRET;
+    const clientId = process.env.TWITCH_CLIENT_ID || process.env.VITE_TWITCH_CLIENT_ID;
+    const clientSecret = process.env.TWITCH_CLIENT_SECRET || process.env.VITE_TWITCH_CLIENT_SECRET;
     
     if (!clientId || !clientSecret) {
       console.error('Missing Twitch credentials:', { 
         hasClientId: !!clientId, 
-        hasClientSecret: !!clientSecret 
+        hasClientSecret: !!clientSecret,
+        clientIdPrefix: clientId ? clientId.substring(0, 5) : 'N/A'
       });
       return res.status(500).json({ error: 'Server configuration error' });
     }
+    
+    console.log('Using Twitch credentials with client ID starting with:', clientId.substring(0, 5));
     
     // Request a token from Twitch (using built-in fetch in Node.js 18+)
     const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {

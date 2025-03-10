@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient";
 
 // API URL for your backend
 const API_URL = import.meta.env.VITE_API_URL || '';
+console.log('API_URL configured as:', API_URL);
 
 // Define fallback data for when API calls fail
 const FALLBACK_STREAMERS = [
@@ -73,9 +74,10 @@ export const fetchStreamers = async () => {
       try {
         // Fetch enriched data from our backend API
         const streamerLogins = streamers.map(s => s.username || s.name).join(',');
-        console.log(`Fetching enriched data for streamers from backend: ${streamerLogins}`);
+        console.log(`Fetching enriched data for streamers from backend: ${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
         
         const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
+        console.log('Backend response status:', response.status);
         
         if (response.ok) {
           const enrichedData = await response.json();
@@ -101,8 +103,8 @@ export const fetchStreamers = async () => {
         } else {
           console.warn('Backend returned error status:', response.status);
           try {
-            const errorData = await response.json();
-            console.warn('Error details:', errorData);
+            const errorText = await response.text();
+            console.warn('Error details:', errorText);
           } catch (e) {
             console.warn('Could not parse error response');
           }
