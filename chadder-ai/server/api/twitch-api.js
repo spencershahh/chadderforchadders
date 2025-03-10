@@ -21,6 +21,8 @@ const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'dmlq88lzc5sp69
 console.log('Twitch API Router initialized, Client ID available:', !!TWITCH_CLIENT_ID);
 console.log('Client Secret available:', !!TWITCH_CLIENT_SECRET);
 console.log('Client ID value first 5 chars:', TWITCH_CLIENT_ID ? TWITCH_CLIENT_ID.substring(0, 5) : 'N/A');
+console.log('Client ID full value:', TWITCH_CLIENT_ID);
+console.log('Client Secret length:', TWITCH_CLIENT_SECRET ? TWITCH_CLIENT_SECRET.length : 0);
 
 // Variables to store the access token and its expiry
 let twitchAccessToken = null;
@@ -36,26 +38,99 @@ async function getTwitchAccessToken() {
 
     console.log('Getting new Twitch access token with Client Credentials flow');
     
-    // Using axios's params option which properly formats the request
-    const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
-      params: {
+    // Try multiple methods for authentication
+    let accessToken = null;
+    let error = null;
+    
+    // Method 1: Using JSON payload
+    try {
+      console.log('Trying authentication Method 1: JSON payload');
+      const response = await axios.post('https://id.twitch.tv/oauth2/token', {
         client_id: TWITCH_CLIENT_ID,
         client_secret: TWITCH_CLIENT_SECRET,
         grant_type: 'client_credentials'
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data && response.data.access_token) {
+        console.log('Method 1 successful!');
+        accessToken = response.data.access_token;
+        tokenExpiry = Date.now() + (response.data.expires_in * 1000);
       }
-    });
-
-    twitchAccessToken = response.data.access_token;
-    // Token expires in seconds, convert to milliseconds
-    tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+    } catch (e) {
+      console.log('Method 1 failed:', e.message);
+      error = e;
+    }
     
-    console.log('Successfully obtained Twitch access token');
-    return twitchAccessToken;
+    // Method 2: Using form data
+    if (!accessToken) {
+      try {
+        console.log('Trying authentication Method 2: Form data');
+        const params = new URLSearchParams();
+        params.append('client_id', TWITCH_CLIENT_ID);
+        params.append('client_secret', TWITCH_CLIENT_SECRET);
+        params.append('grant_type', 'client_credentials');
+        
+        const response = await axios.post('https://id.twitch.tv/oauth2/token', params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
+        
+        if (response.data && response.data.access_token) {
+          console.log('Method 2 successful!');
+          accessToken = response.data.access_token;
+          tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+        }
+      } catch (e) {
+        console.log('Method 2 failed:', e.message);
+        error = e;
+      }
+    }
+    
+    // Method 3: Using URL parameters
+    if (!accessToken) {
+      try {
+        console.log('Trying authentication Method 3: URL parameters');
+        const response = await axios.post('https://id.twitch.tv/oauth2/token', null, {
+          params: {
+            client_id: TWITCH_CLIENT_ID,
+            client_secret: TWITCH_CLIENT_SECRET,
+            grant_type: 'client_credentials'
+          }
+        });
+        
+        if (response.data && response.data.access_token) {
+          console.log('Method 3 successful!');
+          accessToken = response.data.access_token;
+          tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+        }
+      } catch (e) {
+        console.log('Method 3 failed:', e.message);
+        error = e;
+      }
+    }
+    
+    if (accessToken) {
+      twitchAccessToken = accessToken;
+      console.log('Successfully obtained Twitch access token');
+      return accessToken;
+    }
+    
+    // If we get here, all methods failed
+    if (error && error.response) {
+      console.error('All authentication methods failed. Last error status:', error.response.status);
+      console.error('Response data:', JSON.stringify(error.response.data));
+    }
+    throw new Error('Failed to get Twitch access token using all methods');
   } catch (error) {
     console.error('Error fetching Twitch access token:', error.message);
     if (error.response) {
       console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
+      console.error('Response data:', JSON.stringify(error.response.data));
     }
     throw new Error('Failed to get Twitch access token');
   }
