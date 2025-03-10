@@ -226,14 +226,25 @@ const StreamPage = () => {
   const createEmbed = () => {
     const embedContainer = document.getElementById("twitch-embed");
     if (embedContainer) embedContainer.innerHTML = "";
-
+    
+    // Get the current hostname for the parent parameter
+    const currentDomain = window.location.hostname;
+    const parentDomains = ["chadderai.vercel.app", "localhost"];
+    
+    // Only add the current domain if it's not already in the list
+    if (!parentDomains.includes(currentDomain)) {
+      parentDomains.push(currentDomain);
+    }
+    
+    console.log("Using parent domains for Twitch embed:", parentDomains);
+    
     new window.Twitch.Embed("twitch-embed", {
       width: "100%",
       height: "100%",
       channel: normalizedUsername,
       layout: "video",
       autoplay: true,
-      parent: ["chadderai.vercel.app", "localhost"],
+      parent: parentDomains,
       muted: isMobile
     });
 
@@ -244,11 +255,15 @@ const StreamPage = () => {
   const setupTwitchChatEmbed = () => {
     const chatContainer = document.getElementById("twitch-chat");
     if (chatContainer) chatContainer.innerHTML = "";
+    
+    // Get the current hostname for the parent parameter
+    const currentDomain = window.location.hostname;
+    const parentParam = `parent=localhost&parent=chadderai.vercel.app${currentDomain !== 'localhost' && currentDomain !== 'chadderai.vercel.app' ? `&parent=${currentDomain}` : ''}`;
   
     const chatIframe = document.createElement("iframe");
     chatIframe.setAttribute(
       "src",
-      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true`
+      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&${parentParam}&mobile=true`
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
     chatIframe.style.width = "100%";

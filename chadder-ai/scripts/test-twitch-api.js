@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
 // Twitch API credentials from .env
 const TWITCH_CLIENT_ID = process.env.VITE_TWITCH_CLIENT_ID;
 const TWITCH_CLIENT_SECRET = process.env.VITE_TWITCH_CLIENT_SECRET;
-const API_URL = process.env.VITE_API_URL || 'https://chadderai.onrender.com';
+const API_URL = process.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
 
 if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
   console.error('Error: Twitch API credentials missing. Please check your .env file');
