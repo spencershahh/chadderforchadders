@@ -400,6 +400,25 @@ const Discover = () => {
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
     const votes = streamerVotes[streamer.user_login] || 0;
 
+    // Generate a fallback profile image if none exists
+    const getProfileImageFallback = () => {
+      if (streamer.initials) {
+        return `https://ui-avatars.com/api/?name=${streamer.initials}&background=random&color=fff&size=300`;
+      }
+      
+      // Extract initials from the username if not provided
+      const initials = streamer.user_name.substring(0, 2).toUpperCase();
+      return `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff&size=300`;
+    };
+    
+    // Get appropriate thumbnail
+    const getThumbnail = () => {
+      if (streamer.type === "live" && streamer.thumbnail_url) {
+        return streamer.thumbnail_url;
+      }
+      return streamer.offline_image_url || OFFLINE_THUMBNAIL;
+    };
+
     return (
       <div 
         key={streamer.user_id || `streamer-${index}`}
@@ -409,11 +428,11 @@ const Discover = () => {
         <div className={styles.thumbnailWrapper}>
           <img
             className={styles.streamerThumbnail}
-            src={streamer.thumbnail_url || OFFLINE_THUMBNAIL}
+            src={getThumbnail()}
             alt={`${streamer.user_name}'s stream`}
             onError={(e) => {
               console.log(`Failed to load thumbnail for ${streamer.user_name}, using fallback`);
-              e.target.src = OFFLINE_THUMBNAIL;
+              e.target.src = "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Stream+Unavailable";
             }}
           />
           {streamer.type === "live" && <span className={styles.liveBadge}>LIVE</span>}
@@ -421,11 +440,11 @@ const Discover = () => {
         <div className={styles.streamerCardContent}>
           <img
             className={styles.streamerProfileImage}
-            src={streamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
+            src={streamer.profile_image_url || getProfileImageFallback()}
             alt={`${streamer.user_name}'s profile`}
             onError={(e) => {
               console.log(`Failed to load profile image for ${streamer.user_name}, using fallback`);
-              e.target.src = DEFAULT_PROFILE_IMAGE;
+              e.target.src = getProfileImageFallback();
             }}
           />
           <div className={styles.streamerInfo}>

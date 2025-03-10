@@ -149,26 +149,68 @@ const getFallbackStreamerData = (streamers) => {
     // Generate a random viewer count between 10 and 2000 if online
     const randomViewers = Math.floor(Math.random() * 1990) + 10;
     
-    // 30% chance to be "online" for variety
-    const isOnline = Math.random() < 0.3;
+    // 30% chance to be "online" for variety, but make certain streamers always online
+    // This creates a more consistent experience for users
+    const alwaysOnlineStreamers = ['fuslie', 'ludwig', 'nickwoz', 'shroud', 'kaicenat'];
+    const isOnline = alwaysOnlineStreamers.includes(username) || Math.random() < 0.3;
+    
+    // Get initials for avatar
+    const getInitials = (name) => {
+      return name.substring(0, 2).toUpperCase();
+    };
+    
+    // Generate game names
+    const games = ["Just Chatting", "Minecraft", "Valorant", "League of Legends", "Grand Theft Auto V", "Apex Legends", "Fortnite"];
+    const randomGame = games[Math.floor(Math.random() * games.length)];
+    
+    // Create deterministic but seemingly random title based on username
+    const titles = [
+      "Streaming with friends!",
+      "Chill vibes today",
+      "Let's go!",
+      "Road to 100K",
+      "Friday gaming session",
+      "New update just dropped!",
+      "Come hang out",
+      "Interactive stream with viewers"
+    ];
+    const titleIndex = username.length % titles.length;
+    
+    // Use placeholders for thumbnails that are more reliable than Twitch URLs
+    // Since we can't actually access Twitch's CDN without authentication
+    const getStreamThumbnail = (isLive) => {
+      if (!isLive) {
+        return "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Offline";
+      }
+      
+      // Create a deterministic but seemingly random thumbnail based on username
+      const thumbnailOptions = [
+        "https://via.placeholder.com/320x180/6441a5/FFFFFF?text=Live+Gaming+Stream",
+        "https://via.placeholder.com/320x180/6a0dad/FFFFFF?text=Live+on+Twitch",
+        "https://via.placeholder.com/320x180/9146ff/FFFFFF?text=Gaming+Stream",
+        "https://via.placeholder.com/320x180/845ec2/FFFFFF?text=Live"
+      ];
+      const index = username.charCodeAt(0) % thumbnailOptions.length;
+      return thumbnailOptions[index];
+    };
     
     return {
       id: username,
       user_id: username,
       user_login: username,
       user_name: streamer.username || streamer.name || 'Unknown',
-      game_name: isOnline ? "Just Chatting" : "N/A",
-      title: isOnline ? "Streaming on Twitch" : "Offline",
+      game_name: isOnline ? randomGame : "N/A",
+      title: isOnline ? titles[titleIndex] : "Offline",
       type: isOnline ? "live" : "offline",
       viewer_count: isOnline ? randomViewers : null,
       started_at: isOnline ? new Date(Date.now() - Math.random() * 3600000).toISOString() : null,
       language: "en",
-      thumbnail_url: isOnline 
-        ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${username}-320x180.jpg` 
-        : "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg",
+      thumbnail_url: getStreamThumbnail(isOnline),
       profile_image_url: streamer.profile_image_url || 
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=${getProfileColor(username).substring(1)}&color=fff&size=300`,
+        `https://ui-avatars.com/api/?name=${getInitials(username)}&background=${getProfileColor(username).substring(1)}&color=fff&size=300`,
       bio: streamer.bio || "No bio available.",
+      offline_image_url: "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Offline",
+      initials: getInitials(username)
     };
   });
 };
