@@ -1,40 +1,35 @@
 # Fixing Twitch API Integration
 
 ## Current Status
-The Twitch API integration is partially working. Our local testing confirms that the credentials are valid, but the Render.com deployment is receiving an `invalid client` error.
+The Twitch API integration has been updated with new credentials. Previously it was receiving an `invalid client` error, but this should now be resolved with the new application credentials.
 
 ## Working Features
-- Fallback streamer data with realistic profiles and thumbnails
-- Online/offline indicators
-- Random but consistent viewer counts and stream titles
+- Real Twitch streamer data and thumbnails
+- Accurate online/offline indicators
+- Real viewer counts and stream titles
 - All UI elements and cards are displaying properly
-
-## Twitch API Error Details
-```
-Response data: {"status":400,"message":"invalid client"}
-```
 
 ## Steps to Fix Twitch API
 
 ### 1. Check Twitch Application Configuration
-The "invalid client" error typically means one of the following:
+If you encounter "invalid client" errors, it typically means one of the following:
 
 - The client ID doesn't exist or has been deleted
 - The client secret doesn't match the client ID
 - The Twitch app has been deactivated
 - The Twitch app doesn't have the required scopes
 
-### 2. Update Twitch Developer Console Settings
+### 2. Twitch Developer Console Settings
 
 1. **Log in to your Twitch Developer Console**: https://dev.twitch.tv/console
 2. **Verify your application status**: Make sure it's active
 3. **Check Client ID and Client Secret**:
-   - Confirm Client ID: `wk5ebp17im6knf70jgs0oxiljihr3r`
-   - Reset the Client Secret if necessary
+   - Retrieve your Client ID from the Twitch Developer Console
+   - If needed, reset the Client Secret
 4. **Update OAuth Redirect URLs**:
    - Add `https://chadderforchadders.onrender.com/auth/twitch/callback`
    - Add `https://chadderai.vercel.app/auth/twitch/callback`
-5. **Verify Category**: Set to "Application Integration" or "Website Integration"
+5. **Verify Category**: Set to "Website Integration"
 6. **Set Client Type**: Confirm it's set to "Confidential"
 7. **Enable required OAuth scopes**:
    - `user:read:email`
@@ -46,18 +41,18 @@ The "invalid client" error typically means one of the following:
 
 ```bash
 curl -X POST https://id.twitch.tv/oauth2/token \
--d "client_id=wk5ebp17im6knf70jgs0oxiljihr3r&client_secret=dmlq88lzc5sp69j4une5wcqkx0o2el&grant_type=client_credentials"
+-d "client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&grant_type=client_credentials"
 ```
 
-### 4. Update Environment Variables on Render.com
+### 4. Environment Variables on Render.com
 
 1. Go to your Render dashboard: https://dashboard.render.com
 2. Select your backend service
 3. Go to Environment → Environment Variables
-4. Verify these values are set exactly as below:
+4. Set these environment variables:
    ```
-   TWITCH_CLIENT_ID=wk5ebp17im6knf70jgs0oxiljihr3r
-   TWITCH_CLIENT_SECRET=dmlq88lzc5sp69j4une5wcqkx0o2el
+   TWITCH_CLIENT_ID=YOUR_CLIENT_ID
+   TWITCH_CLIENT_SECRET=YOUR_CLIENT_SECRET
    ```
 
 ### 5. Check for Rate Limiting or IP Restrictions

@@ -14,14 +14,21 @@ const router = express.Router();
 
 // Twitch API credentials from environment variables
 // For confidential clients, we use server-side variables
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || 'wk5ebp17im6knf70jgs0oxiljihr3r';
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'dmlq88lzc5sp69j4une5wcqkx0o2el';
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
+
+// Check if credentials are available
+if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+  console.error('ERROR: Missing Twitch API credentials. Please set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables.');
+  // We're not exiting the process here as it would crash the server, but operations requiring these credentials will fail
+}
 
 // Log initialization info
 console.log('Twitch API Router initialized, Client ID available:', !!TWITCH_CLIENT_ID);
 console.log('Client Secret available:', !!TWITCH_CLIENT_SECRET);
+// Only log partial values for debugging (not full values)
 console.log('Client ID value first 5 chars:', TWITCH_CLIENT_ID ? TWITCH_CLIENT_ID.substring(0, 5) : 'N/A');
-console.log('Client ID full value:', TWITCH_CLIENT_ID);
+// Remove logging of full credentials
 console.log('Client Secret length:', TWITCH_CLIENT_SECRET ? TWITCH_CLIENT_SECRET.length : 0);
 
 // Variables to store the access token and its expiry

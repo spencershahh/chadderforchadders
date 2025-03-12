@@ -11,12 +11,18 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Twitch API credentials 
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || 'wk5ebp17im6knf70jgs0oxiljihr3r';
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'dmlq88lzc5sp69j4une5wcqkx0o2el';
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
+
+// Validate credentials are available
+if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+  console.error('ERROR: Missing Twitch API credentials. Please set TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables.');
+  process.exit(1);
+}
 
 console.log('Testing Twitch API authentication with:');
-console.log('Client ID:', TWITCH_CLIENT_ID);
-console.log('Client Secret length:', TWITCH_CLIENT_SECRET ? TWITCH_CLIENT_SECRET.length : 0);
+console.log('Client ID first 5 chars:', TWITCH_CLIENT_ID.substring(0, 5) + '...');
+console.log('Client Secret length:', TWITCH_CLIENT_SECRET.length);
 
 async function testTwitchAuth() {
   try {
