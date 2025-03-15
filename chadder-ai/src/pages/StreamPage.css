@@ -329,6 +329,22 @@
   text-align: center;
   margin-top: 0.5rem;
   color: #a8a8a8;
+  font-size: 0.9rem;
+}
+
+/* Add styles for the new gems section */
+.gems-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 0.5rem;
+}
+
+.earn-more-gems {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 /* Mobile Styles */

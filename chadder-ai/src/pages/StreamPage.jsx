@@ -2,6 +2,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
+import WatchAdButton from '../components/WatchAdButton';
+import GemBalanceDisplay from '../components/GemBalanceDisplay';
 
 
 const StreamPage = () => {
@@ -479,6 +481,11 @@ const StreamPage = () => {
     }
   };
 
+  // Add this new function to refresh user credits after watching an ad
+  const refreshUserCredits = async () => {
+    await fetchUserCredits();
+  };
+
   return (
     <div className="stream-page">
       <h2 className="stream-title">Watching {username}&apos;s Stream</h2>
@@ -619,15 +626,22 @@ const StreamPage = () => {
             )}
           </button>
 
-          <p className="credit-balance">
-            {isVoting ? (
-              `Processing... Current Balance: ${credits.available} 💎`
-            ) : errorMessage ? (
-              `Error: ${errorMessage}`
-            ) : (
-              `Available Gems: ${credits.available} 💎`
-            )}
-          </p>
+          <div className="gems-section">
+            <p className="credit-balance">
+              {isVoting ? (
+                `Processing... Current Balance: ${credits.available} 💎`
+              ) : errorMessage ? (
+                `Error: ${errorMessage}`
+              ) : (
+                `Available Gems: ${credits.available} 💎`
+              )}
+            </p>
+            
+            {/* Add the WatchAdButton component */}
+            <div className="earn-more-gems">
+              <WatchAdButton onGemsEarned={refreshUserCredits} />
+            </div>
+          </div>
         </div>
       </div>
 

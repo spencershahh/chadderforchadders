@@ -1,0 +1,42 @@
+.gemBalanceContainer {
+  display: flex;
+  align-items: center;
+  background-color: rgba(79, 70, 229, 0.1);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.875rem;
+  color: white;
+  gap: 6px;
+}
+
+.gemIcon {
+  font-size: 1rem;
+}
+
+.balance {
+  font-weight: 600;
+}
+
+.loading {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Animation for gem balance changes */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.balance.updated {
+  animation: pulse 0.5s ease-in-out;
+  color: #10b981;
+} 
