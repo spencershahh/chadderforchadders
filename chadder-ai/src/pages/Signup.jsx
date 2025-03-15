@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from 'react-hot-toast';
-import { FaTrophy, FaUsers, FaStream, FaArrowRight } from 'react-icons/fa';
+import { FaTrophy, FaUsers, FaStream, FaArrowRight, FaArrowDown } from 'react-icons/fa';
 import { fetchStreamers } from "../api/twitch";
 import "../App.css";
 import "./Signup.css"; // We'll create this file later
@@ -12,6 +12,8 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showFab, setShowFab] = useState(false);
+  const authContainerRef = useRef(null);
   const [totalStreamers, setTotalStreamers] = useState(0);
   const [liveStreamers, setLiveStreamers] = useState(0);
   const [prizePool, setPrizePool] = useState(0);
@@ -63,6 +65,29 @@ const Signup = () => {
 
     fetchData();
   }, []);
+
+  // Handle scroll to show/hide FAB
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const authContainer = authContainerRef.current;
+      
+      if (authContainer) {
+        const authContainerTop = authContainer.getBoundingClientRect().top;
+        setShowFab(authContainerTop > windowHeight);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial position
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSignup = () => {
+    authContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const checkExistingUser = async (email) => {
     const { data, error } = await supabase
@@ -295,7 +320,7 @@ const Signup = () => {
       </div>
       
       {/* Signup Form Section */}
-      <div className="auth-container">
+      <div className="auth-container" ref={authContainerRef}>
         <h2 className="auth-title">Sign Up for Chadder.ai</h2>
         <p className="auth-description">Join our community and help support emerging streamers</p>
         <form className="auth-form" onSubmit={handleSignup}>
@@ -333,6 +358,14 @@ const Signup = () => {
         <p className="auth-switch">
           Already have an account? <a href="/login">Log in</a>
         </p>
+      </div>
+
+      {/* Mobile Floating Action Button */}
+      <div className={`mobile-signup-fab ${showFab ? 'visible' : ''}`}>
+        <button onClick={scrollToSignup}>
+          <span>Sign Up Now</span>
+          <FaArrowDown />
+        </button>
       </div>
     </div>
   );

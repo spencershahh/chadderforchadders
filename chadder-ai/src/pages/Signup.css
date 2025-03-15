@@ -695,4 +695,50 @@
     font-size: 0.9rem;
     margin-right: 0.8rem;
   }
+}
+
+/* Mobile Floating Action Button */
+.mobile-signup-fab {
+  display: none; /* Hidden by default */
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.mobile-signup-fab.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mobile-signup-fab button {
+  width: 100%;
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 16px 24px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(138, 106, 255, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mobile-signup-fab button:active {
+  transform: scale(0.98);
+}
+
+/* Show FAB only on mobile */
+@media (max-width: 1024px) {
+  .mobile-signup-fab {
+    display: block;
+  }
 } 
