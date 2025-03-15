@@ -45,6 +45,10 @@ export const fetchStreamers = async () => {
     console.log("Browser info:", navigator.userAgent);
     let streamers = [];
     
+    // Check if we're on desktop or mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    console.log("Device type:", isMobile ? "Mobile" : "Desktop");
+    
     // First, fetch streamers from Supabase
     try {
       const { data: dbStreamers, error } = await supabase
@@ -88,12 +92,21 @@ export const fetchStreamers = async () => {
           // Continue anyway to the main request
         }
         
+        // Add additional headers that might help with CORS issues on desktop
+        const headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        };
+        
+        if (!isMobile) {
+          // Add additional headers that might help with desktop browsers
+          headers['Origin'] = window.location.origin;
+          console.log("Adding Origin header:", window.location.origin);
+        }
+        
         const response = await fetch(apiUrl, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
+          headers: headers,
           mode: 'cors',
           cache: 'no-cache',
           credentials: 'same-origin'
@@ -119,7 +132,10 @@ export const fetchStreamers = async () => {
             return enrichedData;
           } else {
             console.warn('Backend returned empty enriched data');
-            return { error: true, message: 'No streamer data returned from server.' };
+            console.log('Falling back to basic streamer data with fallbacks');
+            
+            // If we didn't get enriched data, use the fallback
+            return getFallbackStreamerData(streamers);
           }
         } else {
           console.warn('Backend returned error status:', response.status);
@@ -129,24 +145,21 @@ export const fetchStreamers = async () => {
           } catch (e) {
             console.warn('Could not parse error response');
           }
-          return { 
-            error: true, 
-            message: `Failed to load streamers from server (${response.status})`,
-            statusCode: response.status 
-          };
+          
+          console.log('Falling back to basic streamer data with fallbacks due to API error');
+          return getFallbackStreamerData(streamers);
         }
       } catch (enrichError) {
         console.error('Error fetching enriched data:', enrichError.message);
         console.error('Error details:', enrichError);
-        return { 
-          error: true, 
-          message: 'Failed to load streamers. The server may be temporarily unavailable.',
-          error: enrichError.message
-        };
+        console.log('Falling back to basic streamer data with fallbacks due to exception');
+        
+        // If API call fails, use the fallback
+        return getFallbackStreamerData(streamers);
       }
     } else {
-      console.log('API_URL is not configured');
-      return { error: true, message: 'API URL is not configured properly.' };
+      console.log('API_URL is not configured, using fallback data');
+      return getFallbackStreamerData(streamers);
     }
   } catch (error) {
     console.error("Critical error in fetchStreamers:", error);

@@ -5,6 +5,50 @@ import { useNavigate } from "react-router-dom";
 import styles from './Discover.module.css';
 import { FaLock } from 'react-icons/fa';
 
+// Debug component - only shows in development
+const DebugInfo = ({ isLoading, loadError, streamers }) => {
+  const isDev = import.meta.env.MODE === 'development';
+  const [expanded, setExpanded] = useState(false);
+  
+  if (!isDev) return null;
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '10px',
+      right: '10px',
+      background: '#222',
+      border: '1px solid #666',
+      padding: '8px',
+      borderRadius: '4px',
+      zIndex: 1000,
+      maxWidth: '300px',
+      fontSize: '12px'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <strong>Debug Info</strong>
+        <button 
+          onClick={() => setExpanded(!expanded)}
+          style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer' }}
+        >
+          {expanded ? 'Hide' : 'Show'}
+        </button>
+      </div>
+      
+      {expanded && (
+        <div>
+          <div>Mode: {import.meta.env.MODE}</div>
+          <div>API URL: {import.meta.env.VITE_API_URL || 'Not set'}</div>
+          <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+          <div>Error: {loadError || 'None'}</div>
+          <div>Streamers: {streamers.length}</div>
+          <div>UA: {navigator.userAgent.substring(0, 50)}...</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Discover = () => {
   const [user, setUser] = useState(null);
   const [streamers, setStreamers] = useState([]);
@@ -115,16 +159,22 @@ const Discover = () => {
       
       // Check if the result is an error object
       if (streamersData && streamersData.error) {
+        console.error('Error loading streamers:', streamersData.message);
         setLoadError(streamersData.message || 'Failed to load streamers. Please try refreshing the page.');
         setStreamers([]);
       } else if (streamersData && streamersData.length > 0) {
+        console.log('Successfully loaded streamers:', streamersData.length);
         setStreamers(streamersData);
+        setLoadError(null);
       } else {
+        console.warn('No streamers returned from API');
         setLoadError('No streamers found. Please try refreshing the page.');
+        setStreamers([]);
       }
     } catch (error) {
-      console.error('Error loading streamers:', error);
+      console.error('Error in loadStreamers function:', error);
       setLoadError('Failed to load streamers. Please try refreshing the page.');
+      setStreamers([]);
     } finally {
       setIsLoading(false);
     }
@@ -433,7 +483,7 @@ const Discover = () => {
           Discover Streamers
         </h1>
         <p className={styles.discoverSubtitle}>
-          Discovering Hidden Gems, One Stream at a Time.
+          Find Hidden Gems, One Stream at a Time.
         </p>
 
         <div className={styles.statsContainer}>
@@ -593,6 +643,7 @@ const Discover = () => {
             <div className={styles.errorMessage}>
               <h3>Oops! We couldn't load the streamers</h3>
               <p>{loadError}</p>
+              <p>We're working on fixing this. Please try using a different browser or device.</p>
               <button 
                 onClick={() => loadStreamers()} 
                 className={styles.retryButton}
@@ -603,7 +654,23 @@ const Discover = () => {
           </div>
         ) : sortedStreamers.length === 0 ? (
           <div className={styles.messageContainer}>
-            <p>No streamers found matching your filters.</p>
+            <div className={styles.errorMessage}>
+              <h3>No streamers found</h3>
+              <p>We couldn't find any streamers matching your filters.</p>
+              <p>Try clearing your search or filters, or try again later.</p>
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setCategoryFilter('all');
+                  setStreamersFilter('all');
+                  setSortOption('viewers-high');
+                  loadStreamers();
+                }}
+                className={styles.retryButton}
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
         ) : (
           sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))
@@ -656,6 +723,8 @@ const Discover = () => {
           )}
         </form>
       </div>
+
+      <DebugInfo isLoading={isLoading} loadError={loadError} streamers={streamers} />
     </div>
   );
 };
