@@ -44,69 +44,9 @@ const Discover = () => {
   const OFFLINE_THUMBNAIL = "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg";
   const DEFAULT_PROFILE_IMAGE = "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png";
 
-  // Add fallback streamer data in case all APIs fail
-  const FALLBACK_STREAMERS = [
-    { 
-      user_id: '1', 
-      user_login: 'drewskisquad22', 
-      user_name: 'drewskisquad22', 
-      profile_image_url: null, 
-      title: "Offline", 
-      type: "offline", 
-      viewer_count: 0, 
-      game_name: "N/A", 
-      thumbnail_url: OFFLINE_THUMBNAIL,
-      bio: "Twitch Streamer" 
-    },
-    { 
-      user_id: '2', 
-      user_login: 'fatstronaut', 
-      user_name: 'fatstronaut', 
-      profile_image_url: null, 
-      title: "Offline", 
-      type: "offline", 
-      viewer_count: 0, 
-      game_name: "N/A", 
-      thumbnail_url: OFFLINE_THUMBNAIL,
-      bio: "Twitch Streamer" 
-    },
-    { 
-      user_id: '3', 
-      user_login: 'ferretsoftware', 
-      user_name: 'ferretsoftware', 
-      profile_image_url: null, 
-      title: "Offline", 
-      type: "offline", 
-      viewer_count: 0, 
-      game_name: "N/A", 
-      thumbnail_url: OFFLINE_THUMBNAIL,
-      bio: "Twitch Streamer" 
-    },
-    { 
-      user_id: '4', 
-      user_login: 'fuslie', 
-      user_name: 'fuslie', 
-      profile_image_url: null, 
-      title: "Offline", 
-      type: "offline", 
-      viewer_count: 0, 
-      game_name: "N/A", 
-      thumbnail_url: OFFLINE_THUMBNAIL,
-      bio: "Twitch Streamer" 
-    },
-    { 
-      user_id: '5', 
-      user_login: 'hanner', 
-      user_name: 'hanner', 
-      profile_image_url: null, 
-      title: "Offline", 
-      type: "offline", 
-      viewer_count: 0, 
-      game_name: "N/A", 
-      thumbnail_url: OFFLINE_THUMBNAIL,
-      bio: "Twitch Streamer" 
-    }
-  ];
+  // Add loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const fetchTotalDonations = async () => {
     try {
@@ -164,31 +104,29 @@ const Discover = () => {
     checkAuth();
   }, []);
 
-  useEffect(() => {
-    const loadStreamers = async () => {
-      try {
-        console.log('Starting to load streamers...');
-        setStreamers([...FALLBACK_STREAMERS]); // Set fallback streamers immediately so UI shows something
-        
-        try {
-          // Try to get streamers from API
-          const streamersData = await fetchStreamers();
-          console.log('Loaded streamers from API:', streamersData);
-          
-          if (streamersData && streamersData.length > 0) {
-            setStreamers(streamersData);
-          } else {
-            console.warn('API returned empty streamers array, using fallback data');
-          }
-        } catch (apiError) {
-          console.error('Error loading streamers from API:', apiError);
-          // No need to set fallback streamers again as we already did at the start
-        }
-      } catch (error) {
-        console.error('Critical error in loadStreamers:', error);
+  const loadStreamers = async () => {
+    try {
+      console.log('Starting to load streamers...');
+      setIsLoading(true);
+      setLoadError(null);
+      
+      const streamersData = await fetchStreamers();
+      console.log('Loaded streamers from API:', streamersData);
+      
+      if (streamersData && streamersData.length > 0) {
+        setStreamers(streamersData);
+      } else {
+        setLoadError('No streamers found. Please try refreshing the page.');
       }
-    };
+    } catch (error) {
+      console.error('Error loading streamers:', error);
+      setLoadError('Failed to load streamers. Please try refreshing the page.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadStreamers();
   }, []);
 
@@ -642,7 +580,21 @@ const Discover = () => {
       </div>
 
       <div className={styles.streamerGrid} ref={streamersGridRef}>
-        {sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))}
+        {isLoading ? (
+          <div className={styles.messageContainer}>
+            <p>Loading streamers...</p>
+          </div>
+        ) : loadError ? (
+          <div className={styles.messageContainer}>
+            <p>{loadError}</p>
+          </div>
+        ) : sortedStreamers.length === 0 ? (
+          <div className={styles.messageContainer}>
+            <p>No streamers found matching your filters.</p>
+          </div>
+        ) : (
+          sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))
+        )}
       </div>
 
       <div className={styles.sectionDivider} />
