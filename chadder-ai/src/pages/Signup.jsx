@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from 'react-hot-toast';
 import { FaTrophy, FaUsers, FaStream, FaPlay, FaArrowRight } from 'react-icons/fa';
+import { fetchStreamers } from "../api/twitch";
 import "../App.css";
 import "./Signup.css"; // We'll create this file later
 
@@ -16,58 +17,52 @@ const Signup = () => {
   const [prizePool, setPrizePool] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const [popularStreamers, setPopularStreamers] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Sample streamer data for the signup page
-  const SAMPLE_STREAMERS = [
-    {
-      id: 1,
-      user_name: "DrewskiSquad22",
-      game_name: "Minecraft",
-      viewer_count: 1243,
-      type: "live"
-    },
-    {
-      id: 2,
-      user_name: "Fatstronaut",
-      game_name: "Just Chatting",
-      viewer_count: 876,
-      type: "live"
-    },
-    {
-      id: 3,
-      user_name: "FerretSoftware",
-      game_name: "League of Legends",
-      viewer_count: 537,
-      type: "live"
-    }
-  ];
-
-  // Fetch some stats to show in the teaser
+  // Fetch real stats and streamers for the teaser section
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
+      setDataLoading(true);
       try {
-        // You can implement a real API call here later
-        // For now, we'll use placeholder values
+        // Fetch streamers data
+        const streamersData = await fetchStreamers();
+        
+        if (streamersData && streamersData.length > 0) {
+          // Set total and live streamers count
+          setTotalStreamers(streamersData.length);
+          setLiveStreamers(streamersData.filter(s => s.type === "live").length);
+          
+          // Get the top 3 streamers by viewer count for the popular section
+          const sortedStreamers = [...streamersData]
+            .sort((a, b) => (b.viewer_count || 0) - (a.viewer_count || 0))
+            .filter(s => s.type === "live")
+            .slice(0, 3);
+            
+          setPopularStreamers(sortedStreamers);
+        }
+        
+        // Fetch the prize pool amount
+        const { data: donationAmount, error: donationError } = await supabase
+          .rpc('calculate_weekly_donation_bomb');
+          
+        if (!donationError) {
+          setPrizePool(donationAmount || 0);
+        } else {
+          console.error('Error calculating donation bomb:', donationError);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        // If there's an error, use backup data as fallback
         setTotalStreamers(100);
         setLiveStreamers(35);
         setPrizePool(1500.75);
-        setPopularStreamers(SAMPLE_STREAMERS);
-        
-        // Optional: fetch real stats from your backend
-        // const { data: stats, error } = await supabase
-        //   .rpc('get_platform_stats');
-        // if (!error && stats) {
-        //   setTotalStreamers(stats.total_streamers);
-        //   setLiveStreamers(stats.live_streamers);
-        //   setPrizePool(stats.prize_pool);
-        // }
-      } catch (err) {
-        console.error("Error fetching stats:", err);
+      } finally {
+        setDataLoading(false);
       }
     };
 
-    fetchStats();
+    fetchData();
   }, []);
 
   const checkExistingUser = async (email) => {
@@ -193,6 +188,11 @@ const Signup = () => {
     }
   };
 
+  // Generate avatar initials for streamers without profile images
+  const getStreamerInitials = (name) => {
+    return name.substring(0, 2).toUpperCase();
+  };
+
   return (
     <div className="signup-container">
       <Toaster position="top-center" />
@@ -233,15 +233,18 @@ const Signup = () => {
           
           <div className="teaser-stats">
             <div className="stat-item">
-              <span className="stat-number">{totalStreamers}</span>
+              <span className="stat-number">{dataLoading ? '...' : totalStreamers}</span>
               <span className="stat-label">Total Streamers</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{liveStreamers}</span>
+              <span className="stat-number">{dataLoading ? '...' : liveStreamers}</span>
               <span className="stat-label">Live Now</span>
             </div>
             <div className="stat-item prize-pool">
-              <span className="stat-number"><span className="currency">$</span>{prizePool.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="stat-number">
+                <span className="currency">$</span>
+                {dataLoading ? '...' : prizePool.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
               <span className="stat-label">Current Prize Pool</span>
             </div>
           </div>
@@ -249,25 +252,41 @@ const Signup = () => {
           {/* Popular Streamers Section */}
           <div className="popular-streamers-section">
             <h3 className="popular-streamers-title">Popular Streamers This Week</h3>
-            <div className="popular-streamers-grid">
-              {popularStreamers.map(streamer => (
-                <div key={streamer.id} className="popular-streamer-card">
-                  <div className="popular-streamer-avatar">
-                    {streamer.user_name.substring(0, 2).toUpperCase()}
+            {dataLoading ? (
+              <div className="loading-streamers">
+                <div className="loading-streamer-card"></div>
+                <div className="loading-streamer-card"></div>
+                <div className="loading-streamer-card"></div>
+              </div>
+            ) : (
+              <div className="popular-streamers-grid">
+                {popularStreamers.map(streamer => (
+                  <div key={streamer.user_id} className="popular-streamer-card">
+                    <div 
+                      className="popular-streamer-avatar"
+                      style={streamer.profile_image_url ? {
+                        backgroundImage: `url(${streamer.profile_image_url})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        color: 'transparent'
+                      } : {}}
+                    >
+                      {!streamer.profile_image_url && getStreamerInitials(streamer.user_name)}
+                    </div>
+                    <div className="popular-streamer-info">
+                      <span className="popular-streamer-name">{streamer.user_name}</span>
+                      <span className="popular-streamer-game">{streamer.game_name || 'Streaming'}</span>
+                      {streamer.type === "live" && (
+                        <div className="mini-stats">
+                          <span className="mini-live-badge">LIVE</span>
+                          <span className="mini-viewers">{streamer.viewer_count?.toLocaleString() || 0} viewers</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="popular-streamer-info">
-                    <span className="popular-streamer-name">{streamer.user_name}</span>
-                    <span className="popular-streamer-game">{streamer.game_name}</span>
-                    {streamer.type === "live" && (
-                      <div className="mini-stats">
-                        <span className="mini-live-badge">LIVE</span>
-                        <span className="mini-viewers">{streamer.viewer_count} viewers</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             <div className="see-all-streamers">
               <p>Create an account to see all streamers</p>
               <FaArrowRight className="arrow-icon" />

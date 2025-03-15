@@ -147,6 +147,16 @@
   background: linear-gradient(135deg, rgba(138, 106, 255, 0.2) 0%, rgba(237, 110, 149, 0.2) 100%);
 }
 
+/* Loading animation keyframes */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 /* Popular Streamers Section */
 .popular-streamers-section {
   margin-bottom: 3rem;
@@ -165,6 +175,25 @@
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+/* Streamer card loading state */
+.loading-streamers {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.loading-streamer-card {
+  height: 80px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.03) 25%, 
+    rgba(255, 255, 255, 0.08) 50%, 
+    rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 
 .popular-streamer-card {
