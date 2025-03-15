@@ -918,12 +918,23 @@ const Discover = () => {
               <h3>Oops! We couldn't load the streamers</h3>
               <p>{loadError}</p>
               <p>We're working on fixing this. Please try using a different browser or device.</p>
-              <button 
-                onClick={() => loadStreamers()} 
-                className={styles.retryButton}
-              >
-                Retry
-              </button>
+              <div className={styles.buttonGroup}>
+                <button 
+                  onClick={() => loadStreamers()} 
+                  className={styles.retryButton}
+                >
+                  Retry
+                </button>
+                <button 
+                  onClick={handleForceFallback} 
+                  className={`${styles.retryButton} ${styles.fallbackButton}`}
+                >
+                  Show Demo Streamers
+                </button>
+              </div>
+              <p className={styles.fallbackNote}>
+                <small>Demo streamers will show placeholder data if we can't connect to Twitch</small>
+              </p>
             </div>
           </div>
         ) : sortedStreamers.length === 0 ? (

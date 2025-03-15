@@ -1184,4 +1184,22 @@
 .retryButton:active {
   transform: translateY(0);
   box-shadow: 0 2px 5px rgba(78, 42, 173, 0.3);
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+  justify-content: center;
+}
+
+.fallbackButton {
+  background-color: #6441a5;
+  color: white;
+}
+
+.fallbackNote {
+  margin-top: 0.5rem;
+  color: #999;
+  font-size: 0.9rem;
 } 

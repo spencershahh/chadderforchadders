@@ -5,6 +5,17 @@ import { supabase } from "../supabaseClient";
 const API_URL = import.meta.env.VITE_API_URL || '';
 console.log('API_URL configured as:', API_URL);
 
+// Environment flags to control fetching behavior
+const USE_DIRECT_API = import.meta.env.VITE_USE_DIRECT_API === 'true';
+const FORCE_FALLBACK = import.meta.env.VITE_FORCE_FALLBACK === 'true';
+
+// Log the current data fetching strategy
+console.log('Fetching strategy:', 
+  FORCE_FALLBACK ? '🔄 Using local fallback data' :
+  USE_DIRECT_API ? '🌐 Using direct API access' :
+  '🔌 Using backend API'
+);
+
 // Define fallback data for when API calls fail
 const FALLBACK_STREAMERS = [
   { 
@@ -48,6 +59,22 @@ export const fetchStreamers = async () => {
     // Check if we're on desktop or mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     console.log("Device type:", isMobile ? "Mobile" : "Desktop");
+
+    // If we're forcing fallback data, skip API calls
+    if (FORCE_FALLBACK) {
+      console.log('🔄 Force fallback enabled via environment, using local data');
+      const { data: dbStreamers, error } = await supabase
+        .from('streamers')
+        .select('*')
+        .order('username');
+      
+      if (error) {
+        console.error('Error fetching streamers from Supabase for fallback:', error);
+        return { error: true, message: 'Failed to load streamers from database.' };
+      }
+      
+      return getFallbackStreamerData(dbStreamers);
+    }
     
     // First, fetch streamers from Supabase
     try {
@@ -71,6 +98,23 @@ export const fetchStreamers = async () => {
       return { error: true, message: 'Failed to connect to the database.' };
     }
     
+    // If we're using direct API, fetch directly and skip backend
+    if (USE_DIRECT_API) {
+      console.log('🌐 Using direct API access via environment setting');
+      try {
+        const directResults = await fetchTwitchDirectPublic(streamers);
+        if (directResults && directResults.length > 0) {
+          console.log('🌐 Successfully fetched data via direct API:', directResults.length);
+          return directResults;
+        }
+      } catch (directError) {
+        console.error('Error with direct API access:', directError);
+      }
+      
+      console.log('Direct API failed, falling back to local data');
+      return getFallbackStreamerData(streamers);
+    }
+    
     // Try to get enriched data from backend
     if (API_URL) {
       try {
@@ -80,37 +124,86 @@ export const fetchStreamers = async () => {
         console.log(`Attempting to fetch enriched data from: ${apiUrl}`);
         
         // First perform a preflight check on the API
+        let apiAvailable = false;
+        
         try {
           const preflightResponse = await fetch(`${API_URL}/api/health`, { 
             method: 'GET',
             mode: 'cors',
-            cache: 'no-cache'
+            cache: 'no-cache',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Origin': window.location.origin
+            }
           });
-          console.log('API health check status:', preflightResponse.status);
+          
+          apiAvailable = preflightResponse.ok;
+          console.log('API health check status:', preflightResponse.status, 'Available:', apiAvailable);
         } catch (preflightError) {
           console.warn('API preflight check failed:', preflightError.message);
           // Continue anyway to the main request
         }
         
+        // If preflight check failed severely, try direct API
+        if (!apiAvailable && !isMobile) {
+          console.log('API preflight failed, trying direct API for desktop');
+          try {
+            const directResults = await fetchTwitchDirectPublic(streamers);
+            if (directResults && directResults.length > 0) {
+              console.log('Successfully fetched data via direct API after preflight failure:', directResults.length);
+              return directResults;
+            }
+          } catch (directError) {
+            console.error('Error with direct API access after preflight failure:', directError);
+          }
+        }
+        
         // Add additional headers that might help with CORS issues on desktop
         const headers = {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Origin': window.location.origin,
+          'Cache-Control': 'no-cache'
         };
         
-        if (!isMobile) {
-          // Add additional headers that might help with desktop browsers
-          headers['Origin'] = window.location.origin;
-          console.log("Adding Origin header:", window.location.origin);
+        // Add different fetch strategies based on platform
+        let response;
+        if (isMobile) {
+          // Mobile fetch strategy
+          response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: headers,
+            mode: 'cors',
+            cache: 'no-cache',
+            credentials: 'same-origin'
+          });
+        } else {
+          // Desktop fetch strategies - try multiple approaches
+          try {
+            // Try with fetch API first
+            response = await fetch(apiUrl, {
+              method: 'GET',
+              headers: headers,
+              mode: 'cors',
+              cache: 'no-cache'
+            });
+          } catch (fetchError) {
+            console.error('Fetch API failed on desktop, trying axios:', fetchError);
+            
+            // Try with axios as backup
+            const axiosResponse = await axios.get(apiUrl, { 
+              headers: headers
+            });
+            
+            // Convert axios response to fetch-like response
+            response = {
+              ok: axiosResponse.status >= 200 && axiosResponse.status < 300,
+              status: axiosResponse.status,
+              json: async () => axiosResponse.data
+            };
+          }
         }
-        
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: headers,
-          mode: 'cors',
-          cache: 'no-cache',
-          credentials: 'same-origin'
-        });
         
         if (response.ok) {
           const enrichedData = await response.json();
@@ -319,7 +412,48 @@ export const fetchUserData = async (login) => {
     if (API_URL) {
       try {
         console.log(`Fetching user data for ${login} from backend`);
-        const response = await fetch(`
+        const userResponse = await fetch(`${API_URL}/api/twitch/user/${login}`);
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          console.log(`Successfully fetched user data for ${login}`, {
+            has_profile_image: userData.profile_image_url ? 'yes' : 'no',
+            has_description: userData.description ? 'yes' : 'no'
+          });
+          return userData;
+        } else {
+          console.warn(`Backend returned error status for user ${login}:`, userResponse.status);
+          try {
+            const errorData = await userResponse.json();
+            console.warn('Error details:', errorData);
+          } catch (e) {
+            console.warn('Could not parse error response');
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching user data for ${login}:`, error.message);
+      }
+    } else {
+      console.warn('No API_URL configured, cannot fetch user data');
+    }
+    
+    // Return fallback data if we couldn't get the user data
+    return {
+      login: login,
+      display_name: login,
+      profile_image_url: null,
+      description: "No bio available."
+    };
+  } catch (error) {
+    console.error(`Error in fetchUserData for ${login}:`, error);
+    return {
+      login: login,
+      display_name: login,
+      profile_image_url: null,
+      description: "No bio available."
+    };
+  }
+};
 
 // Define a client-side direct fetch method for public Twitch APIs
 // This doesn't require auth but has rate limits and limited info
@@ -356,7 +490,7 @@ export const fetchTwitchDirectPublic = async (streamers) => {
         const twitchProxyUrl = `https://corsproxy.io/?https://twitch-api-proxy.public.toxicdev.me/streamers?usernames=${batch.join(',')}`;
         console.log(`Fetching batch ${i+1}/${batches.length}: ${batch.length} usernames`);
         
-        const response = await fetch(twitchProxyUrl, {
+        const proxyResponse = await fetch(twitchProxyUrl, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'
@@ -364,14 +498,14 @@ export const fetchTwitchDirectPublic = async (streamers) => {
           mode: 'cors'
         });
         
-        if (response.ok) {
-          const data = await response.json();
+        if (proxyResponse.ok) {
+          const data = await proxyResponse.json();
           if (data && Array.isArray(data.streamers)) {
             console.log(`Got data for ${data.streamers.length} streamers from direct API`);
             results.push(...data.streamers);
           }
         } else {
-          console.warn(`Failed to fetch batch ${i+1}, status: ${response.status}`);
+          console.warn(`Failed to fetch batch ${i+1}, status: ${proxyResponse.status}`);
         }
       } catch (batchError) {
         console.error(`Error fetching batch ${i+1}:`, batchError.message);
