@@ -5,6 +5,7 @@ import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 import WatchAdButton from '../components/WatchAdButton';
 import GemBalanceDisplay from '../components/GemBalanceDisplay';
 import './StreamPage.css';
+import './MobileStreamPage.css';
 
 
 const StreamPage = () => {
@@ -248,10 +249,18 @@ const StreamPage = () => {
     const chatContainer = document.getElementById("twitch-chat");
     if (chatContainer) chatContainer.innerHTML = "";
   
+    // Force any previous styles to be cleared
+    if (chatContainer) {
+      chatContainer.style = "";
+    }
+  
     const chatIframe = document.createElement("iframe");
+    
+    // Add a unique identifier to force cache refresh
+    const cacheBreaker = new Date().getTime();
     chatIframe.setAttribute(
       "src",
-      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true`
+      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true&t=${cacheBreaker}`
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
     chatIframe.style.width = "100%";
@@ -284,13 +293,24 @@ const StreamPage = () => {
             chatIframe.style.height = "calc(100% - 50px)";
             
             // Force refresh to adjust to new container size
-            const src = chatIframe.getAttribute("src");
-            chatIframe.setAttribute("src", src);
+            const newCacheBreaker = new Date().getTime();
+            const src = chatIframe.getAttribute("src").split('&t=')[0];
+            chatIframe.setAttribute("src", `${src}&t=${newCacheBreaker}`);
           } else {
             chatIframe.style.height = "100%";
           }
         }, 300);
       });
+
+      // Set a timeout to verify layout after everything has loaded
+      setTimeout(() => {
+        if (chatIframe && chatContainer) {
+          // Double-check that styles are applied correctly
+          chatIframe.style.height = "calc(100% - 50px)";
+          chatIframe.style.position = "absolute";
+          chatContainer.style.position = "relative";
+        }
+      }, 1000);
     }
   };
 
