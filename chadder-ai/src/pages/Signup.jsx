@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from 'react-hot-toast';
-import { FaTrophy, FaUsers, FaStream, FaPlay, FaArrowRight } from 'react-icons/fa';
+import { FaTrophy, FaUsers, FaStream, FaArrowRight } from 'react-icons/fa';
 import { fetchStreamers } from "../api/twitch";
 import "../App.css";
 import "./Signup.css"; // We'll create this file later
@@ -15,7 +15,6 @@ const Signup = () => {
   const [totalStreamers, setTotalStreamers] = useState(0);
   const [liveStreamers, setLiveStreamers] = useState(0);
   const [prizePool, setPrizePool] = useState(0);
-  const [showVideo, setShowVideo] = useState(false);
   const [popularStreamers, setPopularStreamers] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const navigate = useNavigate();
@@ -290,61 +289,6 @@ const Signup = () => {
             <div className="see-all-streamers">
               <p>Create an account to see all streamers</p>
               <FaArrowRight className="arrow-icon" />
-            </div>
-          </div>
-
-          {/* Video Demo Section */}
-          <div className="video-demo-section">
-            <h3 className="video-demo-title">See how Chadder.ai works</h3>
-            
-            {showVideo ? (
-              <div className="video-player">
-                {/* Replace this with your actual video embed code */}
-                <iframe 
-                  className="demo-video"
-                  src="https://www.youtube.com/embed/YOUR_VIDEO_ID" 
-                  title="Chadder.ai Demo"
-                  frameBorder="0" 
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                  allowFullScreen
-                ></iframe>
-                <button 
-                  className="close-video-btn"
-                  onClick={() => setShowVideo(false)}
-                >
-                  Close Video
-                </button>
-              </div>
-            ) : (
-              <div 
-                className="video-thumbnail"
-                onClick={() => setShowVideo(true)}
-              >
-                <div className="play-button-wrapper">
-                  <FaPlay className="play-button-icon" />
-                </div>
-                <div className="video-thumbnail-overlay">
-                  <p>Click to watch our 1-minute demo</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="preview-image">
-            {/* You can add an image or video preview here */}
-            <div className="placeholder-image">
-              <div className="streamer-card-preview">
-                <div className="preview-thumbnail">
-                  <div className="live-badge">LIVE</div>
-                </div>
-                <div className="preview-info">
-                  <div className="preview-profile"></div>
-                  <div className="preview-details">
-                    <div className="preview-name"></div>
-                    <div className="preview-game"></div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

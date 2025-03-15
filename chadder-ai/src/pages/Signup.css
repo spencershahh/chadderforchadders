@@ -6,18 +6,21 @@
   width: 100%;
   background-color: #0f0f17;
   color: #ffffff;
+  padding-top: 80px; /* Add padding for header */
 }
 
 /* Teaser section styles */
 .teaser-container {
   flex: 1;
   background: linear-gradient(135deg, #1a1a2e 0%, #242450 100%);
-  padding: 3rem;
+  padding: 2rem 3rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* Changed from center to flex-start */
   position: relative;
   overflow: hidden;
+  max-height: calc(100vh - 80px); /* Account for header */
+  overflow-y: auto;
 }
 
 .teaser-container::before {
@@ -592,6 +595,12 @@
 @media (max-width: 1024px) {
   .signup-container {
     flex-direction: column;
+    padding-top: 60px; /* Slightly reduced padding for mobile */
+  }
+  
+  .teaser-container {
+    max-height: none;
+    overflow-y: visible;
   }
   
   .teaser-container, .auth-container {
@@ -599,8 +608,7 @@
   }
   
   .auth-container {
-    padding-top: 3rem;
-    padding-bottom: 3rem;
+    padding: 2rem;
   }
 }
 
