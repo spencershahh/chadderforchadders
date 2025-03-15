@@ -146,6 +146,62 @@ export const fetchStreamers = async () => {
             console.warn('Could not parse error response');
           }
           
+          // Try to fetch from a public API directly as an additional fallback
+          try {
+            console.log('Attempting direct public Twitch API fetch as fallback');
+            
+            // We'll use a public API proxy that doesn't require authentication
+            // This is for fallback when our backend fails
+            const usernames = streamers.map(s => s.username || s.name).filter(Boolean).join(',');
+            const publicApiUrl = `https://corsproxy.io/?https://twitch-api-proxy.public.toxicdev.me/streamers?usernames=${usernames}`;
+            
+            console.log(`Fetching from public API: ${publicApiUrl}`);
+            const publicResponse = await fetch(publicApiUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              mode: 'cors'
+            });
+            
+            if (publicResponse.ok) {
+              const data = await publicResponse.json();
+              if (data && Array.isArray(data.streamers) && data.streamers.length > 0) {
+                console.log(`Got ${data.streamers.length} streamers from public API`);
+                
+                // Format the results to match our expected format
+                const directResults = data.streamers.map(streamer => {
+                  // Extract username from URL if present
+                  const username = streamer.channel_url 
+                    ? streamer.channel_url.split('/').pop().toLowerCase() 
+                    : streamer.username || streamer.name || 'unknown';
+                    
+                  return {
+                    id: username,
+                    user_id: username,
+                    user_login: username,
+                    user_name: streamer.name || username,
+                    game_name: streamer.game || 'N/A',
+                    title: streamer.title || 'Streaming on Twitch',
+                    type: streamer.isLive ? "live" : "offline",
+                    viewer_count: streamer.viewer_count || 0,
+                    language: "en",
+                    thumbnail_url: streamer.thumbnail_url || 
+                      `https://via.placeholder.com/320x180/6441a5/FFFFFF?text=${username}`,
+                    profile_image_url: streamer.profile_image_url ||
+                      `https://ui-avatars.com/api/?name=${username.substring(0, 2).toUpperCase()}&background=random&color=fff&size=300`,
+                    bio: streamer.bio || "No bio available.",
+                    offline_image_url: "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Offline"
+                  };
+                });
+                
+                return directResults;
+              }
+            } else {
+              console.warn('Public API fallback failed with status:', publicResponse.status);
+            }
+          } catch (publicApiError) {
+            console.error('Error using public API fallback:', publicApiError.message);
+          }
+          
           console.log('Falling back to basic streamer data with fallbacks due to API error');
           return getFallbackStreamerData(streamers);
         }
@@ -172,7 +228,7 @@ export const fetchStreamers = async () => {
 };
 
 // Helper function to get fallback streamer data
-const getFallbackStreamerData = (streamers) => {
+export const getFallbackStreamerData = (streamers) => {
   return streamers.map(streamer => {
     const username = (streamer.username || streamer.name || 'Unknown').toLowerCase();
     
@@ -263,45 +319,102 @@ export const fetchUserData = async (login) => {
     if (API_URL) {
       try {
         console.log(`Fetching user data for ${login} from backend`);
-        const response = await fetch(`${API_URL}/api/twitch/user/${login}`);
-        
-        if (response.ok) {
-          const userData = await response.json();
-          console.log(`Successfully fetched user data for ${login}`, {
-            has_profile_image: userData.profile_image_url ? 'yes' : 'no',
-            has_description: userData.description ? 'yes' : 'no'
-          });
-          return userData;
-        } else {
-          console.warn(`Backend returned error status for user ${login}:`, response.status);
-          try {
-            const errorData = await response.json();
-            console.warn('Error details:', errorData);
-          } catch (e) {
-            console.warn('Could not parse error response');
-          }
-        }
-      } catch (error) {
-        console.error(`Error fetching user data for ${login}:`, error.message);
-      }
-    } else {
-      console.warn('No API_URL configured, cannot fetch user data');
+        const response = await fetch(`
+
+// Define a client-side direct fetch method for public Twitch APIs
+// This doesn't require auth but has rate limits and limited info
+export const fetchTwitchDirectPublic = async (streamers) => {
+  try {
+    console.log('Attempting direct public Twitch API fetch (client-side fallback)');
+    
+    // Create a list of usernames to check
+    const usernames = streamers.map(s => s.username || s.name).filter(Boolean);
+    if (!usernames.length) {
+      console.warn('No usernames provided for direct Twitch fetch');
+      return [];
     }
     
-    // Return fallback data if we couldn't get the user data
-    return {
-      login: login,
-      display_name: login,
-      profile_image_url: null,
-      description: "No bio available."
-    };
+    // We'll use a public API proxy that doesn't require authentication
+    // NOTE: This is for development and fallback only - not for production use
+    // This API may have rate limits or be unstable
+    const results = [];
+    const batchSize = 10;
+    const batches = [];
+    
+    // Split usernames into batches to avoid URL length issues
+    for (let i = 0; i < usernames.length; i += batchSize) {
+      batches.push(usernames.slice(i, i + batchSize));
+    }
+    
+    console.log(`Processing ${batches.length} batches of usernames`);
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      try {
+        // Note: This is using a CORS proxy for public access
+        // Ideally this would be replaced with proper backend access
+        const twitchProxyUrl = `https://corsproxy.io/?https://twitch-api-proxy.public.toxicdev.me/streamers?usernames=${batch.join(',')}`;
+        console.log(`Fetching batch ${i+1}/${batches.length}: ${batch.length} usernames`);
+        
+        const response = await fetch(twitchProxyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          mode: 'cors'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Array.isArray(data.streamers)) {
+            console.log(`Got data for ${data.streamers.length} streamers from direct API`);
+            results.push(...data.streamers);
+          }
+        } else {
+          console.warn(`Failed to fetch batch ${i+1}, status: ${response.status}`);
+        }
+      } catch (batchError) {
+        console.error(`Error fetching batch ${i+1}:`, batchError.message);
+      }
+      
+      // Add a small delay between batches to avoid rate limiting
+      if (i < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+    
+    if (results.length > 0) {
+      console.log(`Successfully fetched ${results.length} streamers from direct public API`);
+      
+      // Format the results to match our expected format
+      return results.map(streamer => {
+        // Extract username from URL if present
+        const username = streamer.channel_url 
+          ? streamer.channel_url.split('/').pop().toLowerCase() 
+          : streamer.username || streamer.name || 'unknown';
+          
+        return {
+          id: username,
+          user_id: username,
+          user_login: username,
+          user_name: streamer.name || username,
+          game_name: streamer.game || 'N/A',
+          title: streamer.title || 'Streaming on Twitch',
+          type: streamer.isLive ? "live" : "offline",
+          viewer_count: streamer.viewer_count || 0,
+          language: "en",
+          thumbnail_url: streamer.thumbnail_url || 
+            `https://via.placeholder.com/320x180/6441a5/FFFFFF?text=${username}`,
+          profile_image_url: streamer.profile_image_url ||
+            `https://ui-avatars.com/api/?name=${username.substring(0, 2).toUpperCase()}&background=random&color=fff&size=300`,
+          bio: streamer.bio || "No bio available.",
+          offline_image_url: "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Offline"
+        };
+      });
+    }
   } catch (error) {
-    console.error(`Error in fetchUserData for ${login}:`, error);
-    return {
-      login: login,
-      display_name: login,
-      profile_image_url: null,
-      description: "No bio available."
-    };
+    console.error('Error in direct Twitch API fetch:', error);
   }
+  
+  return [];
 };

@@ -1,14 +1,144 @@
 import { useEffect, useState, useRef } from "react";
-import { fetchStreamers } from "../api/twitch";
+import { fetchStreamers, getFallbackStreamerData } from "../api/twitch";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import styles from './Discover.module.css';
 import { FaLock } from 'react-icons/fa';
 
 // Debug component - only shows in development
-const DebugInfo = ({ isLoading, loadError, streamers }) => {
+const DebugInfo = ({ isLoading, loadError, streamers, onForceFallback }) => {
   const isDev = import.meta.env.MODE === 'development';
   const [expanded, setExpanded] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+  const [testing, setTesting] = useState(false);
+  
+  // Function to test various endpoints to diagnose issues
+  const testConnections = async () => {
+    setTesting(true);
+    const results = {
+      tests: [],
+      summary: ''
+    };
+    
+    try {
+      // Helper to run a test
+      const runTest = async (name, url, options = {}) => {
+        const startTime = Date.now();
+        try {
+          const response = await fetch(url, {
+            method: options.method || 'GET',
+            mode: options.mode || 'cors',
+            headers: options.headers || {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            ...options
+          });
+          
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+          
+          let responseData;
+          try {
+            responseData = await response.json();
+          } catch (e) {
+            responseData = 'Could not parse JSON response';
+          }
+          
+          return {
+            name,
+            url,
+            success: response.ok,
+            status: response.status,
+            duration: `${duration}ms`,
+            data: typeof responseData === 'object' ? 'Valid JSON response' : responseData
+          };
+        } catch (error) {
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+          
+          return {
+            name,
+            url,
+            success: false,
+            error: error.message,
+            duration: `${duration}ms`
+          };
+        }
+      };
+      
+      // Test 1: Browser CORS test - should always work
+      results.tests.push(await runTest(
+        'CORS Test',
+        'https://cors-test.codehappy.dev/cors.json'
+      ));
+      
+      // Test 2: Supabase API
+      const supabaseUrl = 'https://xskplljphfqqvhdwluzm.supabase.co/rest/v1/streamers?select=username&limit=1';
+      results.tests.push(await runTest(
+        'Supabase API',
+        supabaseUrl,
+        { 
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhza3BsbGpwaGZxcXZoZHdsdXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDU4MTI0MTAsImV4cCI6MjAyMTM4ODQxMH0.bZvTe7JB3UFDCyV8VeEpdnTYD0RBbJn2mOp10j2nMBU',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhza3BsbGpwaGZxcXZoZHdsdXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDU4MTI0MTAsImV4cCI6MjAyMTM4ODQxMH0.bZvTe7JB3UFDCyV8VeEpdnTYD0RBbJn2mOp10j2nMBU'
+          }
+        }
+      ));
+      
+      // Test 3: API URL if configured
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl) {
+        results.tests.push(await runTest(
+          'API Health Check',
+          `${apiUrl}/api/health`
+        ));
+        
+        // Test 4: Twitch API via our backend
+        results.tests.push(await runTest(
+          'Twitch API via Backend',
+          `${apiUrl}/api/twitch/streamers?logins=fuslie,ludwig,pokimane`
+        ));
+      } else {
+        results.tests.push({
+          name: 'API Health Check',
+          success: false,
+          error: 'API URL not configured',
+        });
+        
+        results.tests.push({
+          name: 'Twitch API via Backend',
+          success: false,
+          error: 'API URL not configured',
+        });
+      }
+      
+      // Analyze results
+      const successCount = results.tests.filter(t => t.success).length;
+      const totalTests = results.tests.length;
+      results.summary = `${successCount}/${totalTests} tests passed`;
+      
+      if (successCount === totalTests) {
+        results.health = 'good';
+      } else if (successCount >= totalTests / 2) {
+        results.health = 'partial';
+      } else {
+        results.health = 'bad';
+      }
+      
+      setTestResults(results);
+    } catch (error) {
+      console.error('Error running connection tests:', error);
+      setTestResults({
+        tests: [],
+        summary: 'Error running tests',
+        health: 'unknown',
+        error: error.message
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
   
   if (!isDev) return null;
   
@@ -22,7 +152,7 @@ const DebugInfo = ({ isLoading, loadError, streamers }) => {
       padding: '8px',
       borderRadius: '4px',
       zIndex: 1000,
-      maxWidth: '300px',
+      maxWidth: '400px',
       fontSize: '12px'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -43,6 +173,116 @@ const DebugInfo = ({ isLoading, loadError, streamers }) => {
           <div>Error: {loadError || 'None'}</div>
           <div>Streamers: {streamers.length}</div>
           <div>UA: {navigator.userAgent.substring(0, 50)}...</div>
+          
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <button 
+              onClick={onForceFallback}
+              style={{ 
+                background: '#6441a5', 
+                color: 'white', 
+                border: 'none', 
+                padding: '4px 8px', 
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                flex: 1
+              }}
+            >
+              Force Fallback
+            </button>
+            
+            <button 
+              onClick={testConnections}
+              disabled={testing}
+              style={{ 
+                background: '#4caf50', 
+                color: 'white', 
+                border: 'none', 
+                padding: '4px 8px', 
+                borderRadius: '4px',
+                cursor: testing ? 'default' : 'pointer',
+                opacity: testing ? 0.7 : 1,
+                fontSize: '11px',
+                flex: 1
+              }}
+            >
+              {testing ? 'Testing...' : 'Test Network'}
+            </button>
+          </div>
+          
+          {testResults && (
+            <div style={{ 
+              marginTop: '12px', 
+              border: '1px solid #444', 
+              padding: '8px',
+              borderRadius: '4px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}>
+              <div style={{ 
+                color: 
+                  testResults.health === 'good' ? '#4caf50' : 
+                  testResults.health === 'partial' ? '#ff9800' : 
+                  testResults.health === 'bad' ? '#f44336' : '#aaa',
+                fontWeight: 'bold',
+                marginBottom: '8px'
+              }}>
+                {testResults.summary}
+              </div>
+              
+              {testResults.tests.map((test, index) => (
+                <div key={index} style={{ 
+                  marginBottom: '8px',
+                  padding: '6px',
+                  background: '#333',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: '4px'
+                  }}>
+                    <span>{test.name}</span>
+                    <span style={{ 
+                      color: test.success ? '#4caf50' : '#f44336',
+                      fontWeight: 'bold'
+                    }}>
+                      {test.success ? '✓ Success' : '✗ Failed'}
+                    </span>
+                  </div>
+                  
+                  {test.url && (
+                    <div style={{ fontSize: '10px', wordBreak: 'break-all' }}>
+                      URL: {test.url}
+                    </div>
+                  )}
+                  
+                  {test.status && (
+                    <div style={{ fontSize: '10px' }}>
+                      Status: {test.status}
+                    </div>
+                  )}
+                  
+                  {test.duration && (
+                    <div style={{ fontSize: '10px' }}>
+                      Time: {test.duration}
+                    </div>
+                  )}
+                  
+                  {test.error && (
+                    <div style={{ 
+                      fontSize: '10px', 
+                      color: '#f44336', 
+                      marginTop: '4px'
+                    }}>
+                      Error: {test.error}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -64,6 +304,9 @@ const Discover = () => {
   const navigate = useNavigate();
   const nominationSectionRef = useRef(null);
   const streamersGridRef = useRef(null);
+
+  // Add a flag to force using fallback data
+  const [forceFallback, setForceFallback] = useState(false);
 
   const FREE_STREAMER_LIMIT = 5;
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -153,6 +396,31 @@ const Discover = () => {
       console.log('Starting to load streamers...');
       setIsLoading(true);
       setLoadError(null);
+      
+      // If forceFallback is enabled, use the getFallbackStreamerData function directly
+      if (forceFallback) {
+        console.log('Force fallback enabled, bypassing API');
+        try {
+          // First get base streamer data from Supabase 
+          const { data: dbStreamers, error } = await supabase
+            .from('streamers')
+            .select('*')
+            .order('username');
+            
+          if (error) throw error;
+          
+          // Generate fallback data for the streamers
+          const fallbackData = getFallbackStreamerData(dbStreamers);
+          console.log('Generated fallback data:', fallbackData.length);
+          setStreamers(fallbackData);
+          setLoadError(null);
+          setIsLoading(false);
+          return;
+        } catch (fallbackError) {
+          console.error('Error generating fallback data:', fallbackError);
+          // Continue with normal flow if fallback fails
+        }
+      }
       
       const streamersData = await fetchStreamers();
       console.log('Loaded streamers from API:', streamersData);
@@ -475,6 +743,12 @@ const Discover = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // Handler for forcing fallback data
+  const handleForceFallback = () => {
+    setForceFallback(true);
+    loadStreamers();
+  };
+
   return (
     <div className={styles.discoverContainer}>
       <div className="glow-effect"></div>
@@ -724,7 +998,12 @@ const Discover = () => {
         </form>
       </div>
 
-      <DebugInfo isLoading={isLoading} loadError={loadError} streamers={streamers} />
+      <DebugInfo 
+        isLoading={isLoading} 
+        loadError={loadError} 
+        streamers={streamers} 
+        onForceFallback={handleForceFallback} 
+      />
     </div>
   );
 };
