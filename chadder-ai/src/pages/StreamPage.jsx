@@ -259,6 +259,21 @@ const StreamPage = () => {
     chatIframe.setAttribute("scrolling", "yes");
   
     chatContainer.appendChild(chatIframe);
+
+    // For mobile, we need to handle the integration of the chat better
+    if (isMobile) {
+      // Adjust the iframe to account for the input area at the bottom
+      chatIframe.style.height = "calc(100% - 50px)";
+      
+      // Add event listener to properly resize when orientation changes
+      window.addEventListener('resize', () => {
+        if (window.innerWidth <= 768) {
+          chatIframe.style.height = "calc(100% - 50px)";
+        } else {
+          chatIframe.style.height = "100%";
+        }
+      });
+    }
   };
 
   const fetchUserCredits = async () => {
@@ -486,6 +501,24 @@ const StreamPage = () => {
     await fetchUserCredits();
   };
 
+  // Add this function to handle sending chat messages through the iframe
+  const sendChatMessage = (message) => {
+    const chatIframe = document.querySelector("#twitch-chat iframe");
+    if (chatIframe && message.trim()) {
+      // Try to send the message to the Twitch chat iframe
+      try {
+        // This attempts to access the input field within the iframe and dispatch events
+        // Note: May be limited by cross-origin restrictions
+        chatIframe.contentWindow.postMessage(
+          { type: 'chat-message', message }, 
+          'https://www.twitch.tv'
+        );
+      } catch (error) {
+        console.error("Error sending chat message:", error);
+      }
+    }
+  };
+
   return (
     <div className="stream-page">
       <h2 className="stream-title">Watching {username}&apos;s Stream</h2>
@@ -505,7 +538,24 @@ const StreamPage = () => {
                   className="chat-input"
                   placeholder="Send a message"
                   aria-label="Chat input"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      sendChatMessage(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
                 />
+                <button 
+                  onClick={(e) => {
+                    const input = e.target.previousSibling;
+                    sendChatMessage(input.value);
+                    input.value = '';
+                  }}
+                  className="chat-send-button"
+                  aria-label="Send message"
+                >
+                  Send
+                </button>
               </div>
             )}
           </div>
