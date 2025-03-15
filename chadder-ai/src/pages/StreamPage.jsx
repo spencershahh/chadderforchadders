@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 import WatchAdButton from '../components/WatchAdButton';
 import GemBalanceDisplay from '../components/GemBalanceDisplay';
+import './StreamPage.css';
 
 
 const StreamPage = () => {
@@ -254,24 +255,41 @@ const StreamPage = () => {
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
     chatIframe.style.width = "100%";
-    chatIframe.style.height = "100%";
     chatIframe.style.border = "none";
+    
+    // Set different height for mobile vs desktop
+    if (isMobile) {
+      chatIframe.style.height = "calc(100% - 50px)";
+      chatIframe.style.position = "absolute";
+      chatIframe.style.top = "0";
+      chatIframe.style.left = "0";
+      chatIframe.style.right = "0";
+      chatIframe.style.bottom = "50px"; // Leave space for the input
+    } else {
+      chatIframe.style.height = "100%";
+    }
+    
     chatIframe.setAttribute("scrolling", "yes");
-  
     chatContainer.appendChild(chatIframe);
 
     // For mobile, we need to handle the integration of the chat better
     if (isMobile) {
-      // Adjust the iframe to account for the input area at the bottom
-      chatIframe.style.height = "calc(100% - 50px)";
-      
-      // Add event listener to properly resize when orientation changes
+      // Force iframe refresh when orientation changes
       window.addEventListener('resize', () => {
-        if (window.innerWidth <= 768) {
-          chatIframe.style.height = "calc(100% - 50px)";
-        } else {
-          chatIframe.style.height = "100%";
-        }
+        const isPortrait = window.innerHeight > window.innerWidth;
+        
+        // Delay resizing to ensure container layout is updated
+        setTimeout(() => {
+          if (window.innerWidth <= 768) {
+            chatIframe.style.height = "calc(100% - 50px)";
+            
+            // Force refresh to adjust to new container size
+            const src = chatIframe.getAttribute("src");
+            chatIframe.setAttribute("src", src);
+          } else {
+            chatIframe.style.height = "100%";
+          }
+        }, 300);
       });
     }
   };
