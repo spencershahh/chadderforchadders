@@ -49,6 +49,73 @@ const StreamPage = () => {
         // Force scroll to top before loading content
         window.scrollTo(0, 0);
         
+        // For mobile devices, directly set critical styles on document elements
+        if (isMobile) {
+          // Apply mobile styles to document body to ensure full viewport usage
+          document.body.style.overflow = 'auto';
+          document.body.style.position = 'relative';
+          
+          // Force any stream page elements to use our styles
+          const applyMobileStyles = () => {
+            const streamPage = document.querySelector('.stream-page');
+            if (streamPage) {
+              streamPage.style.padding = '0';
+              streamPage.style.margin = '0';
+              streamPage.style.minHeight = '100vh';
+              streamPage.style.display = 'flex';
+              streamPage.style.flexDirection = 'column';
+              streamPage.style.overflow = 'hidden';
+              streamPage.style.paddingBottom = '120px';
+            }
+
+            const streamLayout = document.querySelector('.stream-layout');
+            if (streamLayout) {
+              streamLayout.style.flexDirection = isPortrait ? 'column' : 'row';
+              streamLayout.style.height = '100vh';
+              streamLayout.style.paddingTop = '40px';
+              streamLayout.style.position = 'fixed';
+              streamLayout.style.width = '100%';
+              streamLayout.style.zIndex = '900';
+            }
+
+            const videoContainer = document.querySelector('.stream-video-container');
+            if (videoContainer) {
+              if (isPortrait) {
+                videoContainer.style.width = '100%';
+                videoContainer.style.height = '40vh';
+              } else {
+                videoContainer.style.width = '65%';
+                videoContainer.style.height = 'calc(100vh - 40px)';
+              }
+              videoContainer.style.position = 'relative';
+              videoContainer.style.zIndex = '900';
+            }
+
+            const chatContainer = document.querySelector('.stream-right-container');
+            if (chatContainer) {
+              if (isPortrait) {
+                chatContainer.style.flex = '1';
+                chatContainer.style.width = '100%';
+                chatContainer.style.height = 'calc(60vh - 40px)';
+              } else {
+                chatContainer.style.width = '35%';
+                chatContainer.style.height = 'calc(100vh - 40px)';
+              }
+              chatContainer.style.position = 'relative';
+              chatContainer.style.background = '#18181b';
+              chatContainer.style.display = 'flex';
+              chatContainer.style.flexDirection = 'column';
+            }
+          };
+
+          // Apply styles immediately 
+          applyMobileStyles();
+          
+          // And after a short delay to ensure DOM is updated
+          setTimeout(applyMobileStyles, 100);
+          setTimeout(applyMobileStyles, 500);
+        }
+        
         await Promise.all([
           fetchUserCredits(),
           fetchVoteStats(),
@@ -138,8 +205,119 @@ const StreamPage = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      setIsPortrait(window.innerHeight > window.innerWidth);
+      const newIsMobile = window.innerWidth <= 768;
+      const newIsPortrait = window.innerHeight > window.innerWidth;
+      
+      setIsMobile(newIsMobile);
+      setIsPortrait(newIsPortrait);
+      
+      // If mobile state or orientation changes, update layout immediately
+      if (newIsMobile) {
+        const applyOrientationStyles = () => {
+          // Update stream layout orientation
+          const streamLayout = document.querySelector('.stream-layout');
+          if (streamLayout) {
+            streamLayout.style.flexDirection = newIsPortrait ? 'column' : 'row';
+          }
+          
+          // Update video container size
+          const videoContainer = document.querySelector('.stream-video-container');
+          if (videoContainer) {
+            if (newIsPortrait) {
+              videoContainer.style.width = '100%';
+              videoContainer.style.height = '40vh';
+              videoContainer.style.minHeight = '150px';
+            } else {
+              videoContainer.style.width = '65%';
+              videoContainer.style.height = 'calc(100vh - 40px)';
+              videoContainer.style.minHeight = 'unset';
+            }
+          }
+          
+          // Update chat container layout
+          const chatContainer = document.querySelector('.stream-right-container');
+          if (chatContainer) {
+            if (newIsPortrait) {
+              chatContainer.style.flex = '1';
+              chatContainer.style.width = '100%';
+              chatContainer.style.height = 'calc(60vh - 40px)';
+            } else {
+              chatContainer.style.width = '35%';
+              chatContainer.style.height = 'calc(100vh - 40px)';
+            }
+          }
+          
+          // Update info sections
+          const infoElements = [
+            '.info-row', 
+            '.vote-stats-container', 
+            '.leaderboard-info-card', 
+            '.floating-vote-container'
+          ];
+          
+          infoElements.forEach(selector => {
+            const element = document.querySelector(selector);
+            if (element) {
+              if (newIsPortrait) {
+                element.style.marginTop = selector === '.info-row' ? '100vh' : '0.5rem';
+                element.style.marginLeft = '0';
+              } else {
+                element.style.marginTop = '0';
+                element.style.marginLeft = '65%';
+              }
+            }
+          });
+          
+          // Refresh chat iframe by calling the function directly
+          if (normalizedUsername) {
+            const chatContainer = document.getElementById("twitch-chat");
+            if (chatContainer) {
+              chatContainer.innerHTML = "";
+              
+              // Create and add the iframe directly here instead of calling setupTwitchChatEmbed
+              const chatIframe = document.createElement("iframe");
+              const cacheBreaker = new Date().getTime();
+              chatIframe.setAttribute(
+                "src",
+                `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true&t=${cacheBreaker}`
+              );
+              chatIframe.setAttribute("title", `${normalizedUsername} chat`);
+              
+              // Apply styles directly
+              chatIframe.style.width = "100%";
+              chatIframe.style.border = "none";
+              
+              if (newIsMobile) {
+                chatIframe.style.height = "calc(100% - 50px)";
+                chatIframe.style.position = "absolute";
+                chatIframe.style.top = "0";
+                chatIframe.style.left = "0";
+                chatIframe.style.right = "0";
+                chatIframe.style.bottom = "50px";
+                chatIframe.style.zIndex = "5";
+              } else {
+                chatIframe.style.height = "100%";
+              }
+              
+              chatIframe.setAttribute("scrolling", "yes");
+              chatContainer.appendChild(chatIframe);
+              
+              // Position the input container correctly
+              const inputContainer = chatContainer.querySelector('.chat-input-container');
+              if (inputContainer) {
+                inputContainer.style.position = "absolute";
+                inputContainer.style.bottom = "0";
+                inputContainer.style.width = "100%";
+                inputContainer.style.zIndex = "10";
+              }
+            }
+          }
+        };
+        
+        // Apply immediately and with slight delay to ensure all elements are ready
+        applyOrientationStyles();
+        setTimeout(applyOrientationStyles, 300);
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -149,7 +327,7 @@ const StreamPage = () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, []);
+  }, [normalizedUsername]);
 
   // Add scroll management effect
   useEffect(() => {
@@ -247,11 +425,22 @@ const StreamPage = () => {
 
   const setupTwitchChatEmbed = () => {
     const chatContainer = document.getElementById("twitch-chat");
-    if (chatContainer) chatContainer.innerHTML = "";
-  
-    // Force any previous styles to be cleared
     if (chatContainer) {
-      chatContainer.style = "";
+      chatContainer.innerHTML = "";
+      
+      // Force clear ALL styles
+      chatContainer.setAttribute('style', '');
+      
+      // Apply necessary styles directly to container
+      if (isMobile) {
+        chatContainer.style.flex = '1';
+        chatContainer.style.borderRadius = '0';
+        chatContainer.style.display = 'flex';
+        chatContainer.style.flexDirection = 'column';
+        chatContainer.style.height = '100%';
+        chatContainer.style.position = 'relative';
+        chatContainer.style.overflow = 'hidden';
+      }
     }
   
     const chatIframe = document.createElement("iframe");
@@ -263,6 +452,8 @@ const StreamPage = () => {
       `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true&t=${cacheBreaker}`
     );
     chatIframe.setAttribute("title", `${normalizedUsername} chat`);
+    
+    // Apply styles directly - these will override any CSS
     chatIframe.style.width = "100%";
     chatIframe.style.border = "none";
     
@@ -274,41 +465,79 @@ const StreamPage = () => {
       chatIframe.style.left = "0";
       chatIframe.style.right = "0";
       chatIframe.style.bottom = "50px"; // Leave space for the input
+      chatIframe.style.zIndex = "5";
     } else {
       chatIframe.style.height = "100%";
     }
     
     chatIframe.setAttribute("scrolling", "yes");
-    chatContainer.appendChild(chatIframe);
+    
+    if (chatContainer) {
+      chatContainer.appendChild(chatIframe);
+    }
 
-    // For mobile, we need to handle the integration of the chat better
+    // For mobile, ensure styles and layout are correct
     if (isMobile) {
-      // Force iframe refresh when orientation changes
-      window.addEventListener('resize', () => {
-        const isPortrait = window.innerHeight > window.innerWidth;
+      // Force the chat input container to be correctly positioned
+      const inputContainer = document.querySelector('.chat-input-container');
+      if (inputContainer) {
+        inputContainer.style.height = isPortrait ? '50px' : '40px';
+        inputContainer.style.padding = isPortrait ? '8px' : '4px 8px';
+        inputContainer.style.background = '#18181b';
+        inputContainer.style.borderTop = '1px solid rgba(255, 255, 255, 0.1)';
+        inputContainer.style.display = 'flex';
+        inputContainer.style.alignItems = 'center';
+        inputContainer.style.gap = '8px';
+        inputContainer.style.width = '100%';
+        inputContainer.style.position = 'absolute';
+        inputContainer.style.bottom = '0';
+        inputContainer.style.left = '0';
+        inputContainer.style.right = '0';
+        inputContainer.style.zIndex = '10';
+      }
+
+      // Force iframe refresh on orientation changes
+      const orientationHandler = () => {
+        const currentIsPortrait = window.innerHeight > window.innerWidth;
         
-        // Delay resizing to ensure container layout is updated
+        // Delay to ensure container layout is updated
         setTimeout(() => {
           if (window.innerWidth <= 768) {
-            chatIframe.style.height = "calc(100% - 50px)";
+            if (chatIframe) {
+              chatIframe.style.height = "calc(100% - 50px)";
+              
+              // Force refresh to adjust to new container size
+              const newCacheBreaker = new Date().getTime();
+              const src = chatIframe.getAttribute("src").split('&t=')[0];
+              chatIframe.setAttribute("src", `${src}&t=${newCacheBreaker}`);
+            }
             
-            // Force refresh to adjust to new container size
-            const newCacheBreaker = new Date().getTime();
-            const src = chatIframe.getAttribute("src").split('&t=')[0];
-            chatIframe.setAttribute("src", `${src}&t=${newCacheBreaker}`);
+            // Update input container height
+            if (inputContainer) {
+              inputContainer.style.height = currentIsPortrait ? '50px' : '40px';
+              inputContainer.style.padding = currentIsPortrait ? '8px' : '4px 8px';
+            }
           } else {
-            chatIframe.style.height = "100%";
+            if (chatIframe) chatIframe.style.height = "100%";
           }
         }, 300);
-      });
+      };
+      
+      // Remove any existing event listeners before adding new ones
+      window.removeEventListener('resize', orientationHandler);
+      window.addEventListener('resize', orientationHandler);
 
-      // Set a timeout to verify layout after everything has loaded
+      // Ensure layout is correct after everything has loaded
       setTimeout(() => {
         if (chatIframe && chatContainer) {
-          // Double-check that styles are applied correctly
           chatIframe.style.height = "calc(100% - 50px)";
           chatIframe.style.position = "absolute";
           chatContainer.style.position = "relative";
+          
+          // Force refresh one more time
+          const finalCacheBreaker = new Date().getTime();
+          const src = chatIframe.getAttribute("src").split('&t=')[0];
+          chatIframe.setAttribute("src", `${src}&t=${finalCacheBreaker}`);
         }
       }, 1000);
     }
@@ -558,24 +787,122 @@ const StreamPage = () => {
   };
 
   return (
-    <div className="stream-page">
-      <h2 className="stream-title">Watching {username}&apos;s Stream</h2>
+    <div className="stream-page" style={isMobile ? {
+      padding: '0',
+      margin: '0',
+      minHeight: '100vh',
+      backgroundColor: '#0e0e10',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      paddingBottom: '120px'
+    } : {}}>
+      <h2 className="stream-title" style={isMobile ? {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        right: '0',
+        height: '40px',
+        padding: '0.5rem 1rem',
+        margin: '0',
+        fontSize: '1rem',
+        background: 'rgba(14, 14, 16, 0.95)',
+        backdropFilter: 'blur(10px)',
+        zIndex: '1000',
+        display: 'flex',
+        alignItems: 'center'
+      } : {}}>Watching {username}&apos;s Stream</h2>
       
-      <div className="stream-layout">
-        <div className="stream-video-container">
+      <div className="stream-layout" style={isMobile ? 
+        isPortrait ? {
+          flexDirection: 'column',
+          height: '100vh',
+          paddingTop: '40px',
+          position: 'fixed',
+          width: '100%',
+          zIndex: '900'
+        } : {
+          flexDirection: 'row',
+          height: '100vh',
+          paddingTop: '40px',
+          position: 'fixed',
+          width: '100%',
+          zIndex: '900'
+        } : {}}>
+        <div className="stream-video-container" style={isMobile ? 
+          isPortrait ? {
+            width: '100%',
+            height: '40vh',
+            position: 'relative',
+            zIndex: '900',
+            minHeight: '150px'
+          } : {
+            width: '65%',
+            height: 'calc(100vh - 40px)',
+            position: 'relative',
+            zIndex: '900',
+            minHeight: 'unset'
+          } : {}}>
           <div id="twitch-embed"></div>
         </div>
 
-        <div className="stream-right-container">
-          <div className="stream-chat-container" id="twitch-chat">
+        <div className="stream-right-container" style={isMobile ? 
+          isPortrait ? {
+            flex: '1',
+            width: '100%',
+            height: 'calc(60vh - 40px)',
+            position: 'relative',
+            background: '#18181b',
+            display: 'flex',
+            flexDirection: 'column'
+          } : {
+            width: '35%',
+            height: 'calc(100vh - 40px)',
+            position: 'relative',
+            background: '#18181b',
+            display: 'flex',
+            flexDirection: 'column'
+          } : {}}>
+          <div className="stream-chat-container" id="twitch-chat" style={isMobile ? {
+            flex: '1',
+            borderRadius: '0',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            position: 'relative'
+          } : {}}>
             {/* Chat iframe will be injected here */}
             {isMobile && (
-              <div className="chat-input-container">
+              <div className="chat-input-container" style={{
+                height: isPortrait ? '50px' : '40px',
+                padding: isPortrait ? '8px' : '4px 8px',
+                background: '#18181b',
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                position: 'absolute',
+                bottom: '0',
+                left: '0',
+                right: '0',
+                zIndex: '10'
+              }} id="chat-input-container">
                 <input
                   type="text"
                   className="chat-input"
                   placeholder="Send a message"
                   aria-label="Chat input"
+                  style={{
+                    flex: '1',
+                    height: isPortrait ? '36px' : '32px',
+                    padding: '0 12px',
+                    borderRadius: '18px',
+                    border: 'none',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: '#efeff1',
+                    fontSize: '14px'
+                  }}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       sendChatMessage(e.target.value);
@@ -591,6 +918,17 @@ const StreamPage = () => {
                   }}
                   className="chat-send-button"
                   aria-label="Send message"
+                  style={{
+                    height: isPortrait ? '36px' : '32px',
+                    padding: '0 12px',
+                    borderRadius: '18px',
+                    border: 'none',
+                    background: '#9147ff',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
                 >
                   Send
                 </button>
@@ -601,9 +939,22 @@ const StreamPage = () => {
       </div>
 
       {/* Show these sections on all devices */}
-      <div className="info-row">
+      <div className="info-row" style={isMobile ? {
+        marginTop: isPortrait ? '100vh' : '0',
+        marginLeft: isPortrait ? '0' : '65%',
+        position: 'relative',
+        zIndex: '800',
+        flexDirection: 'column',
+        padding: '0.5rem',
+        gap: '0.5rem',
+        display: 'block'
+      } : {}}>
         {streamerInfo.bio && (
-          <div className="streamer-bio-card">
+          <div className="streamer-bio-card" style={isMobile ? {
+            width: '100%',
+            margin: '0',
+            borderRadius: '8px'
+          } : {}}>
             <div className="bio-header">
               {streamerInfo.profileImageUrl && (
                 <img 
@@ -618,7 +969,11 @@ const StreamPage = () => {
           </div>
         )}
 
-        <div className="top-supporters-card">
+        <div className="top-supporters-card" style={isMobile ? {
+          width: '100%',
+          margin: '0',
+          borderRadius: '8px'
+        } : {}}>
           <h3>💎 Top Supporters</h3>
           <div className="supporters-list">
             {topSupporters.map((supporter, index) => (
@@ -635,24 +990,42 @@ const StreamPage = () => {
         </div>
       </div>
 
-      <div className="vote-stats-container">
-        <div className="stat-box">
-          <p>Votes Today</p>
-          <h4>{voteStats.today}</h4>
+      <div className="vote-stats-container" style={isMobile ? {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '0.5rem',
+        padding: '0.5rem',
+        marginTop: isPortrait ? '0.5rem' : '0',
+        marginLeft: isPortrait ? '0' : '65%',
+        position: 'relative',
+        zIndex: '800'
+      } : {}}>
+        <div className="stat-box" style={isMobile ? { padding: '0.75rem' } : {}}>
+          <p style={isMobile ? { fontSize: '0.8rem' } : {}}>Votes Today</p>
+          <h4 style={isMobile ? { fontSize: '1.2rem' } : {}}>{voteStats.today}</h4>
         </div>
-        <div className="stat-box">
-          <p>Votes This Week</p>
-          <h4>{voteStats.week}</h4>
+        <div className="stat-box" style={isMobile ? { padding: '0.75rem' } : {}}>
+          <p style={isMobile ? { fontSize: '0.8rem' } : {}}>Votes This Week</p>
+          <h4 style={isMobile ? { fontSize: '1.2rem' } : {}}>{voteStats.week}</h4>
         </div>
-        <div className="stat-box">
-          <p>All Time Votes</p>
-          <h4>{voteStats.allTime}</h4>
+        <div className="stat-box" style={isMobile ? { padding: '0.75rem' } : {}}>
+          <p style={isMobile ? { fontSize: '0.8rem' } : {}}>All Time Votes</p>
+          <h4 style={isMobile ? { fontSize: '1.2rem' } : {}}>{voteStats.allTime}</h4>
         </div>
       </div>
 
-      <div className="leaderboard-info-card">
+      <div className="leaderboard-info-card" style={isMobile ? {
+        margin: '0.5rem',
+        padding: '0.75rem',
+        marginLeft: isPortrait ? '0.5rem' : '65%',
+        position: 'relative',
+        zIndex: '800'
+      } : {}}>
         <h3>🏆 Current Competition</h3>
-        <div className="leaderboard-stats">
+        <div className="leaderboard-stats" style={isMobile ? {
+          gridTemplateColumns: '1fr 1fr',
+          gap: '0.5rem'
+        } : {}}>
           <div className="stat-item">
             <p>Time Remaining</p>
             <h4>{timeRemaining || 'Loading...'}</h4>
@@ -664,7 +1037,16 @@ const StreamPage = () => {
         </div>
       </div>
 
-      <div className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}>
+      <div 
+        className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
+        style={isMobile ? {
+          position: 'sticky',
+          bottom: '0',
+          padding: '0.75rem',
+          marginLeft: isPortrait ? '0' : '65%',
+          zIndex: '800'
+        } : {}}
+      >
         <button 
           className="collapse-toggle"
           onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
