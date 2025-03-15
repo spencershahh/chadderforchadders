@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 import WatchAdButton from '../components/WatchAdButton';
@@ -36,6 +36,23 @@ const StreamPage = () => {
   const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  const [isIOS, setIsIOS] = useState(false);
+  const layoutUpdatedRef = useRef(false);
+
+  useEffect(() => {
+    // Detect iOS devices
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setIsIOS(iOS);
+    
+    // If iOS, force mobile view regardless of window width
+    if (iOS) {
+      setIsMobile(true);
+    }
+    
+    // Reset layout updated flag when component mounts
+    layoutUpdatedRef.current = false;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -54,9 +71,36 @@ const StreamPage = () => {
           // Apply mobile styles to document body to ensure full viewport usage
           document.body.style.overflow = 'auto';
           document.body.style.position = 'relative';
+          document.body.style.paddingBottom = '0px';
+          document.body.style.margin = '0px';
+          document.documentElement.style.height = '100%';
+          document.documentElement.style.width = '100%';
+          
+          // iPhone specific overrides
+          if (isIOS) {
+            document.body.style.height = '100%';
+            document.body.style.width = '100%';
+            document.body.style.position = 'fixed';
+            document.body.style.overflow = 'hidden';
+            
+            // Force viewport settings
+            const viewportMeta = document.querySelector('meta[name="viewport"]');
+            if (viewportMeta) {
+              viewportMeta.setAttribute('content', 
+                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+            } else {
+              const newMeta = document.createElement('meta');
+              newMeta.name = 'viewport';
+              newMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+              document.head.appendChild(newMeta);
+            }
+          }
           
           // Force any stream page elements to use our styles
           const applyMobileStyles = () => {
+            // Mark that we're updating the layout
+            layoutUpdatedRef.current = true;
+            
             const streamPage = document.querySelector('.stream-page');
             if (streamPage) {
               streamPage.style.padding = '0';
@@ -66,6 +110,16 @@ const StreamPage = () => {
               streamPage.style.flexDirection = 'column';
               streamPage.style.overflow = 'hidden';
               streamPage.style.paddingBottom = '120px';
+              // Force iOS positioning
+              if (isIOS) {
+                streamPage.style.position = 'absolute';
+                streamPage.style.top = '0';
+                streamPage.style.left = '0';
+                streamPage.style.right = '0';
+                streamPage.style.bottom = '0';
+                streamPage.style.width = '100vw';
+                streamPage.style.height = '100vh';
+              }
             }
 
             const streamLayout = document.querySelector('.stream-layout');
@@ -76,6 +130,14 @@ const StreamPage = () => {
               streamLayout.style.position = 'fixed';
               streamLayout.style.width = '100%';
               streamLayout.style.zIndex = '900';
+              // Force iOS positioning
+              if (isIOS) {
+                streamLayout.style.top = '0';
+                streamLayout.style.left = '0';
+                streamLayout.style.bottom = '0';
+                streamLayout.style.right = '0';
+                streamLayout.style.width = '100vw';
+              }
             }
 
             const videoContainer = document.querySelector('.stream-video-container');
@@ -89,6 +151,20 @@ const StreamPage = () => {
               }
               videoContainer.style.position = 'relative';
               videoContainer.style.zIndex = '900';
+              
+              // For iOS we need to ensure the video container has explicit position
+              if (isIOS) {
+                videoContainer.style.position = 'absolute';
+                videoContainer.style.top = '40px';
+                videoContainer.style.left = '0';
+                if (isPortrait) {
+                  videoContainer.style.right = '0';
+                  videoContainer.style.height = '40vh';
+                } else {
+                  videoContainer.style.width = '65vw';
+                  videoContainer.style.bottom = '0';
+                }
+              }
             }
 
             const chatContainer = document.querySelector('.stream-right-container');
@@ -105,6 +181,47 @@ const StreamPage = () => {
               chatContainer.style.background = '#18181b';
               chatContainer.style.display = 'flex';
               chatContainer.style.flexDirection = 'column';
+              
+              // For iOS-specific positioning
+              if (isIOS) {
+                chatContainer.style.position = 'absolute';
+                if (isPortrait) {
+                  chatContainer.style.top = 'calc(40vh + 40px)';
+                  chatContainer.style.left = '0';
+                  chatContainer.style.right = '0';
+                  chatContainer.style.bottom = '0';
+                } else {
+                  chatContainer.style.top = '40px';
+                  chatContainer.style.right = '0';
+                  chatContainer.style.bottom = '0';
+                  chatContainer.style.width = '35vw';
+                }
+              }
+            }
+            
+            // For iOS, reposition the info elements
+            if (isIOS) {
+              const infoElements = [
+                '.info-row', 
+                '.vote-stats-container', 
+                '.leaderboard-info-card', 
+                '.floating-vote-container'
+              ];
+              
+              infoElements.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                  if (isPortrait) {
+                    element.style.marginTop = selector === '.info-row' ? '100vh' : '0.5rem';
+                    element.style.marginLeft = '0';
+                  } else {
+                    element.style.marginTop = '0';
+                    element.style.marginLeft = '65%';
+                  }
+                  element.style.zIndex = '800';
+                  element.style.position = 'relative';
+                }
+              });
             }
           };
 
@@ -114,6 +231,7 @@ const StreamPage = () => {
           // And after a short delay to ensure DOM is updated
           setTimeout(applyMobileStyles, 100);
           setTimeout(applyMobileStyles, 500);
+          setTimeout(applyMobileStyles, 1000);
         }
         
         await Promise.all([
@@ -201,11 +319,11 @@ const StreamPage = () => {
         chatContainer.innerHTML = "";
       }
     };
-  }, [normalizedUsername]);
+  }, [normalizedUsername, isIOS, isMobile, isPortrait]);
 
   useEffect(() => {
     const handleResize = () => {
-      const newIsMobile = window.innerWidth <= 768;
+      const newIsMobile = window.innerWidth <= 768 || isIOS;
       const newIsPortrait = window.innerHeight > window.innerWidth;
       
       setIsMobile(newIsMobile);
@@ -214,6 +332,9 @@ const StreamPage = () => {
       // If mobile state or orientation changes, update layout immediately
       if (newIsMobile) {
         const applyOrientationStyles = () => {
+          // Mark that we're updating the layout
+          layoutUpdatedRef.current = true;
+          
           // Update stream layout orientation
           const streamLayout = document.querySelector('.stream-layout');
           if (streamLayout) {
@@ -227,10 +348,26 @@ const StreamPage = () => {
               videoContainer.style.width = '100%';
               videoContainer.style.height = '40vh';
               videoContainer.style.minHeight = '150px';
+              
+              if (isIOS) {
+                videoContainer.style.position = 'absolute';
+                videoContainer.style.top = '40px';
+                videoContainer.style.left = '0';
+                videoContainer.style.right = '0';
+                videoContainer.style.height = '40vh';
+              }
             } else {
               videoContainer.style.width = '65%';
               videoContainer.style.height = 'calc(100vh - 40px)';
               videoContainer.style.minHeight = 'unset';
+              
+              if (isIOS) {
+                videoContainer.style.position = 'absolute';
+                videoContainer.style.top = '40px';
+                videoContainer.style.left = '0';
+                videoContainer.style.bottom = '0';
+                videoContainer.style.width = '65vw';
+              }
             }
           }
           
@@ -241,9 +378,25 @@ const StreamPage = () => {
               chatContainer.style.flex = '1';
               chatContainer.style.width = '100%';
               chatContainer.style.height = 'calc(60vh - 40px)';
+              
+              if (isIOS) {
+                chatContainer.style.position = 'absolute';
+                chatContainer.style.top = 'calc(40vh + 40px)';
+                chatContainer.style.left = '0';
+                chatContainer.style.right = '0';
+                chatContainer.style.bottom = '0';
+              }
             } else {
               chatContainer.style.width = '35%';
               chatContainer.style.height = 'calc(100vh - 40px)';
+              
+              if (isIOS) {
+                chatContainer.style.position = 'absolute';
+                chatContainer.style.top = '40px';
+                chatContainer.style.right = '0';
+                chatContainer.style.bottom = '0';
+                chatContainer.style.width = '35vw';
+              }
             }
           }
           
@@ -303,7 +456,7 @@ const StreamPage = () => {
               chatContainer.appendChild(chatIframe);
               
               // Position the input container correctly
-              const inputContainer = chatContainer.querySelector('.chat-input-container');
+              const inputContainer = document.getElementById('chat-input-container');
               if (inputContainer) {
                 inputContainer.style.position = "absolute";
                 inputContainer.style.bottom = "0";
@@ -317,17 +470,37 @@ const StreamPage = () => {
         // Apply immediately and with slight delay to ensure all elements are ready
         applyOrientationStyles();
         setTimeout(applyOrientationStyles, 300);
+        
+        // For iOS, apply styles multiple times to ensure they stick
+        if (isIOS) {
+          setTimeout(applyOrientationStyles, 500);
+          setTimeout(applyOrientationStyles, 1000);
+          setTimeout(applyOrientationStyles, 2000);
+        }
       }
     };
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
+    
+    // For iOS devices, force layout update after orientation change
+    if (isIOS) {
+      window.addEventListener('orientationchange', () => {
+        // Reset layout updated flag
+        layoutUpdatedRef.current = false;
+        
+        // Force multiple updates after orientation change
+        setTimeout(handleResize, 100);
+        setTimeout(handleResize, 500);
+        setTimeout(handleResize, 1000);
+      });
+    }
 
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, [normalizedUsername]);
+  }, [normalizedUsername, isIOS]);
 
   // Add scroll management effect
   useEffect(() => {
@@ -440,6 +613,15 @@ const StreamPage = () => {
         chatContainer.style.height = '100%';
         chatContainer.style.position = 'relative';
         chatContainer.style.overflow = 'hidden';
+        
+        // iOS specific styling
+        if (isIOS) {
+          chatContainer.style.position = 'absolute';
+          chatContainer.style.top = '0';
+          chatContainer.style.left = '0';
+          chatContainer.style.right = '0';
+          chatContainer.style.bottom = '0';
+        }
       }
     }
   
@@ -456,6 +638,7 @@ const StreamPage = () => {
     // Apply styles directly - these will override any CSS
     chatIframe.style.width = "100%";
     chatIframe.style.border = "none";
+    chatIframe.setAttribute("scrolling", "yes");
     
     // Set different height for mobile vs desktop
     if (isMobile) {
@@ -470,8 +653,6 @@ const StreamPage = () => {
       chatIframe.style.height = "100%";
     }
     
-    chatIframe.setAttribute("scrolling", "yes");
-    
     if (chatContainer) {
       chatContainer.appendChild(chatIframe);
     }
@@ -479,22 +660,24 @@ const StreamPage = () => {
     // For mobile, ensure styles and layout are correct
     if (isMobile) {
       // Force the chat input container to be correctly positioned
-      const inputContainer = document.querySelector('.chat-input-container');
-      if (inputContainer) {
-        inputContainer.style.height = isPortrait ? '50px' : '40px';
-        inputContainer.style.padding = isPortrait ? '8px' : '4px 8px';
-        inputContainer.style.background = '#18181b';
-        inputContainer.style.borderTop = '1px solid rgba(255, 255, 255, 0.1)';
-        inputContainer.style.display = 'flex';
-        inputContainer.style.alignItems = 'center';
-        inputContainer.style.gap = '8px';
-        inputContainer.style.width = '100%';
-        inputContainer.style.position = 'absolute';
-        inputContainer.style.bottom = '0';
-        inputContainer.style.left = '0';
-        inputContainer.style.right = '0';
-        inputContainer.style.zIndex = '10';
-      }
+      setTimeout(() => {
+        const inputContainer = document.getElementById('chat-input-container');
+        if (inputContainer) {
+          inputContainer.style.height = isPortrait ? '50px' : '40px';
+          inputContainer.style.padding = isPortrait ? '8px' : '4px 8px';
+          inputContainer.style.background = '#18181b';
+          inputContainer.style.borderTop = '1px solid rgba(255, 255, 255, 0.1)';
+          inputContainer.style.display = 'flex';
+          inputContainer.style.alignItems = 'center';
+          inputContainer.style.gap = '8px';
+          inputContainer.style.width = '100%';
+          inputContainer.style.position = 'absolute';
+          inputContainer.style.bottom = '0';
+          inputContainer.style.left = '0';
+          inputContainer.style.right = '0';
+          inputContainer.style.zIndex = '10';
+        }
+      }, 500);
 
       // Force iframe refresh on orientation changes
       const orientationHandler = () => {
@@ -502,7 +685,7 @@ const StreamPage = () => {
         
         // Delay to ensure container layout is updated
         setTimeout(() => {
-          if (window.innerWidth <= 768) {
+          if (window.innerWidth <= 768 || isIOS) {
             if (chatIframe) {
               chatIframe.style.height = "calc(100% - 50px)";
               
@@ -513,6 +696,7 @@ const StreamPage = () => {
             }
             
             // Update input container height
+            const inputContainer = document.getElementById('chat-input-container');
             if (inputContainer) {
               inputContainer.style.height = currentIsPortrait ? '50px' : '40px';
               inputContainer.style.padding = currentIsPortrait ? '8px' : '4px 8px';
@@ -526,6 +710,7 @@ const StreamPage = () => {
       // Remove any existing event listeners before adding new ones
       window.removeEventListener('resize', orientationHandler);
       window.addEventListener('resize', orientationHandler);
+      window.addEventListener('orientationchange', orientationHandler);
 
       // Ensure layout is correct after everything has loaded
       setTimeout(() => {
@@ -540,6 +725,28 @@ const StreamPage = () => {
           chatIframe.setAttribute("src", `${src}&t=${finalCacheBreaker}`);
         }
       }, 1000);
+      
+      // For iOS devices, apply styles again after a longer delay
+      if (isIOS) {
+        setTimeout(() => {
+          if (chatIframe && chatContainer) {
+            // Force refresh once more for iOS
+            const iosCacheBreaker = new Date().getTime();
+            const src = chatIframe.getAttribute("src").split('&t=')[0];
+            chatIframe.setAttribute("src", `${src}&t=${iosCacheBreaker}`);
+            
+            // Re-apply critical iOS styles
+            chatContainer.style.position = 'absolute';
+            chatContainer.style.top = '0';
+            chatContainer.style.left = '0';
+            chatContainer.style.right = '0';
+            chatContainer.style.bottom = '0';
+            
+            chatIframe.style.height = "calc(100% - 50px)";
+            chatIframe.style.position = "absolute";
+          }
+        }, 2000);
+      }
     }
   };
 
@@ -794,8 +1001,17 @@ const StreamPage = () => {
       backgroundColor: '#0e0e10',
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
-      paddingBottom: '120px'
+      overflow: isIOS ? 'hidden' : 'auto',
+      paddingBottom: '120px',
+      ...(isIOS ? {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        right: '0',
+        bottom: '0',
+        width: '100vw',
+        height: '100vh'
+      } : {})
     } : {}}>
       <h2 className="stream-title" style={isMobile ? {
         position: 'fixed',
