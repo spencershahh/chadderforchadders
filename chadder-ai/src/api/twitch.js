@@ -42,6 +42,7 @@ const FALLBACK_STREAMERS = [
 export const fetchStreamers = async () => {
   try {
     console.log("Starting fetchStreamers process...");
+    console.log("Browser info:", navigator.userAgent);
     let streamers = [];
     
     // First, fetch streamers from Supabase
@@ -53,35 +54,49 @@ export const fetchStreamers = async () => {
   
       if (error) {
         console.error('Error fetching streamers from Supabase:', error);
+        return { error: true, message: 'Failed to load streamers from database.' };
       } else if (dbStreamers && dbStreamers.length > 0) {
         console.log('Found streamers in database:', dbStreamers.length);
         streamers = dbStreamers;
       } else {
-        console.warn('No streamers found in database, using fallback data');
-        streamers = FALLBACK_STREAMERS;
+        console.warn('No streamers found in database');
+        return { error: true, message: 'No streamers found in the database.' };
       }
     } catch (dbError) {
       console.error('Error querying Supabase:', dbError);
-      streamers = FALLBACK_STREAMERS;
+      return { error: true, message: 'Failed to connect to the database.' };
     }
-    
-    // Process with fallback data first to ensure we always have something to display
-    const processedStreamers = getFallbackStreamerData(streamers);
-    console.log('Generated fallback data for', processedStreamers.length, 'streamers');
     
     // Try to get enriched data from backend
     if (API_URL) {
       try {
         // Fetch enriched data from our backend API
         const streamerLogins = streamers.map(s => s.username || s.name).join(',');
-        console.log(`Fetching enriched data for streamers from backend: ${API_URL}/api/twitch/streamers?logins=${streamerLogins}`);
+        const apiUrl = `${API_URL}/api/twitch/streamers?logins=${streamerLogins}`;
+        console.log(`Attempting to fetch enriched data from: ${apiUrl}`);
         
-        const response = await fetch(`${API_URL}/api/twitch/streamers?logins=${streamerLogins}`, {
+        // First perform a preflight check on the API
+        try {
+          const preflightResponse = await fetch(`${API_URL}/api/health`, { 
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+          });
+          console.log('API health check status:', preflightResponse.status);
+        } catch (preflightError) {
+          console.warn('API preflight check failed:', preflightError.message);
+          // Continue anyway to the main request
+        }
+        
+        const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
-          }
+          },
+          mode: 'cors',
+          cache: 'no-cache',
+          credentials: 'same-origin'
         });
         
         if (response.ok) {
@@ -104,6 +119,7 @@ export const fetchStreamers = async () => {
             return enrichedData;
           } else {
             console.warn('Backend returned empty enriched data');
+            return { error: true, message: 'No streamer data returned from server.' };
           }
         } else {
           console.warn('Backend returned error status:', response.status);
@@ -113,20 +129,32 @@ export const fetchStreamers = async () => {
           } catch (e) {
             console.warn('Could not parse error response');
           }
+          return { 
+            error: true, 
+            message: `Failed to load streamers from server (${response.status})`,
+            statusCode: response.status 
+          };
         }
       } catch (enrichError) {
         console.error('Error fetching enriched data:', enrichError.message);
+        console.error('Error details:', enrichError);
+        return { 
+          error: true, 
+          message: 'Failed to load streamers. The server may be temporarily unavailable.',
+          error: enrichError.message
+        };
       }
     } else {
-      console.warn('No API_URL configured, skipping enriched data fetch. Current API_URL:', API_URL);
+      console.log('API_URL is not configured');
+      return { error: true, message: 'API URL is not configured properly.' };
     }
-    
-    // Return the fallback data if we couldn't get enriched data
-    console.log('Returning fallback streamer data');
-    return processedStreamers;
   } catch (error) {
     console.error("Critical error in fetchStreamers:", error);
-    return getFallbackStreamerData(FALLBACK_STREAMERS);
+    return { 
+      error: true, 
+      message: 'An unexpected error occurred while loading streamers.',
+      error: error.message
+    };
   }
 };
 

@@ -113,7 +113,11 @@ const Discover = () => {
       const streamersData = await fetchStreamers();
       console.log('Loaded streamers from API:', streamersData);
       
-      if (streamersData && streamersData.length > 0) {
+      // Check if the result is an error object
+      if (streamersData && streamersData.error) {
+        setLoadError(streamersData.message || 'Failed to load streamers. Please try refreshing the page.');
+        setStreamers([]);
+      } else if (streamersData && streamersData.length > 0) {
         setStreamers(streamersData);
       } else {
         setLoadError('No streamers found. Please try refreshing the page.');
@@ -586,7 +590,16 @@ const Discover = () => {
           </div>
         ) : loadError ? (
           <div className={styles.messageContainer}>
-            <p>{loadError}</p>
+            <div className={styles.errorMessage}>
+              <h3>Oops! We couldn't load the streamers</h3>
+              <p>{loadError}</p>
+              <button 
+                onClick={() => loadStreamers()} 
+                className={styles.retryButton}
+              >
+                Retry
+              </button>
+            </div>
           </div>
         ) : sortedStreamers.length === 0 ? (
           <div className={styles.messageContainer}>

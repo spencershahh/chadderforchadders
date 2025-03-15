@@ -33,25 +33,47 @@ const StreamPage = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [streamerInfo, setStreamerInfo] = useState({ bio: '', profileImageUrl: '' });
   const [topSupporters, setTopSupporters] = useState([]);
-  const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(false);
+  const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isIOS, setIsIOS] = useState(false);
   const layoutUpdatedRef = useRef(false);
 
   useEffect(() => {
-    // Detect iOS devices
+    // More robust iOS detection
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+               (navigator.userAgent.includes("Mac") && "ontouchend" in document);
     setIsIOS(iOS);
     
     // If iOS, force mobile view regardless of window width
     if (iOS) {
       setIsMobile(true);
+      
+      // Add iOS class to html element for CSS targeting
+      document.documentElement.classList.add('ios');
+      
+      // Prevent double-tap zoom on iOS
+      document.addEventListener('touchend', function(event) {
+        const now = Date.now();
+        const DOUBLE_TAP_THRESHOLD = 300;
+        if (now - lastTouchEnd <= DOUBLE_TAP_THRESHOLD) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, false);
+      
+      // Prevent pinch zoom on iOS
+      document.addEventListener('gesturestart', function(event) {
+        event.preventDefault();
+      });
     }
     
     // Reset layout updated flag when component mounts
     layoutUpdatedRef.current = false;
+    
+    // Initialize lastTouchEnd for iOS double-tap prevention
+    let lastTouchEnd = 0;
   }, []);
 
   useEffect(() => {
@@ -66,24 +88,13 @@ const StreamPage = () => {
         // Force scroll to top before loading content
         window.scrollTo(0, 0);
         
-        // For mobile devices, directly set critical styles on document elements
+        // For mobile devices, add appropriate classes and configure viewport
         if (isMobile) {
-          // Apply mobile styles to document body to ensure full viewport usage
-          document.body.style.overflow = 'auto';
-          document.body.style.position = 'relative';
-          document.body.style.paddingBottom = '0px';
-          document.body.style.margin = '0px';
-          document.documentElement.style.height = '100%';
-          document.documentElement.style.width = '100%';
-          
-          // iPhone specific overrides
+          // Apply iOS-specific optimizations
           if (isIOS) {
-            document.body.style.height = '100%';
-            document.body.style.width = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
+            document.documentElement.classList.add('ios-device');
             
-            // Force viewport settings
+            // Force viewport settings for iOS
             const viewportMeta = document.querySelector('meta[name="viewport"]');
             if (viewportMeta) {
               viewportMeta.setAttribute('content', 
@@ -94,144 +105,16 @@ const StreamPage = () => {
               newMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
               document.head.appendChild(newMeta);
             }
+            
+            // Add viewport-fit=cover meta tag for iPhone X and newer
+            const viewportFitMeta = document.querySelector('meta[name="viewport-fit"]');
+            if (!viewportFitMeta) {
+              const newViewportFitMeta = document.createElement('meta');
+              newViewportFitMeta.name = 'viewport-fit';
+              newViewportFitMeta.content = 'cover';
+              document.head.appendChild(newViewportFitMeta);
+            }
           }
-          
-          // Force any stream page elements to use our styles
-          const applyMobileStyles = () => {
-            // Mark that we're updating the layout
-            layoutUpdatedRef.current = true;
-            
-            const streamPage = document.querySelector('.stream-page');
-            if (streamPage) {
-              streamPage.style.padding = '0';
-              streamPage.style.margin = '0';
-              streamPage.style.minHeight = '100vh';
-              streamPage.style.display = 'flex';
-              streamPage.style.flexDirection = 'column';
-              streamPage.style.overflow = 'hidden';
-              streamPage.style.paddingBottom = '120px';
-              // Force iOS positioning
-              if (isIOS) {
-                streamPage.style.position = 'absolute';
-                streamPage.style.top = '0';
-                streamPage.style.left = '0';
-                streamPage.style.right = '0';
-                streamPage.style.bottom = '0';
-                streamPage.style.width = '100vw';
-                streamPage.style.height = '100vh';
-              }
-            }
-
-            const streamLayout = document.querySelector('.stream-layout');
-            if (streamLayout) {
-              streamLayout.style.flexDirection = isPortrait ? 'column' : 'row';
-              streamLayout.style.height = '100vh';
-              streamLayout.style.paddingTop = '40px';
-              streamLayout.style.position = 'fixed';
-              streamLayout.style.width = '100%';
-              streamLayout.style.zIndex = '900';
-              // Force iOS positioning
-              if (isIOS) {
-                streamLayout.style.top = '0';
-                streamLayout.style.left = '0';
-                streamLayout.style.bottom = '0';
-                streamLayout.style.right = '0';
-                streamLayout.style.width = '100vw';
-              }
-            }
-
-            const videoContainer = document.querySelector('.stream-video-container');
-            if (videoContainer) {
-              if (isPortrait) {
-                videoContainer.style.width = '100%';
-                videoContainer.style.height = '40vh';
-              } else {
-                videoContainer.style.width = '65%';
-                videoContainer.style.height = 'calc(100vh - 40px)';
-              }
-              videoContainer.style.position = 'relative';
-              videoContainer.style.zIndex = '900';
-              
-              // For iOS we need to ensure the video container has explicit position
-              if (isIOS) {
-                videoContainer.style.position = 'absolute';
-                videoContainer.style.top = '40px';
-                videoContainer.style.left = '0';
-                if (isPortrait) {
-                  videoContainer.style.right = '0';
-                  videoContainer.style.height = '40vh';
-                } else {
-                  videoContainer.style.width = '65vw';
-                  videoContainer.style.bottom = '0';
-                }
-              }
-            }
-
-            const chatContainer = document.querySelector('.stream-right-container');
-            if (chatContainer) {
-              if (isPortrait) {
-                chatContainer.style.flex = '1';
-                chatContainer.style.width = '100%';
-                chatContainer.style.height = 'calc(60vh - 40px)';
-              } else {
-                chatContainer.style.width = '35%';
-                chatContainer.style.height = 'calc(100vh - 40px)';
-              }
-              chatContainer.style.position = 'relative';
-              chatContainer.style.background = '#18181b';
-              chatContainer.style.display = 'flex';
-              chatContainer.style.flexDirection = 'column';
-              
-              // For iOS-specific positioning
-              if (isIOS) {
-                chatContainer.style.position = 'absolute';
-                if (isPortrait) {
-                  chatContainer.style.top = 'calc(40vh + 40px)';
-                  chatContainer.style.left = '0';
-                  chatContainer.style.right = '0';
-                  chatContainer.style.bottom = '0';
-                } else {
-                  chatContainer.style.top = '40px';
-                  chatContainer.style.right = '0';
-                  chatContainer.style.bottom = '0';
-                  chatContainer.style.width = '35vw';
-                }
-              }
-            }
-            
-            // For iOS, reposition the info elements
-            if (isIOS) {
-              const infoElements = [
-                '.info-row', 
-                '.vote-stats-container', 
-                '.leaderboard-info-card', 
-                '.floating-vote-container'
-              ];
-              
-              infoElements.forEach(selector => {
-                const element = document.querySelector(selector);
-                if (element) {
-                  if (isPortrait) {
-                    element.style.marginTop = selector === '.info-row' ? '100vh' : '0.5rem';
-                    element.style.marginLeft = '0';
-                  } else {
-                    element.style.marginTop = '0';
-                    element.style.marginLeft = '65%';
-                  }
-                  element.style.zIndex = '800';
-                  element.style.position = 'relative';
-                }
-              });
-            }
-          };
-
-          // Apply styles immediately 
-          applyMobileStyles();
-          
-          // And after a short delay to ensure DOM is updated
-          setTimeout(applyMobileStyles, 100);
-          setTimeout(applyMobileStyles, 500);
-          setTimeout(applyMobileStyles, 1000);
         }
         
         await Promise.all([
@@ -329,176 +212,80 @@ const StreamPage = () => {
       setIsMobile(newIsMobile);
       setIsPortrait(newIsPortrait);
       
-      // If mobile state or orientation changes, update layout immediately
-      if (newIsMobile) {
-        const applyOrientationStyles = () => {
-          // Mark that we're updating the layout
-          layoutUpdatedRef.current = true;
-          
-          // Update stream layout orientation
-          const streamLayout = document.querySelector('.stream-layout');
-          if (streamLayout) {
-            streamLayout.style.flexDirection = newIsPortrait ? 'column' : 'row';
-          }
-          
-          // Update video container size
-          const videoContainer = document.querySelector('.stream-video-container');
-          if (videoContainer) {
-            if (newIsPortrait) {
-              videoContainer.style.width = '100%';
-              videoContainer.style.height = '40vh';
-              videoContainer.style.minHeight = '150px';
-              
-              if (isIOS) {
-                videoContainer.style.position = 'absolute';
-                videoContainer.style.top = '40px';
-                videoContainer.style.left = '0';
-                videoContainer.style.right = '0';
-                videoContainer.style.height = '40vh';
-              }
-            } else {
-              videoContainer.style.width = '65%';
-              videoContainer.style.height = 'calc(100vh - 40px)';
-              videoContainer.style.minHeight = 'unset';
-              
-              if (isIOS) {
-                videoContainer.style.position = 'absolute';
-                videoContainer.style.top = '40px';
-                videoContainer.style.left = '0';
-                videoContainer.style.bottom = '0';
-                videoContainer.style.width = '65vw';
-              }
-            }
-          }
-          
-          // Update chat container layout
-          const chatContainer = document.querySelector('.stream-right-container');
-          if (chatContainer) {
-            if (newIsPortrait) {
-              chatContainer.style.flex = '1';
-              chatContainer.style.width = '100%';
-              chatContainer.style.height = 'calc(60vh - 40px)';
-              
-              if (isIOS) {
-                chatContainer.style.position = 'absolute';
-                chatContainer.style.top = 'calc(40vh + 40px)';
-                chatContainer.style.left = '0';
-                chatContainer.style.right = '0';
-                chatContainer.style.bottom = '0';
-              }
-            } else {
-              chatContainer.style.width = '35%';
-              chatContainer.style.height = 'calc(100vh - 40px)';
-              
-              if (isIOS) {
-                chatContainer.style.position = 'absolute';
-                chatContainer.style.top = '40px';
-                chatContainer.style.right = '0';
-                chatContainer.style.bottom = '0';
-                chatContainer.style.width = '35vw';
-              }
-            }
-          }
-          
-          // Update info sections
-          const infoElements = [
-            '.info-row', 
-            '.vote-stats-container', 
-            '.leaderboard-info-card', 
-            '.floating-vote-container'
-          ];
-          
-          infoElements.forEach(selector => {
-            const element = document.querySelector(selector);
-            if (element) {
-              if (newIsPortrait) {
-                element.style.marginTop = selector === '.info-row' ? '100vh' : '0.5rem';
-                element.style.marginLeft = '0';
-              } else {
-                element.style.marginTop = '0';
-                element.style.marginLeft = '65%';
-              }
-            }
-          });
-          
-          // Refresh chat iframe by calling the function directly
-          if (normalizedUsername) {
-            const chatContainer = document.getElementById("twitch-chat");
-            if (chatContainer) {
-              chatContainer.innerHTML = "";
-              
-              // Create and add the iframe directly here instead of calling setupTwitchChatEmbed
-              const chatIframe = document.createElement("iframe");
-              const cacheBreaker = new Date().getTime();
-              chatIframe.setAttribute(
-                "src",
-                `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true&t=${cacheBreaker}`
-              );
-              chatIframe.setAttribute("title", `${normalizedUsername} chat`);
-              
-              // Apply styles directly
-              chatIframe.style.width = "100%";
-              chatIframe.style.border = "none";
-              
-              if (newIsMobile) {
-                chatIframe.style.height = "calc(100% - 50px)";
-                chatIframe.style.position = "absolute";
-                chatIframe.style.top = "0";
-                chatIframe.style.left = "0";
-                chatIframe.style.right = "0";
-                chatIframe.style.bottom = "50px";
-                chatIframe.style.zIndex = "5";
-              } else {
-                chatIframe.style.height = "100%";
-              }
-              
-              chatIframe.setAttribute("scrolling", "yes");
-              chatContainer.appendChild(chatIframe);
-              
-              // Position the input container correctly
-              const inputContainer = document.getElementById('chat-input-container');
-              if (inputContainer) {
-                inputContainer.style.position = "absolute";
-                inputContainer.style.bottom = "0";
-                inputContainer.style.width = "100%";
-                inputContainer.style.zIndex = "10";
-              }
-            }
-          }
-        };
+      // Mark that we're updating the layout
+      layoutUpdatedRef.current = true;
+    };
+    
+    // More robust orientation change handling
+    const handleOrientationChange = () => {
+      // Some devices need a timeout to correctly report dimensions after orientation change
+      setTimeout(() => {
+        const newIsPortrait = window.innerHeight > window.innerWidth;
+        setIsPortrait(newIsPortrait);
+        layoutUpdatedRef.current = true;
         
-        // Apply immediately and with slight delay to ensure all elements are ready
-        applyOrientationStyles();
-        setTimeout(applyOrientationStyles, 300);
-        
-        // For iOS, apply styles multiple times to ensure they stick
+        // iOS needs multiple updates after orientation change
         if (isIOS) {
-          setTimeout(applyOrientationStyles, 500);
-          setTimeout(applyOrientationStyles, 1000);
-          setTimeout(applyOrientationStyles, 2000);
+          // Force a scroll reset and layout recalculation
+          window.scrollTo(0, 0);
+          
+          // Update viewport settings
+          const viewportMeta = document.querySelector('meta[name="viewport"]');
+          if (viewportMeta) {
+            // First disable scaling to prevent layout shift
+            viewportMeta.setAttribute('content', 
+              'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            
+            // Then re-enable with proper settings
+            setTimeout(() => {
+              viewportMeta.setAttribute('content', 
+                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+            }, 300);
+          }
+          
+          // Reset chat iframe to fix potential display issues
+          setTimeout(() => {
+            setupTwitchChatEmbed();
+          }, 500);
         }
-      }
+      }, 100);
     };
 
+    // Handle both resize and orientation events
     window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
     
-    // For iOS devices, force layout update after orientation change
+    // Add orientation change event listener
+    if (window.orientation !== undefined || 'orientation' in window) {
+      window.addEventListener('orientationchange', handleOrientationChange);
+    } else {
+      // Fallback for browsers that don't support orientationchange
+      const mediaQuery = window.matchMedia("(orientation: portrait)");
+      mediaQuery.addListener(handleOrientationChange);
+    }
+    
+    // For iOS, ensure we handle orientation changes properly
     if (isIOS) {
-      window.addEventListener('orientationchange', () => {
-        // Reset layout updated flag
-        layoutUpdatedRef.current = false;
-        
-        // Force multiple updates after orientation change
-        setTimeout(handleResize, 100);
-        setTimeout(handleResize, 500);
-        setTimeout(handleResize, 1000);
+      // Fix for iOS Safari viewport issues on orientation change
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          handleOrientationChange();
+        }
       });
     }
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      
+      if (window.orientation !== undefined || 'orientation' in window) {
+        window.removeEventListener('orientationchange', handleOrientationChange);
+      } else {
+        const mediaQuery = window.matchMedia("(orientation: portrait)");
+        mediaQuery.removeListener(handleOrientationChange);
+      }
+      
+      if (isIOS) {
+        document.removeEventListener('visibilitychange', handleOrientationChange);
+      }
     };
   }, [normalizedUsername, isIOS]);
 
@@ -601,152 +388,73 @@ const StreamPage = () => {
     if (chatContainer) {
       chatContainer.innerHTML = "";
       
-      // Force clear ALL styles
-      chatContainer.setAttribute('style', '');
+      const chatIframe = document.createElement("iframe");
       
-      // Apply necessary styles directly to container
+      // Add a unique identifier to force cache refresh
+      const cacheBreaker = Date.now();
+      
+      // Set correct parent domains - very important for Twitch chat to work
+      const parentDomains = [
+        'localhost', 
+        'chadderai.vercel.app', 
+        'chadderforchadders-4uv7d1m5i-spencershahhs-projects.vercel.app',
+        'chadder.ai'
+      ];
+      const parentParams = parentDomains.map(domain => `parent=${domain}`).join('&');
+      
+      chatIframe.setAttribute(
+        "src",
+        `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&${parentParams}&t=${cacheBreaker}`
+      );
+      chatIframe.setAttribute("title", `${normalizedUsername} chat`);
+      
+      // Apply classes instead of inline styles
+      chatIframe.classList.add("chat-iframe");
+      
+      // Add mobile=true parameter for mobile view
       if (isMobile) {
-        chatContainer.style.flex = '1';
-        chatContainer.style.borderRadius = '0';
-        chatContainer.style.display = 'flex';
-        chatContainer.style.flexDirection = 'column';
-        chatContainer.style.height = '100%';
-        chatContainer.style.position = 'relative';
-        chatContainer.style.overflow = 'hidden';
+        const currentSrc = chatIframe.getAttribute("src");
+        chatIframe.setAttribute("src", `${currentSrc}&mobile=true`);
+        chatIframe.classList.add("mobile-iframe");
         
-        // iOS specific styling
+        // Additional attributes for iOS
         if (isIOS) {
-          chatContainer.style.position = 'absolute';
-          chatContainer.style.top = '0';
-          chatContainer.style.left = '0';
-          chatContainer.style.right = '0';
-          chatContainer.style.bottom = '0';
-        }
-      }
-    }
-  
-    const chatIframe = document.createElement("iframe");
-    
-    // Add a unique identifier to force cache refresh
-    const cacheBreaker = new Date().getTime();
-    chatIframe.setAttribute(
-      "src",
-      `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=localhost&parent=chadderai.vercel.app&mobile=true&t=${cacheBreaker}`
-    );
-    chatIframe.setAttribute("title", `${normalizedUsername} chat`);
-    
-    // Apply styles directly - these will override any CSS
-    chatIframe.style.width = "100%";
-    chatIframe.style.border = "none";
-    chatIframe.setAttribute("scrolling", "yes");
-    
-    // Set different height for mobile vs desktop
-    if (isMobile) {
-      chatIframe.style.height = "calc(100% - 50px)";
-      chatIframe.style.position = "absolute";
-      chatIframe.style.top = "0";
-      chatIframe.style.left = "0";
-      chatIframe.style.right = "0";
-      chatIframe.style.bottom = "50px"; // Leave space for the input
-      chatIframe.style.zIndex = "5";
-    } else {
-      chatIframe.style.height = "100%";
-    }
-    
-    if (chatContainer) {
-      chatContainer.appendChild(chatIframe);
-    }
-
-    // For mobile, ensure styles and layout are correct
-    if (isMobile) {
-      // Force the chat input container to be correctly positioned
-      setTimeout(() => {
-        const inputContainer = document.getElementById('chat-input-container');
-        if (inputContainer) {
-          inputContainer.style.height = isPortrait ? '50px' : '40px';
-          inputContainer.style.padding = isPortrait ? '8px' : '4px 8px';
-          inputContainer.style.background = '#18181b';
-          inputContainer.style.borderTop = '1px solid rgba(255, 255, 255, 0.1)';
-          inputContainer.style.display = 'flex';
-          inputContainer.style.alignItems = 'center';
-          inputContainer.style.gap = '8px';
-          inputContainer.style.width = '100%';
-          inputContainer.style.position = 'absolute';
-          inputContainer.style.bottom = '0';
-          inputContainer.style.left = '0';
-          inputContainer.style.right = '0';
-          inputContainer.style.zIndex = '10';
-        }
-      }, 500);
-
-      // Force iframe refresh on orientation changes
-      const orientationHandler = () => {
-        const currentIsPortrait = window.innerHeight > window.innerWidth;
-        
-        // Delay to ensure container layout is updated
-        setTimeout(() => {
-          if (window.innerWidth <= 768 || isIOS) {
-            if (chatIframe) {
-              chatIframe.style.height = "calc(100% - 50px)";
-              
-              // Force refresh to adjust to new container size
-              const newCacheBreaker = new Date().getTime();
-              const src = chatIframe.getAttribute("src").split('&t=')[0];
-              chatIframe.setAttribute("src", `${src}&t=${newCacheBreaker}`);
-            }
-            
-            // Update input container height
-            const inputContainer = document.getElementById('chat-input-container');
-            if (inputContainer) {
-              inputContainer.style.height = currentIsPortrait ? '50px' : '40px';
-              inputContainer.style.padding = currentIsPortrait ? '8px' : '4px 8px';
-            }
-          } else {
-            if (chatIframe) chatIframe.style.height = "100%";
-          }
-        }, 300);
-      };
-      
-      // Remove any existing event listeners before adding new ones
-      window.removeEventListener('resize', orientationHandler);
-      window.addEventListener('resize', orientationHandler);
-      window.addEventListener('orientationchange', orientationHandler);
-
-      // Ensure layout is correct after everything has loaded
-      setTimeout(() => {
-        if (chatIframe && chatContainer) {
-          chatIframe.style.height = "calc(100% - 50px)";
-          chatIframe.style.position = "absolute";
-          chatContainer.style.position = "relative";
+          chatIframe.setAttribute("scrolling", "yes");
+          chatIframe.setAttribute("allowfullscreen", "true");
           
-          // Force refresh one more time
-          const finalCacheBreaker = new Date().getTime();
-          const src = chatIframe.getAttribute("src").split('&t=')[0];
-          chatIframe.setAttribute("src", `${src}&t=${finalCacheBreaker}`);
+          // For iOS, add extra styles and wrap in another div for better scrolling
+          chatIframe.style.webkitOverflowScrolling = "touch";
+          
+          // Create a wrapper div for iOS scrolling fixes
+          const iosScrollWrapper = document.createElement("div");
+          iosScrollWrapper.className = "ios-iframe-wrapper";
+          iosScrollWrapper.style.webkitOverflowScrolling = "touch";
+          iosScrollWrapper.style.overflow = "auto";
+          iosScrollWrapper.style.height = "100%";
+          iosScrollWrapper.style.width = "100%";
+          iosScrollWrapper.style.position = "relative";
+          
+          // Use the wrapper instead of directly appending to container
+          iosScrollWrapper.appendChild(chatIframe);
+          chatContainer.appendChild(iosScrollWrapper);
+          
+          // Add listener to fix common iOS iframe issues
+          chatIframe.addEventListener('load', () => {
+            // Force height recalculation on load
+            setTimeout(() => {
+              chatIframe.style.height = "calc(100% - 50px)";
+              // Sometimes iOS needs a scroll trigger to render properly
+              iosScrollWrapper.scrollTop = 1;
+              iosScrollWrapper.scrollTop = 0;
+            }, 500);
+          });
+          
+          return; // We've already appended the iframe to the container
         }
-      }, 1000);
-      
-      // For iOS devices, apply styles again after a longer delay
-      if (isIOS) {
-        setTimeout(() => {
-          if (chatIframe && chatContainer) {
-            // Force refresh once more for iOS
-            const iosCacheBreaker = new Date().getTime();
-            const src = chatIframe.getAttribute("src").split('&t=')[0];
-            chatIframe.setAttribute("src", `${src}&t=${iosCacheBreaker}`);
-            
-            // Re-apply critical iOS styles
-            chatContainer.style.position = 'absolute';
-            chatContainer.style.top = '0';
-            chatContainer.style.left = '0';
-            chatContainer.style.right = '0';
-            chatContainer.style.bottom = '0';
-            
-            chatIframe.style.height = "calc(100% - 50px)";
-            chatIframe.style.position = "absolute";
-          }
-        }, 2000);
       }
+      
+      // For non-iOS, just append directly
+      chatContainer.appendChild(chatIframe);
     }
   };
 
@@ -993,132 +701,71 @@ const StreamPage = () => {
     }
   };
 
+  const toggleMobileVotePanel = () => {
+    const panel = document.querySelector('.mobile-vote-panel');
+    if (panel) {
+      panel.classList.toggle('show');
+      const button = document.querySelector('.mobile-vote-button');
+      if (button) {
+        button.classList.toggle('active');
+      }
+    }
+  };
+
+  // Add this function to handle vote submission (referenced in mobile panel but missing)
+  const handleVoteSubmit = (amount) => {
+    if (!amount || amount <= 0) {
+      setErrorMessage("Please enter a valid amount");
+      return;
+    }
+    
+    const voteAmount = parseInt(amount);
+    setSelectedAmount(voteAmount);
+    setCustomAmount('');
+    
+    // Call the vote handler
+    handleVote();
+    
+    // Hide mobile panel after vote
+    const panel = document.querySelector('.mobile-vote-panel');
+    const button = document.querySelector('.mobile-vote-button');
+    if (panel) {
+      panel.classList.remove('show');
+    }
+    if (button) {
+      button.classList.remove('active');
+    }
+  };
+
+  // Add function to show watch ad modal
+  const showWatchAdModal = () => {
+    // You might already have this functionality in WatchAdButton
+    // This is just a placeholder that will be used by the mobile panel
+    const watchAdButton = document.querySelector('.watch-ad-button');
+    if (watchAdButton) {
+      watchAdButton.click();
+    }
+  };
+
   return (
-    <div className="stream-page" style={isMobile ? {
-      padding: '0',
-      margin: '0',
-      minHeight: '100vh',
-      backgroundColor: '#0e0e10',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: isIOS ? 'hidden' : 'auto',
-      paddingBottom: '120px',
-      ...(isIOS ? {
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        right: '0',
-        bottom: '0',
-        width: '100vw',
-        height: '100vh'
-      } : {})
-    } : {}}>
-      <h2 className="stream-title" style={isMobile ? {
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        right: '0',
-        height: '40px',
-        padding: '0.5rem 1rem',
-        margin: '0',
-        fontSize: '1rem',
-        background: 'rgba(14, 14, 16, 0.95)',
-        backdropFilter: 'blur(10px)',
-        zIndex: '1000',
-        display: 'flex',
-        alignItems: 'center'
-      } : {}}>Watching {username}&apos;s Stream</h2>
+    <div className={`stream-page ${isIOS ? 'ios' : ''}`}>
+      <h2 className="stream-title">Watching {username}'s Stream</h2>
       
-      <div className="stream-layout" style={isMobile ? 
-        isPortrait ? {
-          flexDirection: 'column',
-          height: '100vh',
-          paddingTop: '40px',
-          position: 'fixed',
-          width: '100%',
-          zIndex: '900'
-        } : {
-          flexDirection: 'row',
-          height: '100vh',
-          paddingTop: '40px',
-          position: 'fixed',
-          width: '100%',
-          zIndex: '900'
-        } : {}}>
-        <div className="stream-video-container" style={isMobile ? 
-          isPortrait ? {
-            width: '100%',
-            height: '40vh',
-            position: 'relative',
-            zIndex: '900',
-            minHeight: '150px'
-          } : {
-            width: '65%',
-            height: 'calc(100vh - 40px)',
-            position: 'relative',
-            zIndex: '900',
-            minHeight: 'unset'
-          } : {}}>
+      <div className="stream-layout">
+        <div className="stream-video-container">
           <div id="twitch-embed"></div>
         </div>
 
-        <div className="stream-right-container" style={isMobile ? 
-          isPortrait ? {
-            flex: '1',
-            width: '100%',
-            height: 'calc(60vh - 40px)',
-            position: 'relative',
-            background: '#18181b',
-            display: 'flex',
-            flexDirection: 'column'
-          } : {
-            width: '35%',
-            height: 'calc(100vh - 40px)',
-            position: 'relative',
-            background: '#18181b',
-            display: 'flex',
-            flexDirection: 'column'
-          } : {}}>
-          <div className="stream-chat-container" id="twitch-chat" style={isMobile ? {
-            flex: '1',
-            borderRadius: '0',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            position: 'relative'
-          } : {}}>
+        <div className="stream-right-container">
+          <div className="stream-chat-container" id="twitch-chat">
             {/* Chat iframe will be injected here */}
             {isMobile && (
-              <div className="chat-input-container" style={{
-                height: isPortrait ? '50px' : '40px',
-                padding: isPortrait ? '8px' : '4px 8px',
-                background: '#18181b',
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                width: '100%',
-                position: 'absolute',
-                bottom: '0',
-                left: '0',
-                right: '0',
-                zIndex: '10'
-              }} id="chat-input-container">
+              <div className="chat-input-container" id="chat-input-container">
                 <input
                   type="text"
                   className="chat-input"
                   placeholder="Send a message"
                   aria-label="Chat input"
-                  style={{
-                    flex: '1',
-                    height: isPortrait ? '36px' : '32px',
-                    padding: '0 12px',
-                    borderRadius: '18px',
-                    border: 'none',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: '#efeff1',
-                    fontSize: '14px'
-                  }}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       sendChatMessage(e.target.value);
@@ -1134,17 +781,6 @@ const StreamPage = () => {
                   }}
                   className="chat-send-button"
                   aria-label="Send message"
-                  style={{
-                    height: isPortrait ? '36px' : '32px',
-                    padding: '0 12px',
-                    borderRadius: '18px',
-                    border: 'none',
-                    background: '#9147ff',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    cursor: 'pointer'
-                  }}
                 >
                   Send
                 </button>
@@ -1154,178 +790,185 @@ const StreamPage = () => {
         </div>
       </div>
 
-      {/* Show these sections on all devices */}
-      <div className="info-row" style={isMobile ? {
-        marginTop: isPortrait ? '100vh' : '0',
-        marginLeft: isPortrait ? '0' : '65%',
-        position: 'relative',
-        zIndex: '800',
-        flexDirection: 'column',
-        padding: '0.5rem',
-        gap: '0.5rem',
-        display: 'block'
-      } : {}}>
-        {streamerInfo.bio && (
-          <div className="streamer-bio-card" style={isMobile ? {
-            width: '100%',
-            margin: '0',
-            borderRadius: '8px'
-          } : {}}>
-            <div className="bio-header">
-              {streamerInfo.profileImageUrl && (
-                <img 
-                  src={streamerInfo.profileImageUrl} 
-                  alt={`${username}'s profile`} 
-                  className="bio-profile-image"
-                />
-              )}
-              <h3>About {username}</h3>
-            </div>
-            <p className="bio-text">{streamerInfo.bio}</p>
-          </div>
-        )}
-
-        <div className="top-supporters-card" style={isMobile ? {
-          width: '100%',
-          margin: '0',
-          borderRadius: '8px'
-        } : {}}>
-          <h3>💎 Top Supporters</h3>
-          <div className="supporters-list">
-            {topSupporters.map((supporter, index) => (
-              <div 
-                key={`${supporter.username}-${supporter.amount}-${Date.now()}`} 
-                className="supporter-item animate-update"
-              >
-                <span className="rank">#{index + 1}</span>
-                <span className="username">{supporter.username}</span>
-                <span className="amount">{supporter.amount} 💎</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="vote-stats-container" style={isMobile ? {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '0.5rem',
-        padding: '0.5rem',
-        marginTop: isPortrait ? '0.5rem' : '0',
-        marginLeft: isPortrait ? '0' : '65%',
-        position: 'relative',
-        zIndex: '800'
-      } : {}}>
-        <div className="stat-box" style={isMobile ? { padding: '0.75rem' } : {}}>
-          <p style={isMobile ? { fontSize: '0.8rem' } : {}}>Votes Today</p>
-          <h4 style={isMobile ? { fontSize: '1.2rem' } : {}}>{voteStats.today}</h4>
-        </div>
-        <div className="stat-box" style={isMobile ? { padding: '0.75rem' } : {}}>
-          <p style={isMobile ? { fontSize: '0.8rem' } : {}}>Votes This Week</p>
-          <h4 style={isMobile ? { fontSize: '1.2rem' } : {}}>{voteStats.week}</h4>
-        </div>
-        <div className="stat-box" style={isMobile ? { padding: '0.75rem' } : {}}>
-          <p style={isMobile ? { fontSize: '0.8rem' } : {}}>All Time Votes</p>
-          <h4 style={isMobile ? { fontSize: '1.2rem' } : {}}>{voteStats.allTime}</h4>
-        </div>
-      </div>
-
-      <div className="leaderboard-info-card" style={isMobile ? {
-        margin: '0.5rem',
-        padding: '0.75rem',
-        marginLeft: isPortrait ? '0.5rem' : '65%',
-        position: 'relative',
-        zIndex: '800'
-      } : {}}>
-        <h3>🏆 Current Competition</h3>
-        <div className="leaderboard-stats" style={isMobile ? {
-          gridTemplateColumns: '1fr 1fr',
-          gap: '0.5rem'
-        } : {}}>
-          <div className="stat-item">
-            <p>Time Remaining</p>
-            <h4>{timeRemaining || 'Loading...'}</h4>
-          </div>
-          <div className="stat-item">
-            <p>Prize Pool</p>
-            <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
-          </div>
-        </div>
-      </div>
-
-      <div 
-        className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
-        style={isMobile ? {
-          position: 'sticky',
-          bottom: '0',
-          padding: '0.75rem',
-          marginLeft: isPortrait ? '0' : '65%',
-          zIndex: '800'
-        } : {}}
-      >
-        <button 
-          className="collapse-toggle"
-          onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
-          aria-label={isVotePaneCollapsed ? "Expand voting panel" : "Collapse voting panel"}
-        >
-          {isVotePaneCollapsed ? '↑' : '↓'}
-        </button>
-
-        <div className="vote-options">
-          <h3 className="vote-title">Vote for {username}</h3>
-          <div className="vote-buttons">
-            {[5, 10, 25, 50, 100].map((amount) => (
-              <button
-                key={amount}
-                className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                onClick={() => {
-                  setSelectedAmount(amount);
-                  setCustomAmount('');
-                }}
-              >
-                {amount} 💎
-              </button>
-            ))}
-            <div className="custom-amount-wrapper">
-              <input
-                type="text"
-                value={customAmount}
-                onChange={handleCustomAmountChange}
-                placeholder="Custom"
-                className="custom-amount-input"
-              />
-              <span className="custom-amount-icon">💎</span>
-            </div>
-          </div>
-
+      {/* Mobile Vote Button and Panel */}
+      {isMobile && (
+        <>
           <button 
-            className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
-            onClick={handleVote} 
-            disabled={isVoting || errorMessage === "Please log in to continue."}
+            className="mobile-vote-button" 
+            onClick={toggleMobileVotePanel}
           >
-            {isVoting ? (
-              `Processing Vote (${selectedAmount} 💎)`
-            ) : voteSuccess ? (
-              `Vote Successful! (${selectedAmount} 💎)`
-            ) : (
-              `👍 Vote with ${selectedAmount} 💎`
-            )}
+            <span className="vote-button-text">Vote</span>
+          </button>
+          <div className="mobile-vote-panel">
+            <h3 className="panel-title">Vote with Gems</h3>
+            <div className="panel-amount-grid">
+              <button className="panel-amount-button" onClick={() => handleVoteSubmit(10)}>10</button>
+              <button className="panel-amount-button" onClick={() => handleVoteSubmit(20)}>20</button>
+              <button className="panel-amount-button" onClick={() => handleVoteSubmit(50)}>50</button>
+              <button className="panel-amount-button" onClick={() => handleVoteSubmit(100)}>100</button>
+              <button className="panel-amount-button" onClick={() => handleVoteSubmit(200)}>200</button>
+              <button className="panel-amount-button" onClick={() => handleVoteSubmit(500)}>500</button>
+            </div>
+            <input 
+              type="number" 
+              className="panel-custom-input"
+              value={customAmount} 
+              onChange={(e) => setCustomAmount(e.target.value)} 
+              placeholder="Custom amount" 
+            />
+            <button 
+              className="panel-submit-button" 
+              onClick={() => handleVoteSubmit(customAmount)}
+            >
+              Vote
+            </button>
+            <div className="panel-gems-section">
+              <span className="panel-balance">Available: {credits ? credits.available : userCredit} gems</span>
+              <span className="panel-earn">
+                <button onClick={showWatchAdModal} className="earn-gems-button">
+                  + Earn Gems
+                </button>
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Supporting Content Section */}
+      <div className="supporting-content">
+        <div className="info-row">
+          {streamerInfo.bio && (
+            <div className="streamer-bio-card">
+              <div className="bio-header">
+                {streamerInfo.profileImageUrl && (
+                  <img 
+                    src={streamerInfo.profileImageUrl} 
+                    alt={`${username}'s profile`} 
+                    className="bio-profile-image"
+                  />
+                )}
+                <h3>About {username}</h3>
+              </div>
+              <p className="bio-text">{streamerInfo.bio}</p>
+            </div>
+          )}
+
+          <div className="top-supporters-card">
+            <h3>💎 Top Supporters</h3>
+            <div className="supporters-list">
+              {topSupporters.length > 0 ? (
+                topSupporters.map((supporter, index) => (
+                  <div 
+                    key={`${supporter.username}-${supporter.amount}-${index}`} 
+                    className="supporter-item animate-update"
+                  >
+                    <span className="rank">#{index + 1}</span>
+                    <span className="username">{supporter.username}</span>
+                    <span className="amount">{supporter.amount} 💎</span>
+                  </div>
+                ))
+              ) : (
+                <div className="supporter-item empty-state">
+                  <span className="empty-message">Be the first to support!</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="vote-stats-container">
+          <div className="stat-box">
+            <p>Votes Today</p>
+            <h4>{voteStats.today}</h4>
+          </div>
+          <div className="stat-box">
+            <p>Votes This Week</p>
+            <h4>{voteStats.week}</h4>
+          </div>
+          <div className="stat-box">
+            <p>All Time Votes</p>
+            <h4>{voteStats.allTime}</h4>
+          </div>
+        </div>
+
+        <div className="leaderboard-info-card">
+          <h3>🏆 Current Competition</h3>
+          <div className="leaderboard-stats">
+            <div className="stat-item">
+              <p>Time Remaining</p>
+              <h4>{timeRemaining || 'Loading...'}</h4>
+            </div>
+            <div className="stat-item">
+              <p>Prize Pool</p>
+              <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}>
+          <button 
+            className="collapse-toggle"
+            onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
+            aria-label={isVotePaneCollapsed ? "Expand voting panel" : "Collapse voting panel"}
+          >
+            {isVotePaneCollapsed ? '↑' : '↓'}
           </button>
 
-          <div className="gems-section">
-            <p className="credit-balance">
+          <div className="vote-options">
+            <h3 className="vote-title">Vote for {username}</h3>
+            <div className="vote-buttons">
+              {[5, 10, 25, 50, 100].map((amount) => (
+                <button
+                  key={amount}
+                  className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                  onClick={() => {
+                    setSelectedAmount(amount);
+                    setCustomAmount('');
+                  }}
+                >
+                  {amount} 💎
+                </button>
+              ))}
+              <div className="custom-amount-wrapper">
+                <input
+                  type="text"
+                  value={customAmount}
+                  onChange={handleCustomAmountChange}
+                  placeholder="Custom"
+                  className="custom-amount-input"
+                />
+                <span className="custom-amount-icon">💎</span>
+              </div>
+            </div>
+
+            <button 
+              className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
+              onClick={handleVote} 
+              disabled={isVoting || errorMessage === "Please log in to continue."}
+            >
               {isVoting ? (
-                `Processing... Current Balance: ${credits.available} 💎`
-              ) : errorMessage ? (
-                `Error: ${errorMessage}`
+                `Processing Vote (${selectedAmount} 💎)`
+              ) : voteSuccess ? (
+                `Vote Successful! (${selectedAmount} 💎)`
               ) : (
-                `Available Gems: ${credits.available} 💎`
+                `👍 Vote with ${selectedAmount} 💎`
               )}
-            </p>
-            
-            {/* Add the WatchAdButton component */}
-            <div className="earn-more-gems">
-              <WatchAdButton onGemsEarned={refreshUserCredits} />
+            </button>
+
+            <div className="gems-section">
+              <p className="credit-balance">
+                {isVoting ? (
+                  `Processing... Current Balance: ${credits.available} 💎`
+                ) : errorMessage ? (
+                  `Error: ${errorMessage}`
+                ) : (
+                  `Available Gems: ${credits.available} 💎`
+                )}
+              </p>
+              
+              <div className="earn-more-gems">
+                <WatchAdButton onGemsEarned={refreshUserCredits} />
+              </div>
             </div>
           </div>
         </div>
