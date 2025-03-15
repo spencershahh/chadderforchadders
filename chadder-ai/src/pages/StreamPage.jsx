@@ -709,6 +709,36 @@ const StreamPage = () => {
       if (button) {
         button.classList.toggle('active');
       }
+      
+      // Add a backdrop that catches clicks outside of the panel
+      if (panel.classList.contains('show')) {
+        // Create backdrop if it doesn't exist
+        if (!document.querySelector('.mobile-vote-backdrop')) {
+          const backdrop = document.createElement('div');
+          backdrop.className = 'mobile-vote-backdrop';
+          backdrop.style.position = 'fixed';
+          backdrop.style.top = '0';
+          backdrop.style.left = '0';
+          backdrop.style.right = '0';
+          backdrop.style.bottom = '0';
+          backdrop.style.zIndex = '1005'; // Between button and panel
+          backdrop.style.backgroundColor = 'rgba(0,0,0,0.5)';
+          
+          // Close panel when backdrop is clicked
+          backdrop.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMobileVotePanel();
+          });
+          
+          document.body.appendChild(backdrop);
+        }
+      } else {
+        // Remove backdrop when panel is closed
+        const backdrop = document.querySelector('.mobile-vote-backdrop');
+        if (backdrop) {
+          backdrop.remove();
+        }
+      }
     }
   };
 

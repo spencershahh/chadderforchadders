@@ -270,7 +270,8 @@
   transition: transform 0.3s ease;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
   position: relative;
-  z-index: 50;
+  z-index: 1000;
+  pointer-events: auto;
 }
 
 .floating-vote-container.collapsed {
@@ -284,15 +285,17 @@
   transform: translate(-50%, -50%);
   width: 50px;
   height: 24px;
-  border-radius: 12px 12px 0 0;
   background: #18181b;
   border: none;
+  border-radius: 20px 20px 0 0;
   color: #efeff1;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 1012; /* Higher than panel content */
+  pointer-events: auto;
 }
 
 .vote-title {
@@ -301,6 +304,8 @@
   margin-bottom: 1rem;
   text-align: center;
   letter-spacing: -0.02em;
+  position: relative;
+  z-index: 1011;
 }
 
 .vote-buttons {
@@ -319,6 +324,9 @@
   cursor: pointer;
   font-weight: 500;
   transition: background 0.2s ease;
+  position: relative;
+  z-index: 1011; /* Higher than container */
+  pointer-events: auto;
 }
 
 .vote-amount-button.selected {
@@ -349,6 +357,9 @@
   background: rgba(255, 255, 255, 0.1);
   color: #efeff1;
   font-size: 1rem;
+  position: relative;
+  z-index: 1011; /* Higher than container */
+  pointer-events: auto;
 }
 
 .custom-amount-icon {
@@ -370,6 +381,9 @@
   cursor: pointer;
   margin: 1rem 0;
   transition: background 0.2s ease;
+  position: relative;
+  z-index: 1011; /* Higher than container */
+  pointer-events: auto;
 }
 
 .vote-submit-button:hover {
@@ -418,12 +432,12 @@
   background-color: #18181b;
   border-radius: 12px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
-  z-index: 998;
+  z-index: 1010;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: auto;
 }
 
 /* Chat input container */
@@ -635,7 +649,8 @@
     position: sticky;
     bottom: 0;
     border-radius: 12px 12px 0 0;
-    z-index: 80;
+    z-index: 1000;
+    pointer-events: auto;
   }
 }
 
@@ -832,4 +847,46 @@
   .earn-gems-button {
     min-height: 44px;
   }
+}
+
+/* Vote panel interactive elements - ensure they are clickable */
+.vote-options button,
+.vote-options input,
+.panel-amount-button,
+.panel-custom-input,
+.panel-submit-button,
+.vote-amount-button,
+.custom-amount-input,
+.vote-submit-button {
+  position: relative;
+  z-index: 1011; /* Higher than container */
+  pointer-events: auto;
+}
+
+/* Fix for vote panel title */
+.vote-title,
+.panel-title {
+  position: relative;
+  z-index: 1011;
+}
+
+/* Ensure the collapse toggle is always clickable */
+.collapse-toggle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 24px;
+  background: #18181b;
+  border: none;
+  border-radius: 20px 20px 0 0;
+  color: #efeff1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 1012; /* Higher than panel content */
+  pointer-events: auto;
 } 
