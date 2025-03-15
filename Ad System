@@ -1,0 +1,58 @@
+Prompt:
+
+💡 Project: Implement a Rewarded Ad System for Chadder.ai, allowing users to watch ads to earn Gems (virtual currency) for voting.
+
+🎯 Core Features:
+Ad Integration (Web)
+
+Add rewarded video ads 
+Liftoff, AdMob, Unity Ads, or IronSource. These "playable ads" or rewarded interactive ads tend to perform better than traditional banner or video ads because they engage users more.
+Users choose to watch an ad in exchange for Gems.
+Track when an ad is fully watched before granting rewards.
+Frontend (React + TailwindCSS)
+
+Button: "Watch Ad to Earn 10 Gems"
+Modal Popup: Shows ad loading & completion status.
+Gem Balance Display: Updates after watching an ad.
+Backend (Supabase)
+
+Store user Gem balances.
+Ensure ads can’t be spammed (e.g., cooldown timer or daily limit).
+Track who watched ads and how many Gems they earned.
+Ad Limits & Anti-Spam
+
+Cap ad views per user (e.g., 5 ads per day max).
+Add a 30-second cooldown between ad views.
+Store ad completion logs to prevent exploits.
+
+🔨 Development Steps
+Choose Ad Provider
+
+setup liftoff (liftoff.io)
+Generate an Ad Unit ID for the web.
+Implement Ad Display & Tracking
+
+Use React hooks to handle ad loading.
+Ensure ads play fully before rewarding Gems.
+Store user ad watch history in the database.
+Add UI for Watching Ads
+
+Place "Watch Ad to Earn Gems" button in the Voting section.
+Create a modal pop-up for ad playback.
+Show confirmation when Gems are earned.
+Update User Balances (Backend)
+
+Modify user profiles in Supabase to track Gems.
+Prevent users from refreshing the page to bypass limits.
+
+🎯 Deliverables
+✔ Rewarded Ad System integrated into Chadder.ai.
+✔ Frontend UI: Button + Ad Popup + Gem Counter.
+✔ Backend Tracking: Prevents spam & tracks ad views.
+✔ Ad Monetization Ready: Uses Google AdMob / Unity Ads.
+
+🔹 Output Expected:
+
+Fully functional rewarded ad system for web users.
+Ads generate revenue while giving users free Gems for voting.
+Non-intrusive experience (users watch ads only if they want extra votes).

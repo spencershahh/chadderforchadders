@@ -53,6 +53,6 @@ git reset --hard origin/main
 
 git add .
 
-git commit -m "maybe fixed signup issues"
+git commit -m "mobile optimized streamerpagee"
 
 git push origin main
