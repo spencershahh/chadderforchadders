@@ -828,6 +828,12 @@ const StreamPage = () => {
     }
   };
 
+  // Add this new function to handle the desktop vote button click
+  const toggleDesktopVotePanel = (e) => {
+    e.stopPropagation();
+    setIsVotePaneCollapsed(!isVotePaneCollapsed);
+  };
+
   return (
     <div className={`stream-page ${isIOS ? 'ios' : ''}`}>
       <h2 className="stream-title">Watching {username}'s Stream</h2>
@@ -876,19 +882,26 @@ const StreamPage = () => {
         <>
           <button 
             className="mobile-vote-button" 
-            onClick={toggleMobileVotePanel}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent event bubbling
+              toggleMobileVotePanel();
+            }}
             aria-label="Open vote panel"
           >
             <span className="vote-button-text">Vote</span>
           </button>
-          <div className="mobile-vote-panel">
+          <div 
+            className="mobile-vote-panel" 
+            onClick={(e) => e.stopPropagation()} // Prevent clicks from bubbling up to the backdrop
+          >
             <h3 className="panel-title">Vote with Gems</h3>
             <div className="panel-amount-grid">
               {[10, 20, 50, 100, 200, 500].map((amount) => (
                 <button 
                   key={amount} 
                   className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling
                     setSelectedAmount(amount);
                     setCustomAmount('');
                   }}
@@ -903,8 +916,13 @@ const StreamPage = () => {
               pattern="[0-9]*"
               className="panel-custom-input"
               value={customAmount} 
-              onChange={handleCustomAmountChange}
-              onFocus={() => {
+              onChange={(e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                handleCustomAmountChange(e);
+              }}
+              onClick={(e) => e.stopPropagation()} // Prevent event bubbling
+              onFocus={(e) => {
+                e.stopPropagation(); // Prevent event bubbling
                 // Clear field on focus for easier entry
                 if (customAmount === '') {
                   setCustomAmount('');
@@ -914,15 +932,24 @@ const StreamPage = () => {
             />
             <button 
               className={`panel-submit-button ${voteSuccess ? 'success' : ''}`} 
-              onClick={() => customAmount ? handleVoteSubmit(customAmount) : handleVote()}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                customAmount ? handleVoteSubmit(customAmount) : handleVote();
+              }}
               disabled={isVoting}
             >
               {isVoting ? 'Processing...' : voteSuccess ? 'Vote Successful!' : `Vote with ${selectedAmount} 💎`}
             </button>
-            <div className="panel-gems-section">
+            <div className="panel-gems-section" onClick={(e) => e.stopPropagation()}>
               <span className="panel-balance">Available: {gemBalance} 💎</span>
               <span className="panel-earn">
-                <button onClick={showWatchAdModal} className="earn-gems-button">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    showWatchAdModal();
+                  }} 
+                  className="earn-gems-button"
+                >
                   + Earn Gems
                 </button>
               </span>
@@ -1007,77 +1034,110 @@ const StreamPage = () => {
           </div>
         </div>
 
-        {/* Desktop Voting Panel - Moved higher in the component hierarchy for visibility */}
+        {/* Desktop Voting Panel - Fixing to make sure button is clickable */}
         {!isMobile && (
           <div 
             className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
             title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
+            onClick={(e) => {
+              if (isVotePaneCollapsed) {
+                e.stopPropagation();
+                setIsVotePaneCollapsed(false);
+              }
+            }}
           >
-            <button 
-              className="collapse-toggle"
-              onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
-              aria-label={isVotePaneCollapsed ? "Expand voting panel" : "Collapse voting panel"}
-            >
-              {isVotePaneCollapsed ? '' : '↓'}
-            </button>
-
-            <div className="vote-options">
-              <h3 className="vote-title">Vote for {username}</h3>
-              <div className="vote-buttons">
-                {[5, 10, 25, 50, 100].map((amount) => (
-                  <button
-                    key={amount}
-                    className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedAmount(amount);
-                      setCustomAmount('');
-                    }}
-                  >
-                    {amount} 💎
-                  </button>
-                ))}
-                <div className="custom-amount-wrapper">
-                  <input
-                    type="text"
-                    value={customAmount}
-                    onChange={handleCustomAmountChange}
-                    placeholder="Custom"
-                    className="custom-amount-input"
-                  />
-                  <span className="custom-amount-icon">💎</span>
-                </div>
-              </div>
-
-              <button 
-                className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
-                onClick={handleVote} 
-                disabled={isVoting || errorMessage === "Please log in to continue."}
+            {isVotePaneCollapsed ? (
+              // When collapsed, make the entire circle clickable
+              <div 
+                className="vote-button-collapsed"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  zIndex: 1030
+                }}
+                onClick={toggleDesktopVotePanel}
               >
-                {isVoting ? (
-                  `Processing Vote (${selectedAmount} 💎)`
-                ) : voteSuccess ? (
-                  `Vote Successful! (${selectedAmount} 💎)`
-                ) : (
-                  `👍 Vote with ${selectedAmount} 💎`
-                )}
+                💎
+              </div>
+            ) : (
+              <button 
+                className="collapse-toggle"
+                onClick={(e) => {
+                  e.stopPropagation(); // Stop propagation to prevent conflicting toggles
+                  setIsVotePaneCollapsed(!isVotePaneCollapsed);
+                }}
+                aria-label="Collapse voting panel"
+              >
+                ↓
               </button>
+            )}
 
-              <div className="gems-section">
-                <p className="credit-balance">
+            {!isVotePaneCollapsed && (
+              <div className="vote-options" onClick={(e) => e.stopPropagation()}>
+                <h3 className="vote-title">Vote for {username}</h3>
+                <div className="vote-buttons">
+                  {[5, 10, 25, 50, 100].map((amount) => (
+                    <button
+                      key={amount}
+                      className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedAmount(amount);
+                        setCustomAmount('');
+                      }}
+                    >
+                      {amount} 💎
+                    </button>
+                  ))}
+                  <div className="custom-amount-wrapper">
+                    <input
+                      type="text"
+                      value={customAmount}
+                      onChange={handleCustomAmountChange}
+                      placeholder="Custom"
+                      className="custom-amount-input"
+                    />
+                    <span className="custom-amount-icon">💎</span>
+                  </div>
+                </div>
+
+                <button 
+                  className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
+                  onClick={handleVote} 
+                  disabled={isVoting || errorMessage === "Please log in to continue."}
+                >
                   {isVoting ? (
-                    `Processing... Current Balance: ${gemBalance} 💎`
-                  ) : errorMessage ? (
-                    `Error: ${errorMessage}`
+                    `Processing Vote (${selectedAmount} 💎)`
+                  ) : voteSuccess ? (
+                    `Vote Successful! (${selectedAmount} 💎)`
                   ) : (
-                    `Available Gems: ${gemBalance} 💎`
+                    `👍 Vote with ${selectedAmount} 💎`
                   )}
-                </p>
-                
-                <div className="earn-more-gems">
-                  <WatchAdButton onGemsEarned={refreshUserCredits} />
+                </button>
+
+                <div className="gems-section">
+                  <p className="credit-balance">
+                    {isVoting ? (
+                      `Processing... Current Balance: ${gemBalance} 💎`
+                    ) : errorMessage ? (
+                      `Error: ${errorMessage}`
+                    ) : (
+                      `Available Gems: ${gemBalance} 💎`
+                    )}
+                  </p>
+                  
+                  <div className="earn-more-gems">
+                    <WatchAdButton onGemsEarned={refreshUserCredits} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

@@ -272,11 +272,13 @@
   border-radius: 12px;
   padding: 1rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 1020;
   transition: all 0.3s ease;
   border: 2px solid #9147ff;
   max-height: 80vh;
   overflow-y: auto;
+  touch-action: manipulation;
+  pointer-events: auto !important;
 }
 
 .floating-vote-container.collapsed {
@@ -294,6 +296,36 @@
   transition: transform 0.3s ease, background-color 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(145, 71, 255, 0.7);
   animation: gentle-pulse 3s infinite;
+  cursor: pointer;
+  pointer-events: auto !important;
+}
+
+/* Add specific styling for vote button collapsed state */
+.vote-button-collapsed {
+  cursor: pointer !important;
+  font-size: 24px;
+  color: white;
+  border-radius: 50%;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.3);
+}
+
+.floating-vote-container.collapsed:hover,
+.vote-button-collapsed:hover {
+  transform: scale(1.1);
+  background-color: #a970ff;
+}
+
+.floating-vote-container.collapsed:active,
+.vote-button-collapsed:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
+
+.floating-vote-container.collapsed::before {
+  content: none; /* Remove any before pseudo-element */
 }
 
 @keyframes gentle-pulse {
@@ -326,8 +358,9 @@
   justify-content: center;
   cursor: pointer;
   font-size: 16px;
-  z-index: 10;
+  z-index: 1040;
   transition: all 0.2s ease;
+  pointer-events: auto !important;
 }
 
 .floating-vote-container.collapsed .collapse-toggle {
@@ -341,6 +374,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: auto !important;
 }
 
 .floating-vote-container.collapsed::before {
@@ -465,13 +499,14 @@
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
   padding: 16px;
-  z-index: 1010;
+  z-index: 1030;
   transform: translateY(100%);
   transition: transform 0.3s ease;
   box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
   border-top: 2px solid #9147ff;
-  pointer-events: auto !important; /* Force pointer events to work */
-  touch-action: auto !important; /* Ensure touch actions work */
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  user-select: none;
 }
 
 .mobile-vote-panel.show {
@@ -493,11 +528,14 @@
   align-items: center;
   border: none;
   cursor: pointer;
-  z-index: 999;
+  z-index: 1020;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
   animation: pulse 2s infinite;
   font-weight: bold;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 .mobile-vote-button:active,
@@ -517,9 +555,9 @@
   cursor: pointer;
   transition: background-color 0.2s;
   border: 1px solid transparent;
-  position: relative; /* Add position relative */
-  z-index: 1012; /* Higher z-index to ensure clickability */
-  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3); /* Better visual feedback on tap */
+  position: relative;
+  z-index: 1035;
+  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3);
 }
 
 .panel-amount-button:active,
@@ -547,8 +585,8 @@
   font-size: 16px;
   margin: 10px 0;
   transition: all 0.2s;
-  position: relative; /* Add position relative */
-  z-index: 1012; /* Higher z-index to ensure clickability */
+  position: relative;
+  z-index: 1035;
 }
 
 .panel-custom-input:focus {
@@ -573,9 +611,9 @@
   margin-top: 10px;
   transition: background-color 0.3s ease;
   width: 100%;
-  position: relative; /* Add position relative */
-  z-index: 1012; /* Higher z-index to ensure clickability */
-  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3); /* Better visual feedback on tap */
+  position: relative;
+  z-index: 1035;
+  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3);
 }
 
 .panel-submit-button:active,
@@ -606,31 +644,41 @@
 @supports (-webkit-touch-callout: none) {
   .ios .mobile-vote-panel {
     transform: translate3d(0, 100%, 0);
+    -webkit-transform: translate3d(0, 100%, 0);
   }
   
   .ios .mobile-vote-panel.show {
     transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+    pointer-events: auto !important;
   }
   
   .ios .mobile-vote-button {
     transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+    pointer-events: auto !important;
   }
   
   .ios .panel-amount-button,
   .ios .panel-submit-button,
-  .ios .panel-custom-input {
+  .ios .panel-custom-input,
+  .ios .floating-vote-container,
+  .ios .collapse-toggle {
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: rgba(0,0,0,0);
     -webkit-user-select: none;
     cursor: pointer;
     outline: none;
+    pointer-events: auto !important;
   }
 }
 
 /* Make backdrop higher z-index to ensure it catches all clicks */
 .mobile-vote-backdrop {
-  z-index: 1005 !important;
+  z-index: 1010 !important;
   -webkit-tap-highlight-color: transparent !important;
+  touch-action: auto !important;
+  pointer-events: auto !important;
 }
 
 /* New panel grid layout to ensure buttons are clickable */
@@ -640,7 +688,8 @@
   gap: 8px;
   margin: 10px 0;
   position: relative;
-  z-index: 1012;
+  z-index: 1035;
+  touch-action: manipulation;
 }
 
 /* Additional panel interaction fixes */
@@ -650,7 +699,7 @@
   align-items: center;
   margin-top: 10px;
   position: relative;
-  z-index: 1012;
+  z-index: 1035;
 }
 
 .panel-balance {
@@ -665,7 +714,7 @@
   cursor: pointer;
   padding: 5px 10px;
   position: relative;
-  z-index: 1012;
+  z-index: 1035;
 }
 
 .panel-title {
@@ -673,7 +722,7 @@
   font-size: 18px;
   font-weight: 600;
   position: relative;
-  z-index: 1012;
+  z-index: 1035;
 }
 
 /* Chat input container */
@@ -1123,7 +1172,7 @@
 .custom-amount-input,
 .vote-submit-button {
   position: relative;
-  z-index: 1011; /* Higher than container */
+  z-index: 1025;
   pointer-events: auto;
 }
 
@@ -1131,5 +1180,48 @@
 .vote-title,
 .panel-title {
   position: relative;
-  z-index: 1011;
+  z-index: 1025;
+}
+
+/* Additional interaction fixes to ensure buttons are clickable */
+.vote-options {
+  position: relative;
+  z-index: 1025;
+  pointer-events: auto !important;
+}
+
+.vote-options button,
+.vote-options input {
+  position: relative;
+  z-index: 1030;
+  pointer-events: auto !important;
+}
+
+/* Fix visible active states for better touch feedback */
+.panel-amount-button:active,
+.panel-submit-button:active,
+.mobile-vote-button:active,
+.earn-gems-button:active,
+.floating-vote-container.collapsed:active {
+  opacity: 0.8;
+  transform: scale(0.97);
+}
+
+/* Make all buttons in vote panel explicitly clickable */
+.panel-amount-button, 
+.panel-submit-button,
+.earn-gems-button,
+.vote-amount-button,
+.vote-submit-button {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 } 
