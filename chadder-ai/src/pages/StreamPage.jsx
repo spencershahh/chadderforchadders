@@ -766,7 +766,12 @@ const StreamPage = () => {
   const toggleMobileVotePanel = () => {
     const panel = document.querySelector('.mobile-vote-panel');
     if (panel) {
+      // Force re-flow to ensure iOS renders correctly
+      void panel.offsetWidth;
+      
+      // Toggle show class
       panel.classList.toggle('show');
+      
       const button = document.querySelector('.mobile-vote-button');
       if (button) {
         button.classList.toggle('active');
@@ -783,16 +788,26 @@ const StreamPage = () => {
           backdrop.style.left = '0';
           backdrop.style.right = '0';
           backdrop.style.bottom = '0';
-          backdrop.style.zIndex = '1005'; // Between button and panel
+          backdrop.style.zIndex = '1010'; // Between button and panel
           backdrop.style.backgroundColor = 'rgba(0,0,0,0.5)';
           
           // Close panel when backdrop is clicked
           backdrop.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
             toggleMobileVotePanel();
           });
           
           document.body.appendChild(backdrop);
+          
+          // For iOS, prevent body scrolling when panel is open
+          if (isIOS) {
+            document.body.classList.add('modal-open');
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            document.body.style.height = '100%';
+          }
         }
       } else {
         // Remove backdrop when panel is closed
@@ -800,6 +815,29 @@ const StreamPage = () => {
         if (backdrop) {
           backdrop.remove();
         }
+        
+        // For iOS, restore body scrolling when panel is closed
+        if (isIOS) {
+          document.body.classList.remove('modal-open');
+          document.body.style.overflow = '';
+          document.body.style.position = '';
+          document.body.style.width = '';
+          document.body.style.height = '';
+        }
+      }
+      
+      // iOS needs special handling to ensure the panel is properly rendered
+      if (isIOS) {
+        // Force a repaint after toggle
+        setTimeout(() => {
+          if (panel.classList.contains('show')) {
+            panel.style.transform = 'translateY(0)';
+            panel.style.webkitTransform = 'translateY(0)';
+          } else {
+            panel.style.transform = 'translateY(100%)';
+            panel.style.webkitTransform = 'translateY(100%)';
+          }
+        }, 10);
       }
     }
   };
@@ -883,16 +921,20 @@ const StreamPage = () => {
           <button 
             className="mobile-vote-button" 
             onClick={(e) => {
+              e.preventDefault(); // Prevent default touch behavior
               e.stopPropagation(); // Prevent event bubbling
               toggleMobileVotePanel();
             }}
             aria-label="Open vote panel"
           >
-            <span className="vote-button-text">Vote</span>
+            <span className="vote-button-text">VOTE</span>
           </button>
           <div 
             className="mobile-vote-panel" 
-            onClick={(e) => e.stopPropagation()} // Prevent clicks from bubbling up to the backdrop
+            onClick={(e) => {
+              e.preventDefault(); // Prevent default
+              e.stopPropagation(); // Prevent clicks from bubbling up to the backdrop
+            }}
           >
             <h3 className="panel-title">Vote with Gems</h3>
             <div className="panel-amount-grid">
@@ -901,6 +943,7 @@ const StreamPage = () => {
                   key={amount} 
                   className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
                   onClick={(e) => {
+                    e.preventDefault(); // Prevent default
                     e.stopPropagation(); // Prevent event bubbling
                     setSelectedAmount(amount);
                     setCustomAmount('');
@@ -933,6 +976,7 @@ const StreamPage = () => {
             <button 
               className={`panel-submit-button ${voteSuccess ? 'success' : ''}`} 
               onClick={(e) => {
+                e.preventDefault(); // Prevent default
                 e.stopPropagation(); // Prevent event bubbling
                 customAmount ? handleVoteSubmit(customAmount) : handleVote();
               }}
@@ -945,6 +989,7 @@ const StreamPage = () => {
               <span className="panel-earn">
                 <button 
                   onClick={(e) => {
+                    e.preventDefault(); // Prevent default
                     e.stopPropagation(); // Prevent event bubbling
                     showWatchAdModal();
                   }} 
@@ -1064,7 +1109,7 @@ const StreamPage = () => {
                 }}
                 onClick={toggleDesktopVotePanel}
               >
-                💎
+                VOTE
               </div>
             ) : (
               <button 
