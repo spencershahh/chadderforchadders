@@ -1,8 +1,9 @@
 .discoverContainer {
   composes: main-content from global;
   min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #1a1a2e 0%, #242450 100%);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.7) 0%, rgba(36, 36, 80, 0.65) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 70px 1rem 2rem;
   width: 100%;
   position: relative;
@@ -12,6 +13,9 @@
   max-width: 1200px;
   margin: 0 auto;
   z-index: 1;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
 }
 
 /* Glow effect styles */
@@ -24,13 +28,13 @@
   height: 100%;
   background: radial-gradient(
     circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(138, 106, 255, 0.15) 0%,
-    rgba(138, 106, 255, 0.05) 25%,
+    rgba(138, 106, 255, 0.25) 0%,
+    rgba(138, 106, 255, 0.1) 25%,
     transparent 50%
   );
   pointer-events: none;
   z-index: 0;
-  opacity: 0.7;
+  opacity: 0.8;
   transition: opacity 0.3s ease;
 }
 
@@ -84,28 +88,36 @@
 .statItem {
   text-align: center;
   padding: 2rem 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
   transition: transform 0.3s ease, background-color 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .statItem:hover {
   transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
 }
 
 .statNumber {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   display: block;
-  font-size: clamp(2.5rem, 6vw, 3.5rem);
-  font-weight: bold;
-  color: #fff;
-  margin-bottom: 0.75rem;
-  line-height: 1.2;
-  font-family: 'Inter', sans-serif;
+  text-align: center;
+  letter-spacing: -0.03em;
 }
 
 .statLabel {
@@ -120,19 +132,20 @@
 
 .prizePool {
   position: relative;
-  background: linear-gradient(135deg, rgba(138, 106, 255, 0.2), rgba(237, 110, 149, 0.2));
+  background: linear-gradient(135deg, rgba(138, 106, 255, 0.15) 0%, rgba(237, 110, 149, 0.15) 100%);
   padding: 2rem 1.5rem;
   border-radius: 10px;
   animation: glow 2s ease-in-out infinite alternate;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
 }
 
 .prizePool .statNumber {
+  font-size: 2.2rem;
   color: #fff;
-  font-size: clamp(3rem, 8vw, 4rem);
-  font-weight: 700;
-  text-shadow: 0 0 10px rgba(138, 106, 255, 0.5);
-  margin-bottom: 0.5rem;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .currency {
@@ -146,14 +159,13 @@
 }
 
 .prizePoolTimer {
-  font-size: clamp(0.9rem, 2.5vw, 1rem);
-  color: #a8a8a8;
-  margin-top: 0.75rem;
-  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
+  border-radius: 50px;
   display: inline-block;
-  font-family: 'Inter', sans-serif;
 }
 
 @keyframes glow {
@@ -167,9 +179,9 @@
 
 /* Search Controls */
 .searchControls {
-  margin: 2rem auto;
-  padding: 0 1rem;
-  max-width: 800px;
+  padding: 1.5rem 0;
+  margin: 0.5rem 0 2rem;
+  width: 100%;
 }
 
 .searchWrapper {
@@ -177,23 +189,29 @@
   flex-direction: column;
   gap: 1rem;
   width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .searchInput {
   width: 100%;
   padding: 1rem 1.5rem;
-  font-size: 1rem;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(138, 106, 255, 0.3);
-  border-radius: 12px;
   color: #fff;
-  transition: all 0.2s ease;
+  font-size: 1rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
 .searchInput:focus {
-  border-color: #8a6aff;
-  box-shadow: 0 0 15px rgba(138, 106, 255, 0.2);
   outline: none;
+  border-color: rgba(138, 106, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(138, 106, 255, 0.2);
 }
 
 .filterControls {
@@ -264,35 +282,42 @@
 /* Streamer Grid */
 .streamerGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-  padding: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  padding: 1rem;
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
+  margin: 1rem auto;
+  max-width: 1200px;
+  position: relative;
 }
 
 .streamerCard {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  margin-bottom: 18px;
   overflow: hidden;
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border: 1px solid rgba(138, 106, 255, 0.2);
-  height: 100%;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .streamerCard:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(138, 106, 255, 0.15);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .thumbnailWrapper {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 aspect ratio */
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
   overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .streamerThumbnail {
@@ -302,108 +327,128 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.streamerCard:hover .streamerThumbnail {
+  transform: scale(1.05);
+}
+
+.streamerCardContent {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.streamerProfileImage {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-top: -40px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background-color: #181818;
+  z-index: 1;
+  position: relative;
+}
+
+.streamerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.streamerTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.streamerName {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.streamerCard:hover .streamerName {
+  color: #8a6aff;
 }
 
 .liveBadge {
   position: absolute;
   top: 10px;
   left: 10px;
-  background: linear-gradient(90deg, #8a6aff, #ed6e95);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  background: rgba(255, 0, 0, 0.8);
   color: white;
-  z-index: 1;
-}
-
-.streamerCardContent {
-  padding: 1.25rem;
-  display: flex;
-  gap: 1.25rem;
-  align-items: center;
-}
-
-.streamerProfileImage {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 2px solid #8a6aff;
-}
-
-.streamerInfo {
-  flex: 1;
-  min-width: 0;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.streamerTitle {
+  padding: 0.3rem 0.7rem;
+  border-radius: 50px;
+  font-size: 0.7rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #fff;
-}
-
-.viewerCount {
-  display: block;
-  color: #a0a0c0;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-.gameName {
-  display: block;
-  color: #a0a0c0;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-.streamerName {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 0.5rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 10px rgba(255, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .votesBadge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   background: rgba(138, 106, 255, 0.2);
-  color: #ffffff;
-  padding: 0.4rem 0.8rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
+  border-radius: 50px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
   border: 1px solid rgba(138, 106, 255, 0.3);
-  white-space: nowrap;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.viewerCount {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 /* Media Queries */
 @media (max-width: 768px) {
   .streamerGrid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px;
+    padding: 0.5rem;
+  }
+  
+  .streamersTitle {
+    font-size: 1.8rem;
+  }
+  
+  .streamersSubtitle {
+    font-size: 1rem;
+    padding: 0 1rem;
+  }
+  
+  .gatedContentMessage {
+    padding: 1.5rem;
+    margin: 1.5rem 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .streamerGrid {
     grid-template-columns: 1fr;
-    padding: 1rem;
-  }
-  
-  .filterControls {
-    flex-direction: column;
-  }
-  
-  .sortSelect,
-  .toggleSwitch {
-    width: 100%;
-  }
-  
-  .searchControls {
-    padding: 0 1.5rem;
-  }
-  
-  .statsGrid {
-    grid-template-columns: 1fr;
-    padding: 0 1.5rem;
+    gap: 16px;
   }
 }
 
@@ -427,144 +472,164 @@
 
 /* Nomination Section */
 .nominationSection {
-  padding: 2rem 1.5rem;
+  padding: 3rem 1.5rem;
   margin: 2rem auto;
-  max-width: 800px;
-  background: rgba(20, 20, 20, 0.7);
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+  background: rgba(138, 106, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 16px;
-  border: 1px solid rgba(145, 71, 255, 0.2);
-  box-shadow: 0 4px 20px rgba(145, 71, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .nominationTitle {
-  font-size: clamp(1.8rem, 5vw, 2.5rem);
-  margin-bottom: 1.5rem;
-  text-align: center;
-  background: linear-gradient(90deg, #9147ff, #6441a5);
+  font-size: 2.2rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(90deg, #fff, #d1c5ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  letter-spacing: -0.01em;
+  font-weight: 700;
 }
 
 .nominationSubtitle {
-  font-size: clamp(1rem, 3vw, 1.2rem);
-  margin-bottom: 2rem;
-  text-align: center;
-  color: #a8a8a8;
-  line-height: 1.6;
-  padding: 0 1rem;
-  max-width: 600px;
-  margin: 0 auto 2rem;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 700px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.5;
 }
 
 .nominationForm {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.2rem;
+  width: 100%;
   max-width: 600px;
   margin: 0 auto;
-  padding: 0 1rem;
 }
 
 .nominationInput {
   width: 100%;
-  padding: 1.25rem;
+  padding: 1.2rem 1.5rem;
   border-radius: 12px;
-  border: 1px solid rgba(138, 106, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
   font-size: 1rem;
-  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
 .nominationInput:focus {
-  border-color: #8a6aff;
-  box-shadow: 0 0 15px rgba(138, 106, 255, 0.3);
   outline: none;
+  border-color: rgba(138, 106, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(138, 106, 255, 0.2);
 }
 
 .nominationInput::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .nominationSubmit {
-  padding: 1.25rem;
-  border-radius: 12px;
-  background: linear-gradient(90deg, #8a6aff, #ed6e95);
-  color: #fff;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  background: linear-gradient(45deg, #8a6aff, #ed6e95);
+  color: white;
+  font-weight: 600;
   border: none;
   cursor: pointer;
-  font-weight: bold;
-  font-size: 1.1rem;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  box-shadow: 0 8px 20px rgba(138, 106, 255, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  width: 100%;
 }
 
 .nominationSubmit:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(138, 106, 255, 0.4);
+  box-shadow: 0 12px 25px rgba(138, 106, 255, 0.4);
+  filter: brightness(1.1);
 }
 
 .nominationStatus {
-  padding: 1.25rem;
+  padding: 1rem;
+  margin-top: 1rem;
   border-radius: 12px;
-  text-align: center;
   font-size: 1rem;
-  margin-top: 0.5rem;
-  animation: fadeIn 0.3s ease-out;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in-out;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .nominationStatus.error {
-  background: rgba(255, 68, 68, 0.1);
-  color: #ff4444;
-  border: 1px solid rgba(255, 68, 68, 0.2);
+  color: #ff5c5c;
+  border: 1px solid rgba(255, 92, 92, 0.3);
+  background: rgba(255, 92, 92, 0.1);
 }
 
 .nominationStatus.success {
-  background: rgba(68, 255, 68, 0.1);
-  color: #44ff44;
-  border: 1px solid rgba(68, 255, 68, 0.2);
+  color: #5cff7d;
+  border: 1px solid rgba(92, 255, 125, 0.3);
+  background: rgba(92, 255, 125, 0.1);
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Section Divider */
 .sectionDivider {
+  margin: 4rem auto;
   width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(138, 106, 255, 0.5), transparent);
-  margin: 4rem 0 2rem;
+  max-width: 700px;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.1) 25%, 
+    rgba(255, 255, 255, 0.1) 75%, 
+    transparent 100%);
 }
 
 @media (max-width: 768px) {
   .nominationSection {
-    margin: 1rem;
-    padding: 1.5rem 1rem;
+    padding: 2rem 1rem;
+    margin: 1.5rem 0.5rem;
   }
-
+  
   .nominationForm {
-    padding: 0;
+    flex-direction: column;
   }
-
-  .nominationInput,
+  
+  .nominationInput, 
   .nominationSubmit {
-    padding: 1rem;
+    width: 100%;
+  }
+  
+  .nominationTitle {
+    font-size: 1.8rem;
+  }
+  
+  .nominationSubtitle {
+    font-size: 1rem;
+    padding: 0 0.5rem;
   }
 }
 
 /* Add mobile-specific styles */
 @media (max-width: 768px) {
   .discoverContainer {
-    padding: 0.5rem 0.5rem 2rem;
+    padding: 70px 0.75rem 1.5rem;
+    border-radius: 0;
+    border: none;
   }
 
   .discoverHeader {
@@ -647,14 +712,20 @@
 
   /* Top Streamer Card Mobile Improvements */
   .topStreamerCard {
-    margin: 3rem 0.5rem 1.5rem;
-    padding: 2rem 1rem 1.5rem;
+    padding: 1.2rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.8rem;
   }
 
   .topStreamerBadge {
-    white-space: nowrap;
-    font-size: 0.85rem;
-    padding: 0.5rem 1.2rem;
+    position: relative;
+    top: 0;
+    left: 0;
+    transform: none;
+    margin-bottom: 0.8rem;
+    width: fit-content;
+    margin: 0 auto 0.8rem;
   }
 
   .topStreamerProfileImage {
@@ -722,24 +793,29 @@
 }
 
 .topStreamerCard {
-  position: relative;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(138, 106, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 16px;
-  padding: 2rem;
+  padding: 1.5rem;
   margin: 2rem auto;
+  width: 100%;
   max-width: 800px;
-  cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.2rem;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .topStreamerCard:hover {
-  transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 25px rgba(138, 106, 255, 0.15);
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .topStreamerBadge {
@@ -747,13 +823,14 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, #8a6aff, #ed6e95);
-  color: white;
-  padding: 0.5rem 1.5rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+  background: linear-gradient(45deg, #ffde59, #ff914d);
+  color: #000;
+  padding: 0.4rem 1.2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: 0 5px 15px rgba(255, 145, 77, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .topStreamerBadge span {
@@ -987,58 +1064,70 @@
 }
 
 .nominateButton {
-  margin: 1.5rem auto 0;
-  padding: 0.8rem 1.5rem;
-  font-size: 1rem;
-  background: linear-gradient(90deg, #8a6aff, #ed6e95);
+  padding: 0.85rem 2rem;
+  border-radius: 50px;
+  background: linear-gradient(45deg, #8a6aff, #ed6e95);
   color: white;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  box-shadow: 0 8px 20px rgba(138, 106, 255, 0.3);
+  margin-top: 1rem;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .nominateButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(138, 106, 255, 0.4);
+  box-shadow: 0 12px 25px rgba(138, 106, 255, 0.4);
+  filter: brightness(1.1);
 }
 
 .nominateButton:active {
-  transform: translateY(0);
+  transform: translateY(1px);
 }
 
 .streamersSection {
-  text-align: center;
-  padding: 2rem 1rem;
+  padding: 2rem 1.5rem;
+  margin: 1rem auto;
+  width: 100%;
   max-width: 1200px;
-  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .streamersTitle {
-  font-size: clamp(2rem, 5vw, 2.8rem);
-  margin-bottom: 1rem;
-  background: linear-gradient(90deg, #9147ff, #6441a5);
+  font-size: 2.2rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(90deg, #fff, #d1c5ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  font-weight: bold;
+  background-clip: text;
+  text-align: center;
+  letter-spacing: -0.01em;
+  font-weight: 700;
 }
 
 .streamersSubtitle {
-  font-size: clamp(1rem, 2.5vw, 1.2rem);
-  color: #a8a8a8;
-  max-width: 600px;
-  margin: 0 auto;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 2rem;
   line-height: 1.5;
 }
 
 @media (max-width: 768px) {
   .streamersSection {
     padding: 1.5rem 1rem;
+    border-radius: 12px;
   }
 }
 
@@ -1081,41 +1170,51 @@
 }
 
 .gatedContentMessage {
-  text-align: center;
-  padding: 2rem;
-  margin: 2rem auto;
-  max-width: 600px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(138, 106, 255, 0.1);
   border-radius: 16px;
   border: 1px solid rgba(138, 106, 255, 0.2);
+  padding: 2rem;
+  margin: 2rem auto;
+  text-align: center;
+  max-width: 800px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .gatedContentMessage h3 {
-  color: #9147ff;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
+  font-weight: 600;
   margin-bottom: 1rem;
+  color: #fff;
 }
 
 .gatedContentMessage p {
-  color: #a8a8a8;
+  color: rgba(255, 255, 255, 0.7);
   margin-bottom: 1.5rem;
+  line-height: 1.5;
 }
 
 .signUpButton {
-  background: linear-gradient(90deg, #8a6aff, #ed6e95);
+  background: linear-gradient(45deg, #8a6aff, #ed6e95);
   color: white;
-  padding: 0.8rem 2rem;
-  border-radius: 8px;
   border: none;
+  border-radius: 50px;
+  padding: 0.8rem 2rem;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(138, 106, 255, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .signUpButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(138, 106, 255, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(138, 106, 255, 0.4);
+  filter: brightness(1.1);
 }
 
 .clickable {
@@ -1203,4 +1302,112 @@
   margin-top: 0.5rem;
   color: #999;
   font-size: 0.9rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.statItem.clickable {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.statItem.clickable::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 60%);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.4s ease;
+}
+
+.statItem.clickable:hover::before {
+  opacity: 1;
+  transform: scale(1.5);
+}
+
+.statItem.clickable:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhance mouse tracking effect */
+.discoverContainer:active {
+  --mouse-opacity: 1;
+}
+
+.discoverContainer::before {
+  opacity: var(--mouse-opacity, 0.8);
+}
+
+/* Loading container with glass morphism */
+.messageContainer {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  margin: 2rem auto;
+  max-width: 800px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.errorMessage {
+  color: #fff;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.errorMessage h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, #fff, #ff8f8f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.errorMessage p {
+  margin-bottom: 1.2rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.retryButton {
+  padding: 0.8rem 2rem;
+  border-radius: 50px;
+  background: linear-gradient(45deg, #8a6aff, #ed6e95);
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  margin-top: 1rem;
+  box-shadow: 0 8px 20px rgba(138, 106, 255, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.retryButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(138, 106, 255, 0.4);
+  filter: brightness(1.1);
 } 
