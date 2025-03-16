@@ -3,6 +3,7 @@ import { useTable, useSortBy } from "react-table";
 import { supabase } from "../supabaseClient";
 import { Link } from "react-router-dom";
 import { fetchStreamers, createErrorState } from "../api/twitch";
+import styles from './Leaderboard.module.css';
 
 const Leaderboard = () => {
   const [data, setData] = useState([]);
@@ -293,12 +294,12 @@ const Leaderboard = () => {
         Header: "Streamer",
         accessor: "name",
         Cell: ({ value }) => (
-          <Link to={`/stream/${value}`} className="streamer-link">
-            <div className="streamer-cell">
+          <Link to={`/stream/${value}`} className={styles.streamerLink}>
+            <div className={styles.streamerCell}>
               <img
                 src={streamerProfiles[value.toLowerCase()]?.profile_image_url || "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png"}
                 alt={value}
-                className="leaderboard-profile-image"
+                className={styles.leaderboardProfileImage}
               />
               <span>{streamerProfiles[value.toLowerCase()]?.display_name || value}</span>
             </div>
@@ -400,28 +401,28 @@ const Leaderboard = () => {
   );
 
   const EmptyState = () => (
-    <div className="empty-leaderboard">
-      <div className="empty-state-content">
+    <div className={styles.emptyLeaderboard}>
+      <div className={styles.emptyStateContent}>
         <h3>🎮 Be the First to Support!</h3>
         <p>No votes yet this week - you could be the first to support your favorite streamer!</p>
-        <div className="empty-state-steps">
-          <div className="step">
-            <span className="step-number">1</span>
+        <div className={styles.emptyStateSteps}>
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>1</span>
             <p>Visit your favorite streamer's page</p>
           </div>
-          <div className="step">
-            <span className="step-number">2</span>
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>2</span>
             <p>Vote with your credits</p>
           </div>
-          <div className="step">
-            <span className="step-number">3</span>
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>3</span>
             <p>Help them climb the leaderboard!</p>
           </div>
         </div>
-        <Link to="/" className="discover-button">
+        <Link to="/" className={styles.discoverButton}>
           Discover Streamers
         </Link>
-        <p className="empty-note">
+        <p className={styles.emptyNote}>
           <small>The leaderboard only shows real data from Twitch. Vote for streamers to see them here!</small>
         </p>
       </div>
@@ -429,40 +430,40 @@ const Leaderboard = () => {
   );
 
   return (
-    <div className="leaderboard-container">
-      <div className="leaderboard-header">
-        <h2 className="leaderboard-title">🏆 Streamer Leaderboard</h2>
+    <div className={styles.leaderboardContainer}>
+      <div className={styles.leaderboardHeader}>
+        <h2 className={styles.leaderboardTitle}>🏆 Streamer Leaderboard</h2>
         
-        <div className="leaderboard-stats-container">
-          <div className="leaderboard-stats">
-            <div className="stat-box">
+        <div className={styles.leaderboardStatsContainer}>
+          <div className={styles.leaderboardStats}>
+            <div className={styles.statBox}>
               <h3>Next Drop In</h3>
-              <div className="countdown">{timeUntilReset}</div>
+              <div className={styles.countdown}>{timeUntilReset}</div>
             </div>
             
-            <div className="stat-box">
+            <div className={styles.statBox}>
               <h3>Donation Bomb</h3>
-              <div className="total-donations">
+              <div className={styles.totalDonations}>
                 ${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <div className="support-note"></div>
+              <div className={styles.supportNote}></div>
             </div>
           </div>
         </div>
 
         {error && (
-          <div className="error-container">
-            <p className="error-message">{error}</p>
+          <div className={styles.errorContainer}>
+            <p className={styles.errorMessage}>{error}</p>
           </div>
         )}
 
         {loading ? (
-          <p className="loading-message">Loading leaderboard data...</p>
+          <p className={styles.loadingMessage}>Loading leaderboard data...</p>
         ) : data.every(row => row.week === 0) ? (
           <EmptyState />
         ) : (
-          <div className="table-container">
-            <table {...getTableProps()} className="leaderboard-table">
+          <div className={styles.tableContainer}>
+            <table {...getTableProps()} className={styles.leaderboardTable}>
               <thead>
                 {headerGroups.map((headerGroup, index) => (
                   <tr {...headerGroup.getHeaderGroupProps()} key={index}>
@@ -472,7 +473,7 @@ const Leaderboard = () => {
                         key={colIndex}
                       >
                         {column.render("Header")}
-                        <span className="sort-indicator">
+                        <span className={styles.sortIndicator}>
                           {column.isSorted ? (column.isSortedDesc ? " ▼" : " ▲") : ""}
                         </span>
                       </th>
@@ -498,42 +499,42 @@ const Leaderboard = () => {
           </div>
         )}
 
-        <div className="previous-winners-section">
-          <h2 className="section-title">🎉 Previous Winners</h2>
-          <div className="winners-grid">
-            {weeklyWinners.map((winner) => (
-              <Link 
-                to={`/stream/${winner.streamer}`}
-                key={winner.week_ending} 
-                className="winner-card"
-              >
-                <img 
-                  src={streamerProfiles[winner.streamer.toLowerCase()]?.profile_image_url} 
-                  alt={winner.streamer}
-                  className="winner-image"
-                />
-                <div className="winner-info">
-                  <span className="winner-name">
-                    {streamerProfiles[winner.streamer.toLowerCase()]?.display_name || winner.streamer}
-                  </span>
-                  <span className="winner-date">
-                    {new Date(winner.week_ending).toLocaleDateString()}
-                  </span>
-                  <span className="winner-amount">
-                    ${(winner.amount * STREAMER_PAYOUT_PERCENTAGE / 100).toFixed(2)}
-                  </span>
-                </div>
-              </Link>
-            ))}
+        {weeklyWinners.length > 0 && (
+          <div className={styles.previousWinnersSection}>
+            <h2 className={styles.sectionTitle}>🎉 Previous Winners</h2>
+            <div className={styles.winnersGrid}>
+              {weeklyWinners.map((winner, idx) => (
+                <Link 
+                  to={`/stream/${winner.streamer.toLowerCase()}`} 
+                  key={idx}
+                  className={styles.winnerCard}
+                >
+                  <img 
+                    src={streamerProfiles[winner.streamer.toLowerCase()]?.profile_image_url || "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png"} 
+                    alt={`${winner.streamer}'s profile`} 
+                    className={styles.winnerImage}
+                    loading="lazy"
+                  />
+                  <div className={styles.winnerInfo}>
+                    <span className={styles.winnerName}>
+                      {streamerProfiles[winner.streamer.toLowerCase()]?.display_name || winner.streamer}
+                    </span>
+                    <span className={styles.winnerDate}>
+                      Week of {new Date(winner.week_ending).toLocaleDateString()}
+                    </span>
+                    <span className={styles.winnerAmount}>
+                      ${(winner.amount * STREAMER_PAYOUT_PERCENTAGE).toFixed(2)}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Add Supporters Leaderboard */}
-      <div className="leaderboard-section">
-        <h2 className="leaderboard-title">🎯 Top Supporters</h2>
-        <div className="table-container">
-          <table {...getSupportersTableProps()} className="leaderboard-table">
+        <div className={styles.tableContainer}>
+          <h2 className={styles.leaderboardTitle}>🎯 Top Supporters</h2>
+          <table {...getSupportersTableProps()} className={styles.leaderboardTable}>
             <thead>
               {supportersHeaderGroups.map((headerGroup, index) => (
                 <tr {...headerGroup.getHeaderGroupProps()} key={index}>
@@ -543,7 +544,7 @@ const Leaderboard = () => {
                       key={colIndex}
                     >
                       {column.render("Header")}
-                      <span className="sort-indicator">
+                      <span className={styles.sortIndicator}>
                         {column.isSorted ? (column.isSortedDesc ? " ▼" : " ▲") : ""}
                       </span>
                     </th>
