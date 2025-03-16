@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth'; // Assuming you have an auth hook
 import { toast } from 'react-hot-toast'; // For notifications
 import { Link, useNavigate } from 'react-router-dom';
@@ -31,6 +31,7 @@ const Settings = () => {
     supabaseStatus: null,
     renderCount: 0
   });
+  const settingsContainerRef = useRef(null);
 
   console.log('Rendering Settings component with auth state:', { user, authLoading, subscription });
 
@@ -571,6 +572,26 @@ const Settings = () => {
     return contributions[tier] || 0;
   };
 
+  // Add mouse tracking for glow effect
+  useEffect(() => {
+    const container = settingsContainerRef.current;
+    if (!container) return;
+
+    const handleMouseMove = (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / container.offsetWidth) * 100;
+      const y = ((e.clientY - rect.top) / container.offsetHeight) * 100;
+      
+      container.style.setProperty('--mouse-x', `${x}%`);
+      container.style.setProperty('--mouse-y', `${y}%`);
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
   if (authLoading || loading) {
     console.log('Loading state - Auth loading:', authLoading, 'Data loading:', loading);
     return (
@@ -618,7 +639,7 @@ const Settings = () => {
   }
 
   return (
-    <div className={styles.settingsContainer}>
+    <div className={styles.settingsContainer} ref={settingsContainerRef}>
       <h1>Settings</h1>
 
       {/* Add debug toggle in dev environment */}
