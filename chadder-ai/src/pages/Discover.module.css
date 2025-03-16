@@ -1,7 +1,7 @@
 .discoverContainer {
   composes: main-content from global;
   min-height: calc(100vh - 70px);
-  background: linear-gradient(180deg, rgba(20, 20, 20, 0.7) 0%, rgba(20, 20, 20, 0.75) 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #242450 100%);
   backdrop-filter: blur(10px);
   padding: 70px 1rem 2rem;
   width: 100%;
@@ -24,8 +24,8 @@
   height: 100%;
   background: radial-gradient(
     circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(145, 71, 255, 0.15) 0%,
-    rgba(145, 71, 255, 0.05) 25%,
+    rgba(138, 106, 255, 0.15) 0%,
+    rgba(138, 106, 255, 0.05) 25%,
     transparent 50%
   );
   pointer-events: none;
@@ -45,9 +45,10 @@
 .discoverTitle {
   font-size: clamp(2.2rem, 7vw, 3.5rem);
   margin: 1.5rem 0;
-  background: linear-gradient(90deg, #9147ff, #6441a5);
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
   padding: 0 1rem;
   line-height: 1.2;
   font-weight: bold;
@@ -83,10 +84,9 @@
 .statItem {
   text-align: center;
   padding: 2rem 1.5rem;
-  background: rgba(145, 71, 255, 0.1);
-  border-radius: 20px;
-  border: 1px solid rgba(145, 71, 255, 0.2);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  transition: transform 0.3s ease, background-color 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -94,15 +94,15 @@
 }
 
 .statItem:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(145, 71, 255, 0.15);
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .statNumber {
   display: block;
   font-size: clamp(2.5rem, 6vw, 3.5rem);
   font-weight: bold;
-  color: #9147ff;
+  color: #fff;
   margin-bottom: 0.75rem;
   line-height: 1.2;
   font-family: 'Inter', sans-serif;
@@ -111,7 +111,7 @@
 .statLabel {
   display: block;
   font-size: clamp(0.9rem, 2.5vw, 1.1rem);
-  color: #a8a8a8;
+  color: #a0a0c0;
   margin-top: 0.5rem;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -120,10 +120,9 @@
 
 .prizePool {
   position: relative;
-  background: linear-gradient(135deg, rgba(145, 71, 255, 0.2), rgba(145, 71, 255, 0.1));
+  background: linear-gradient(135deg, rgba(138, 106, 255, 0.2), rgba(237, 110, 149, 0.2));
   padding: 2rem 1.5rem;
-  border-radius: 20px;
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  border-radius: 10px;
   animation: glow 2s ease-in-out infinite alternate;
 }
 
@@ -131,15 +130,17 @@
   color: #fff;
   font-size: clamp(3rem, 8vw, 4rem);
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(145, 71, 255, 0.5);
+  text-shadow: 0 0 10px rgba(138, 106, 255, 0.5);
   margin-bottom: 0.5rem;
   line-height: 1;
 }
 
 .currency {
-  font-size: 0.5em;
-  vertical-align: super;
-  margin-right: 4px;
+  font-size: 1.3rem;
+  vertical-align: top;
+  position: relative;
+  top: 0.3rem;
+  margin-right: 0.2rem;
   opacity: 0.9;
   font-weight: 600;
 }
@@ -157,10 +158,10 @@
 
 @keyframes glow {
   from {
-    box-shadow: 0 0 10px rgba(145, 71, 255, 0.2);
+    box-shadow: 0 0 10px rgba(138, 106, 255, 0.2);
   }
   to {
-    box-shadow: 0 0 20px rgba(145, 71, 255, 0.4);
+    box-shadow: 0 0 20px rgba(138, 106, 255, 0.4);
   }
 }
 
@@ -182,16 +183,16 @@
   width: 100%;
   padding: 1rem 1.5rem;
   font-size: 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(138, 106, 255, 0.3);
   border-radius: 12px;
   color: #fff;
   transition: all 0.2s ease;
 }
 
 .searchInput:focus {
-  border-color: #9147ff;
-  box-shadow: 0 0 15px rgba(145, 71, 255, 0.2);
+  border-color: #8a6aff;
+  box-shadow: 0 0 15px rgba(138, 106, 255, 0.2);
   outline: none;
 }
 
@@ -205,8 +206,8 @@
   flex: 1;
   padding: 0.8rem;
   font-size: 0.9rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(138, 106, 255, 0.3);
   border-radius: 8px;
   color: #fff;
 }
@@ -216,8 +217,8 @@
   min-width: 120px;
   height: 40px;
   position: relative;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(138, 106, 255, 0.3);
   border-radius: 8px;
   cursor: pointer;
   overflow: hidden;
@@ -247,7 +248,7 @@
   position: absolute;
   width: 50%;
   height: 100%;
-  background: #9147ff;
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   border-radius: 6px;
   transition: transform 0.3s ease;
 }
@@ -272,20 +273,19 @@
 }
 
 .streamerCard {
-  background: rgba(20, 20, 20, 0.7);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
   position: relative;
-  transition: all 0.2s ease;
-  border: 1px solid rgba(145, 71, 255, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(138, 106, 255, 0.2);
   height: 100%;
 }
 
 .streamerCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(145, 71, 255, 0.2);
-  border-color: rgba(145, 71, 255, 0.4);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(138, 106, 255, 0.15);
 }
 
 .thumbnailWrapper {
@@ -308,7 +308,7 @@
   position: absolute;
   top: 10px;
   left: 10px;
-  background: #ff0000;
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -327,12 +327,13 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 2px solid #9147ff;
+  border: 2px solid #8a6aff;
 }
 
 .streamerInfo {
   flex: 1;
   min-width: 0;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .streamerTitle {
@@ -346,14 +347,14 @@
 
 .viewerCount {
   display: block;
-  color: #a8a8a8;
+  color: #a0a0c0;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
 }
 
 .gameName {
   display: block;
-  color: #9147ff;
+  color: #a0a0c0;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
 }
@@ -370,13 +371,13 @@
 
 .votesBadge {
   display: inline-block;
-  background: rgba(145, 71, 255, 0.15);
-  color: #9147ff;
+  background: rgba(138, 106, 255, 0.2);
+  color: #ffffff;
   padding: 0.4rem 0.8rem;
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 500;
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  border: 1px solid rgba(138, 106, 255, 0.3);
   white-space: nowrap;
 }
 
@@ -468,17 +469,17 @@
   width: 100%;
   padding: 1.25rem;
   border-radius: 12px;
-  border: 1px solid rgba(145, 71, 255, 0.3);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(138, 106, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 
 .nominationInput:focus {
-  border-color: #9147ff;
+  border-color: #8a6aff;
+  box-shadow: 0 0 15px rgba(138, 106, 255, 0.3);
   outline: none;
-  box-shadow: 0 0 20px rgba(145, 71, 255, 0.2);
 }
 
 .nominationInput::placeholder {
@@ -488,7 +489,7 @@
 .nominationSubmit {
   padding: 1.25rem;
   border-radius: 12px;
-  background: linear-gradient(90deg, #9147ff, #6441a5);
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   color: #fff;
   border: none;
   cursor: pointer;
@@ -501,8 +502,7 @@
 
 .nominationSubmit:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(145, 71, 255, 0.3);
-  background: linear-gradient(90deg, #8034ff, #5f3da0);
+  box-shadow: 0 5px 15px rgba(138, 106, 255, 0.4);
 }
 
 .nominationStatus {
@@ -541,7 +541,7 @@
 .sectionDivider {
   width: 100%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(145, 71, 255, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(138, 106, 255, 0.5), transparent);
   margin: 4rem 0 2rem;
 }
 
@@ -723,8 +723,8 @@
 
 .topStreamerCard {
   position: relative;
-  background: linear-gradient(135deg, rgba(145, 71, 255, 0.15), rgba(100, 65, 165, 0.1));
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(138, 106, 255, 0.2);
   border-radius: 16px;
   padding: 2rem;
   margin: 2rem auto;
@@ -737,9 +737,9 @@
 }
 
 .topStreamerCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(145, 71, 255, 0.2);
-  border-color: rgba(145, 71, 255, 0.5);
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 25px rgba(138, 106, 255, 0.15);
 }
 
 .topStreamerBadge {
@@ -747,7 +747,7 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, #9147ff, #6441a5);
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   color: white;
   padding: 0.5rem 1.5rem;
   border-radius: 20px;
@@ -766,8 +766,8 @@
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  border: 3px solid rgba(145, 71, 255, 0.5);
-  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.2);
+  border: 3px solid rgba(138, 106, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(138, 106, 255, 0.2);
 }
 
 .topStreamerInfo {
@@ -792,27 +792,27 @@
 }
 
 .votesBadge {
-  background: rgba(145, 71, 255, 0.2);
-  color: #9147ff;
+  background: rgba(138, 106, 255, 0.2);
+  color: #ffffff;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.9rem;
   font-weight: bold;
-  border: 1px solid rgba(145, 71, 255, 0.3);
+  border: 1px solid rgba(138, 106, 255, 0.3);
 }
 
 .liveBadge {
-  background: rgba(255, 0, 0, 0.2);
-  color: #ff4444;
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
+  color: #ffffff;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.9rem;
   font-weight: bold;
-  border: 1px solid rgba(255, 0, 0, 0.3);
+  border: 1px solid rgba(138, 106, 255, 0.3);
 }
 
 .viewerCount {
-  color: #a8a8a8;
+  color: #a0a0c0;
   font-size: 0.9rem;
 }
 
@@ -860,7 +860,7 @@
 
 .subscriptionPrice .amount {
   font-size: clamp(3.5rem, 8vw, 4.5rem);
-  color: #9147ff;
+  color: #8a6aff;
   font-weight: bold;
   line-height: 1;
 }
@@ -907,6 +907,7 @@
   background: linear-gradient(90deg, #fff, #e0e0e0);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: #8a6aff;
 }
 
 .subscriptionDescription {
@@ -917,7 +918,7 @@
 
 .creditsAmount {
   font-size: clamp(2rem, 5vw, 2.5rem);
-  color: #9147ff;
+  color: #8a6aff;
   font-weight: bold;
   margin: 2rem 0;
 }
@@ -989,7 +990,7 @@
   margin: 1.5rem auto 0;
   padding: 0.8rem 1.5rem;
   font-size: 1rem;
-  background: linear-gradient(135deg, #9147ff, #6441a5);
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   color: white;
   border: none;
   border-radius: 12px;
@@ -1004,7 +1005,7 @@
 
 .nominateButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(145, 71, 255, 0.3);
+  box-shadow: 0 5px 15px rgba(138, 106, 255, 0.4);
 }
 
 .nominateButton:active {
@@ -1054,7 +1055,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(26, 26, 46, 0.85);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1067,7 +1068,7 @@
 
 .lockIcon {
   font-size: 2rem;
-  color: #9147ff;
+  color: #8a6aff;
   margin-bottom: 1rem;
 }
 
@@ -1084,9 +1085,9 @@
   padding: 2rem;
   margin: 2rem auto;
   max-width: 600px;
-  background: rgba(145, 71, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 16px;
-  border: 1px solid rgba(145, 71, 255, 0.2);
+  border: 1px solid rgba(138, 106, 255, 0.2);
 }
 
 .gatedContentMessage h3 {
@@ -1101,7 +1102,7 @@
 }
 
 .signUpButton {
-  background: #9147ff;
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   color: white;
   padding: 0.8rem 2rem;
   border-radius: 8px;
@@ -1113,8 +1114,8 @@
 }
 
 .signUpButton:hover {
-  background: #7a2bff;
   transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(138, 106, 255, 0.4);
 }
 
 .clickable {
@@ -1143,8 +1144,8 @@
 }
 
 .errorMessage {
-  background-color: rgba(30, 23, 56, 0.8);
-  border: 1px solid rgba(255, 80, 80, 0.5);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(138, 106, 255, 0.2);
   border-radius: 8px;
   padding: 2rem;
   max-width: 600px;
@@ -1164,7 +1165,7 @@
 }
 
 .retryButton {
-  background: linear-gradient(45deg, #8e2de2 0%, #4a00e0 100%);
+  background: linear-gradient(90deg, #8a6aff, #ed6e95);
   color: white;
   border: none;
   border-radius: 4px;
@@ -1194,7 +1195,7 @@
 }
 
 .fallbackButton {
-  background-color: #6441a5;
+  background-color: #8a6aff;
   color: white;
 }
 

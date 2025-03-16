@@ -178,7 +178,7 @@ const DebugInfo = ({ isLoading, loadError, streamers, onRetry }) => {
             <button 
               onClick={onRetry}
               style={{ 
-                background: '#6441a5', 
+                background: '#8a6aff', 
                 color: 'white', 
                 border: 'none', 
                 padding: '4px 8px', 
