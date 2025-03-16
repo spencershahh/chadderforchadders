@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import { fetchStreamers, getFallbackStreamerData } from "../api/twitch";
+import { fetchStreamers, createErrorState } from "../api/twitch";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import styles from './Discover.module.css';
 import { FaLock } from 'react-icons/fa';
 
 // Debug component - only shows in development
-const DebugInfo = ({ isLoading, loadError, streamers, onForceFallback }) => {
+const DebugInfo = ({ isLoading, loadError, streamers, onRetry }) => {
   const isDev = import.meta.env.MODE === 'development';
   const [expanded, setExpanded] = useState(false);
   const [testResults, setTestResults] = useState(null);
@@ -176,7 +176,7 @@ const DebugInfo = ({ isLoading, loadError, streamers, onForceFallback }) => {
           
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
             <button 
-              onClick={onForceFallback}
+              onClick={onRetry}
               style={{ 
                 background: '#6441a5', 
                 color: 'white', 
@@ -188,7 +188,7 @@ const DebugInfo = ({ isLoading, loadError, streamers, onForceFallback }) => {
                 flex: 1
               }}
             >
-              Force Fallback
+              Retry Connection
             </button>
             
             <button 
@@ -305,9 +305,6 @@ const Discover = () => {
   const nominationSectionRef = useRef(null);
   const streamersGridRef = useRef(null);
 
-  // Add a flag to force using fallback data
-  const [forceFallback, setForceFallback] = useState(false);
-
   const FREE_STREAMER_LIMIT = 5;
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -397,41 +394,16 @@ const Discover = () => {
       setIsLoading(true);
       setLoadError(null);
       
-      // If forceFallback is enabled, use the getFallbackStreamerData function directly
-      if (forceFallback) {
-        console.log('Force fallback enabled, bypassing API');
-        try {
-          // First get base streamer data from Supabase 
-          const { data: dbStreamers, error } = await supabase
-            .from('streamers')
-            .select('*')
-            .order('username');
-            
-          if (error) throw error;
-          
-          // Generate fallback data for the streamers
-          const fallbackData = getFallbackStreamerData(dbStreamers);
-          console.log('Generated fallback data:', fallbackData.length);
-          setStreamers(fallbackData);
-          setLoadError(null);
-          setIsLoading(false);
-          return;
-        } catch (fallbackError) {
-          console.error('Error generating fallback data:', fallbackError);
-          // Continue with normal flow if fallback fails
-        }
-      }
-      
       const streamersData = await fetchStreamers();
       console.log('Loaded streamers from API:', streamersData);
       
       // Check if the result is an error object
       if (streamersData && streamersData.error) {
         console.error('Error loading streamers:', streamersData.message);
-        setLoadError(streamersData.message || 'Failed to load streamers. Please try refreshing the page.');
+        setLoadError(streamersData.message || 'Failed to load live streamer data. Please try refreshing the page.');
         setStreamers([]);
       } else if (streamersData && streamersData.length > 0) {
-        console.log('Successfully loaded streamers:', streamersData.length);
+        console.log('Successfully fetched live data from API:', streamersData.length, 'streamers');
         setStreamers(streamersData);
         setLoadError(null);
       } else {
@@ -441,7 +413,7 @@ const Discover = () => {
       }
     } catch (error) {
       console.error('Error in loadStreamers function:', error);
-      setLoadError('Failed to load streamers. Please try refreshing the page.');
+      setLoadError('Failed to load live streamer data. Please try refreshing the page.');
       setStreamers([]);
     } finally {
       setIsLoading(false);
@@ -660,18 +632,13 @@ const Discover = () => {
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
     const votes = streamerVotes[streamer.user_login] || 0;
 
-    // Generate a fallback profile image if none exists
-    const getProfileImageFallback = () => {
-      if (streamer.initials) {
-        return `https://ui-avatars.com/api/?name=${streamer.initials}&background=random&color=fff&size=300`;
-      }
-      
-      // Extract initials from the username if not provided
-      const initials = streamer.user_name.substring(0, 2).toUpperCase();
-      return `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff&size=300`;
+    // Use a standard placeholder image for missing profile images
+    const getProfileImagePlaceholder = () => {
+      // Use Twitch's default profile image or a placeholder that clearly indicates it's not real data
+      return DEFAULT_PROFILE_IMAGE || "https://via.placeholder.com/70x70/6441a5/FFFFFF?text=No+Profile";
     };
     
-    // Get appropriate thumbnail
+    // Get appropriate thumbnail - always use real thumbnails from Twitch
     const getThumbnail = () => {
       if (streamer.type === "live" && streamer.thumbnail_url) {
         return streamer.thumbnail_url;
@@ -700,11 +667,11 @@ const Discover = () => {
         <div className={styles.streamerCardContent}>
           <img
             className={styles.streamerProfileImage}
-            src={streamer.profile_image_url || getProfileImageFallback()}
+            src={streamer.profile_image_url || getProfileImagePlaceholder()}
             alt={`${streamer.user_name}'s profile`}
             onError={(e) => {
               console.log(`Failed to load profile image for ${streamer.user_name}, using fallback`);
-              e.target.src = getProfileImageFallback();
+              e.target.src = getProfileImagePlaceholder();
             }}
           />
           <div className={styles.streamerInfo}>
@@ -743,9 +710,8 @@ const Discover = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Handler for forcing fallback data
-  const handleForceFallback = () => {
-    setForceFallback(true);
+  // Replace the handler for forcing fallback data with a simple retry
+  const handleRetry = () => {
     loadStreamers();
   };
 
@@ -925,15 +891,9 @@ const Discover = () => {
                 >
                   Retry
                 </button>
-                <button 
-                  onClick={handleForceFallback} 
-                  className={`${styles.retryButton} ${styles.fallbackButton}`}
-                >
-                  Show Demo Streamers
-                </button>
               </div>
               <p className={styles.fallbackNote}>
-                <small>Demo streamers will show placeholder data if we can't connect to Twitch</small>
+                <small>We only display real data from Twitch. No data is shown if we can't connect.</small>
               </p>
             </div>
           </div>
@@ -1013,7 +973,7 @@ const Discover = () => {
         isLoading={isLoading} 
         loadError={loadError} 
         streamers={streamers} 
-        onForceFallback={handleForceFallback} 
+        onRetry={handleRetry} 
       />
     </div>
   );

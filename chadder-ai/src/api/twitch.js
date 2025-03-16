@@ -196,3 +196,12 @@ export const fetchUserData = async (login) => {
     };
   }
 };
+
+// Error state helper - export this to replace the fallback data function
+export const createErrorState = (message) => {
+  return {
+    error: true,
+    message: message || 'Unable to load data from Twitch API',
+    timestamp: new Date().toISOString()
+  };
+};

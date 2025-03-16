@@ -2,7 +2,7 @@ import  { useEffect, useState, useMemo } from "react";
 import { useTable, useSortBy } from "react-table";
 import { supabase } from "../supabaseClient";
 import { Link } from "react-router-dom";
-import { fetchStreamers, getFallbackStreamerData } from "../api/twitch";
+import { fetchStreamers, createErrorState } from "../api/twitch";
 
 const Leaderboard = () => {
   const [data, setData] = useState([]);
@@ -13,7 +13,6 @@ const Leaderboard = () => {
   const [weeklyWinners, setWeeklyWinners] = useState([]);
   const [totalDonations, setTotalDonations] = useState(0);
   const [supportersData, setSupportersData] = useState([]);
-  const [usingFallbackData, setUsingFallbackData] = useState(false);
   const SUBSCRIPTION_PRICE = 5.00; // Weekly subscription price
   const STREAMER_PAYOUT_PERCENTAGE = 0.55; // Streamers get 55% of votes and subscriptions
 
@@ -400,7 +399,7 @@ const Leaderboard = () => {
     useSortBy
   );
 
-  const EmptyState = ({ onFallback }) => (
+  const EmptyState = () => (
     <div className="empty-leaderboard">
       <div className="empty-state-content">
         <h3>🎮 Be the First to Support!</h3>
@@ -422,105 +421,12 @@ const Leaderboard = () => {
         <Link to="/" className="discover-button">
           Discover Streamers
         </Link>
-        <button 
-          className="fallback-button" 
-          onClick={onFallback}
-        >
-          Show Demo Leaderboard
-        </button>
-        <p className="fallback-note">
-          <small>Demo leaderboard will show placeholder data until we can reconnect to Twitch</small>
+        <p className="empty-note">
+          <small>The leaderboard only shows real data from Twitch. Vote for streamers to see them here!</small>
         </p>
       </div>
     </div>
   );
-
-  // Add a function to force fallback data
-  const handleForceFallback = async () => {
-    try {
-      console.log('Using fallback data for leaderboard');
-      setUsingFallbackData(true);
-      setLoading(true);
-      
-      // Get streamer list from Supabase
-      const { data: dbStreamers } = await supabase
-        .from('streamers')
-        .select('*')
-        .order('username');
-        
-      if (!dbStreamers || dbStreamers.length === 0) {
-        setError('Could not load fallback data. Please try again later.');
-        return;
-      }
-      
-      // Create fallback streamer profiles
-      const fallbackStreamers = getFallbackStreamerData(dbStreamers);
-      const fallbackProfiles = fallbackStreamers.reduce((acc, streamer) => {
-        acc[streamer.user_login.toLowerCase()] = {
-          profile_image_url: streamer.profile_image_url,
-          display_name: streamer.user_name
-        };
-        return acc;
-      }, {});
-      setStreamerProfiles(fallbackProfiles);
-      
-      // Generate fallback leaderboard data
-      const fallbackLeaderboard = fallbackStreamers.map(streamer => {
-        const votes = Math.floor(Math.random() * 1000);
-        const todayVotes = Math.floor(votes * (Math.random() * 0.5));
-        
-        return {
-          name: streamer.user_login.toLowerCase(),
-          votes: votes,
-          today: todayVotes,
-          week: votes,
-          allTime: votes + Math.floor(Math.random() * 2000)
-        };
-      }).sort((a, b) => b.votes - a.votes);
-      
-      // Generate fallback supporters data
-      const supporterNames = ['SuperFan1', 'TwitchLover', 'StreamEnthusiast', 'ChaddSupporter', 'GamingFriend'];
-      const fallbackSupporters = supporterNames.map(name => {
-        const weeklyAmount = Math.floor(Math.random() * 500) + 50;
-        
-        return {
-          name: name,
-          today: Math.floor(weeklyAmount * 0.3),
-          week: weeklyAmount,
-          allTime: weeklyAmount + Math.floor(Math.random() * 1000)
-        };
-      });
-      
-      // Set the fallback data
-      setData(fallbackLeaderboard);
-      setSupportersData(fallbackSupporters);
-      setTotalDonations(fallbackLeaderboard.reduce((total, item) => total + item.week, 0) * 0.25);
-      
-      // Create fallback weekly winners
-      const today = new Date();
-      const winners = [];
-      
-      for (let i = 0; i < 4; i++) {
-        const pastDate = new Date();
-        pastDate.setDate(today.getDate() - ((i + 1) * 7)); // Weekly intervals
-        
-        winners.push({
-          streamer: fallbackLeaderboard[i]?.name || 'streamer' + i,
-          week_ending: pastDate.toISOString(),
-          amount: Math.floor(Math.random() * 1000) + 200
-        });
-      }
-      setWeeklyWinners(winners);
-      
-      // Clear any errors since we're showing fallback data
-      setError(null);
-    } catch (fallbackError) {
-      console.error('Error generating fallback data:', fallbackError);
-      setError('Error loading fallback data. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="leaderboard-container">
@@ -547,22 +453,13 @@ const Leaderboard = () => {
         {error && (
           <div className="error-container">
             <p className="error-message">{error}</p>
-            <button 
-              className="fallback-button" 
-              onClick={handleForceFallback}
-            >
-              Show Demo Leaderboard
-            </button>
-            <p className="fallback-note">
-              <small>Demo leaderboard will show placeholder data until we can reconnect to Twitch</small>
-            </p>
           </div>
         )}
 
         {loading ? (
           <p className="loading-message">Loading leaderboard data...</p>
-        ) : data.every(row => row.week === 0) && !usingFallbackData ? (
-          <EmptyState onFallback={handleForceFallback} />
+        ) : data.every(row => row.week === 0) ? (
+          <EmptyState />
         ) : (
           <div className="table-container">
             <table {...getTableProps()} className="leaderboard-table">
