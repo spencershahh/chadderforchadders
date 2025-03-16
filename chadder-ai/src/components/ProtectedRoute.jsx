@@ -1,9 +1,8 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mounted, setMounted] = useState(true);
@@ -13,10 +12,9 @@ const ProtectedRoute = ({ children }) => {
 
     const checkAuth = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) throw error;
+        const { data: { session } } = await supabase.auth.getSession();
         if (mounted) {
-          setIsAuthenticated(!!user);
+          setIsAuthenticated(!!session?.user);
           setIsLoading(false);
         }
       } catch (error) {
@@ -31,6 +29,7 @@ const ProtectedRoute = ({ children }) => {
     // Set up auth state listener
     authSubscription = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
+        console.log('Auth state changed in protected route:', !!session?.user);
         setIsAuthenticated(!!session?.user);
         setIsLoading(false);
       }
@@ -41,7 +40,7 @@ const ProtectedRoute = ({ children }) => {
     // Cleanup subscription
     return () => {
       setMounted(false);
-      if (authSubscription) {
+      if (authSubscription && authSubscription.data && authSubscription.data.subscription) {
         authSubscription.data.subscription.unsubscribe();
       }
     };
@@ -75,10 +74,12 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
+    console.log('User not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  // For React Router v6, use Outlet instead of returning children
+  return <Outlet />;
 };
 
 export default ProtectedRoute; 

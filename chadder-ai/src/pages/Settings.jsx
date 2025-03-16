@@ -26,11 +26,53 @@ const Settings = () => {
   });
   const [error, setError] = useState('');
   const [userData, setUserData] = useState(null);
+  const [debugInfo, setDebugInfo] = useState({
+    authState: null,
+    supabaseStatus: null,
+    renderCount: 0
+  });
 
   // Add debug logging for initial render and auth state
   useEffect(() => {
     console.log('Settings page mounted');
     console.log('Auth state:', { user, authLoading, authError });
+    
+    // Check Supabase connection
+    const checkSupabase = async () => {
+      try {
+        const { data, error } = await supabase.from('users').select('count').limit(1);
+        if (error) {
+          console.error('Supabase connection error:', error);
+          setDebugInfo(prev => ({ 
+            ...prev, 
+            supabaseStatus: 'error',
+            supabaseError: error.message
+          }));
+        } else {
+          setDebugInfo(prev => ({ ...prev, supabaseStatus: 'connected' }));
+        }
+      } catch (err) {
+        console.error('Failed to check Supabase:', err);
+        setDebugInfo(prev => ({ 
+          ...prev, 
+          supabaseStatus: 'exception',
+          supabaseError: err.message
+        }));
+      }
+    };
+    
+    checkSupabase();
+    
+    setDebugInfo(prev => ({ 
+      ...prev, 
+      authState: { 
+        hasUser: !!user, 
+        isLoading: authLoading, 
+        hasError: !!authError,
+        errorMsg: authError?.message
+      },
+      renderCount: prev.renderCount + 1
+    }));
   }, []);
 
   useEffect(() => {
@@ -540,7 +582,20 @@ const Settings = () => {
     console.log('No user found in render');
     return (
       <div className={styles.settingsContainer}>
-        <div className={styles.error}>Please log in to view settings.</div>
+        <div className={styles.error}>
+          <p>Please log in to view settings.</p>
+          <div>
+            <Link to="/login" className={styles.retryButton}>Go to Login</Link>
+          </div>
+          {debugInfo.renderCount > 0 && (
+            <div style={{marginTop: '20px', fontSize: '0.8rem', color: '#666'}}>
+              <details>
+                <summary>Debug Info</summary>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+              </details>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -548,6 +603,20 @@ const Settings = () => {
   return (
     <div className={styles.settingsContainer}>
       <h1>Settings</h1>
+
+      {/* Add debug toggle in dev environment */}
+      {window.location.hostname === 'localhost' && (
+        <details style={{marginBottom: '20px', fontSize: '0.8rem'}}>
+          <summary>Debug Info</summary>
+          <pre>{JSON.stringify({
+            user: user ? { id: user.id, email: user.email } : null,
+            subscription,
+            gemBalance,
+            isAdmin,
+            debugInfo
+          }, null, 2)}</pre>
+        </details>
+      )}
 
       <section className={styles.section}>
         <h2>Your Gems</h2>
