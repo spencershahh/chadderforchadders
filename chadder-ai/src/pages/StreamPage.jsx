@@ -76,37 +76,10 @@ const StreamPage = () => {
 
   // Remove iOS detection - treat all mobile devices the same
   useEffect(() => {
-    // Ensure no iOS-specific classes are added
+    // Ensure no special device classes are added
     document.body.classList.remove('ios');
     document.documentElement.classList.remove('ios-device');
-  }, []);
-
-  // Add an iOS detection
-  useEffect(() => {
-    // Check if running on iOS
-    const isIOS = () => {
-      return [
-        'iPad Simulator',
-        'iPhone Simulator',
-        'iPod Simulator',
-        'iPad',
-        'iPhone',
-        'iPod'
-      ].includes(navigator.platform)
-      // iPad on iOS 13 detection
-      || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-    };
-    
-    // Add iOS class for styling if on iOS
-    if (isIOS()) {
-      console.log("iOS device detected");
-      document.documentElement.classList.add('ios');
-      document.body.classList.add('ios');
-    } else {
-      console.log("Not an iOS device");
-      document.documentElement.classList.remove('ios');
-      document.body.classList.remove('ios');
-    }
+    document.documentElement.classList.remove('ios');
   }, []);
 
   useEffect(() => {
@@ -121,10 +94,9 @@ const StreamPage = () => {
         // Force scroll to top before loading content
         window.scrollTo(0, 0);
         
-        // For mobile devices, add appropriate classes and configure viewport
+        // For mobile devices, use standard viewport settings
         if (isMobile) {
-          // No iOS-specific optimizations
-          // Apply standard mobile viewport settings
+          // Apply standard mobile viewport settings only
           const viewportMeta = document.querySelector('meta[name="viewport"]');
           if (viewportMeta) {
             viewportMeta.setAttribute('content', 
@@ -439,8 +411,6 @@ const StreamPage = () => {
         const currentSrc = chatIframe.getAttribute("src");
         chatIframe.setAttribute("src", `${currentSrc}&mobile=true`);
         chatIframe.classList.add("mobile-iframe");
-        
-        // Standard mobile attributes
         chatIframe.setAttribute("scrolling", "yes");
         chatIframe.setAttribute("allowfullscreen", "true");
       }
@@ -962,13 +932,12 @@ const StreamPage = () => {
             </p>
             
             <div className="panel-balance">
-              <span role="img" aria-label="gem">💎</span>
+              <span>💎</span>
               <span className="balance-amount">Your gem balance: {gemBalance || 0}</span>
               <button 
                 className="earn-gems-button"
                 onClick={() => {
                   console.log('Earn gems clicked');
-                  // Use direct function call if available, otherwise log
                   if (typeof showWatchAdModal === 'function') {
                     showWatchAdModal();
                   } else {
