@@ -22,6 +22,7 @@ import StreamPage from "./pages/StreamPage";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import GemsPage from './pages/GemsPage';
+import CreditsPage from './pages/CreditsPage';
 import AdminDashboard from './pages/AdminDashboard';
 
 import "./App.css";
@@ -74,7 +75,7 @@ const App = () => {
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/gems" element={<GemsPage />} />
-            <Route path="/credits" element={<GemsPage />} />
+            <Route path="/credits" element={<CreditsPage />} />
             <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/profile" element={<Profile />} />

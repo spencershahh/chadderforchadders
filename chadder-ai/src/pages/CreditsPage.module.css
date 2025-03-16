@@ -3,6 +3,10 @@
   max-width: 1200px;
   margin: 0 auto;
   min-height: calc(100vh - 70px);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  background-color: #0e0e10;
 }
 
 .header {
@@ -34,6 +38,9 @@
   gap: 2rem;
   padding: 1rem;
   margin: 2rem auto;
+  max-width: 1200px;
+  position: relative;
+  z-index: 1;
 }
 
 /* Add keyframes for glow animation */
@@ -83,6 +90,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1rem;
+  overflow: visible; /* Ensure content is visible */
 }
 
 /* Common tier glow */
