@@ -11,7 +11,7 @@ export function useAuth() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('subscription_tier, subscription_status, credits, stripe_customer_id')
+        .select('subscription_tier, subscription_status, gem_balance, stripe_customer_id')
         .eq('id', userId)
         .single();
 
@@ -20,7 +20,7 @@ export function useAuth() {
       setSubscription({
         tier: data.subscription_tier || 'free',
         status: data.subscription_status || 'inactive',
-        credits: data.credits || 0,
+        gems: data.gem_balance || 0,
         stripeCustomerId: data.stripe_customer_id
       });
       
@@ -33,13 +33,12 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-    let userSubscription = null;
     let authSubscription = null;
 
     const setupSubscriptions = async () => {
       try {
         setLoading(true);
-        // Get initial session
+        // Get initial session - using Supabase v2 API
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -57,34 +56,8 @@ export function useAuth() {
         if (session?.user && mounted) {
           // Fetch initial user data
           await fetchUserData(session.user.id);
-
-          // Set up real-time subscription tracking
-          userSubscription = supabase
-            .channel('user-channel')
-            .on(
-              'postgres_changes',
-              {
-                event: '*',
-                schema: 'public',
-                table: 'users',
-                filter: `id=eq.${session.user.id}`
-              },
-              async (payload) => {
-                if (!mounted) return;
-                console.log('User data changed:', payload);
-                if (payload.new) {
-                  setSubscription({
-                    tier: payload.new.subscription_tier || 'free',
-                    status: payload.new.subscription_status || 'inactive',
-                    credits: payload.new.credits || 0,
-                    stripeCustomerId: payload.new.stripe_customer_id
-                  });
-                }
-              }
-            )
-            .subscribe();
         }
-
+        
         if (mounted) {
           setLoading(false);
         }
@@ -101,7 +74,8 @@ export function useAuth() {
     try {
       authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
         if (!mounted) return;
-        console.log('Auth state changed:', event, session?.user?.id);
+        console.log('Auth state changed in useAuth:', event, session?.user?.id);
+        
         setUser(session?.user ?? null);
         
         if (session?.user) {
@@ -120,9 +94,6 @@ export function useAuth() {
     // Cleanup function
     return () => {
       mounted = false;
-      if (userSubscription) {
-        supabase.removeChannel(userSubscription);
-      }
       if (authSubscription?.subscription?.unsubscribe) {
         authSubscription.subscription.unsubscribe();
       }

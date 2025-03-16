@@ -49,9 +49,11 @@ const SettingsTest = () => {
             borderRadius: '4px',
             cursor: 'pointer'
           }}
-          onClick={() => {
+          onClick={async () => {
             try {
-              console.log('Auth state:', supabase.auth.session());
+              // Use the correct method to get session
+              const { data: { session } } = await supabase.auth.getSession();
+              console.log('Auth state:', session);
               
               // Try a simple query
               supabase.from('users').select('id').limit(1)
@@ -81,27 +83,51 @@ const stripePromise = loadStripe(stripeKey);
 
 const App = () => {
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data?.session?.user || null);
+      try {
+        setIsLoading(true);
+        // Use getSession from Supabase v2 API
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error fetching session:', error);
+          return;
+        }
+        
+        setUser(data?.session?.user || null);
+      } catch (err) {
+        console.error('Error in fetchUser:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed in App:', event);
       setUser(session?.user || null);
     });
 
     return () => {
-      authListener?.subscription?.unsubscribe();
+      if (authListener?.subscription?.unsubscribe) {
+        authListener.subscription.unsubscribe();
+      }
     };
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
@@ -122,10 +148,7 @@ const App = () => {
             <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/profile" element={<Profile />} />
-              {/* Temporarily use test component for debugging */}
-              <Route path="/settings" element={<SettingsTest />} />
-              {/* Comment out original settings route temporarily */}
-              {/* <Route path="/settings" element={<Settings />} /> */}
+              <Route path="/settings" element={<Settings />} />
             </Route>
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<AdminDashboard />} />

@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 import styles from './Settings.module.css';
 
 const Settings = () => {
-  const { user, loading: authLoading, error: authError } = useAuth();
+  const { user, loading: authLoading, error: authError, subscription } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isEmailUpdateLoading, setIsEmailUpdateLoading] = useState(false);
@@ -18,7 +18,7 @@ const Settings = () => {
   const [deleteStep, setDeleteStep] = useState(1);
   const [gemBalance, setGemBalance] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [subscription, setSubscription] = useState({
+  const [subscriptionInfo, setSubscriptionInfo] = useState({
     tier: 'free',
     status: 'inactive',
     lastDistribution: null,
@@ -31,6 +31,8 @@ const Settings = () => {
     supabaseStatus: null,
     renderCount: 0
   });
+
+  console.log('Rendering Settings component with auth state:', { user, authLoading, subscription });
 
   // Add debug logging for initial render and auth state
   useEffect(() => {
@@ -75,6 +77,21 @@ const Settings = () => {
     }));
   }, []);
 
+  // Update state when auth data changes
+  useEffect(() => {
+    // If subscription data is available from useAuth, use it
+    if (subscription) {
+      setGemBalance(subscription.gems || 0);
+      setSubscriptionInfo({
+        tier: subscription.tier || 'free',
+        status: subscription.status || 'inactive',
+        lastDistribution: null,
+        nextDistribution: null
+      });
+    }
+  }, [subscription]);
+
+  // Effect for handling auth errors and redirects
   useEffect(() => {
     if (authError) {
       console.error('Auth error:', authError);
@@ -214,7 +231,7 @@ const Settings = () => {
       console.log('Successfully fetched user data:', userData);
       setUserData(userData);
       setGemBalance(userData.gem_balance || 0);
-      setSubscription({
+      setSubscriptionInfo({
         tier: userData.subscription_tier || 'free',
         status: userData.subscription_status || 'inactive',
         lastDistribution: userData.last_credit_distribution,
@@ -326,7 +343,7 @@ const Settings = () => {
       if (userError) throw userError;
 
       // If no Stripe customer ID or inactive subscription, redirect to credits page
-      if (!userData?.stripe_customer_id || subscription.status !== 'active') {
+      if (!userData?.stripe_customer_id || subscriptionInfo.status !== 'active') {
         navigate('/credits');
         return;
       }
@@ -610,7 +627,7 @@ const Settings = () => {
           <summary>Debug Info</summary>
           <pre>{JSON.stringify({
             user: user ? { id: user.id, email: user.email } : null,
-            subscription,
+            subscriptionInfo,
             gemBalance,
             isAdmin,
             debugInfo
@@ -640,13 +657,13 @@ const Settings = () => {
       <section className={styles.section}>
         <h2>Subscription</h2>
         <div className={styles.subscriptionInfo}>
-          <div>Current Tier: {formatTierName(subscription.tier)}</div>
-          <div>Status: {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}</div>
+          <div>Current Tier: {formatTierName(subscriptionInfo.tier)}</div>
+          <div>Status: {subscriptionInfo.status.charAt(0).toUpperCase() + subscriptionInfo.status.slice(1)}</div>
           <button
             className={styles.manageButton}
             onClick={handleManageSubscription}
           >
-            {subscription.status === 'active' ? 'Manage Subscription' : 'Subscribe Now'}
+            {subscriptionInfo.status === 'active' ? 'Manage Subscription' : 'Subscribe Now'}
           </button>
         </div>
       </section>
