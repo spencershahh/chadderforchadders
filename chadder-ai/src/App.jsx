@@ -21,7 +21,7 @@ import Settings from "./pages/Settings";
 import StreamPage from "./pages/StreamPage";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
-import CreditsPage from './pages/CreditsPage';
+import GemsPage from './pages/GemsPage';
 import AdminDashboard from './pages/AdminDashboard';
 
 import "./App.css";
@@ -73,39 +73,16 @@ const App = () => {
             <Route path="/stream/:username" element={<StreamPage />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/gems" element={<GemsPage />} />
+            <Route path="/credits" element={<GemsPage />} />
             <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/credits"
-              element={
-                <ProtectedRoute>
-                  <CreditsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
-              }
-            />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Route>
           </Routes>
         </Elements>
       </div>

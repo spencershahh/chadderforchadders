@@ -186,8 +186,9 @@ const Signup = () => {
               id: user.id,
               email: user.email,
               display_name: displayName,
+              username: username,
+              gem_balance: 0,
               tier: 'free',
-              credits: 0,
               created_at: new Date().toISOString()
             }
           ], { onConflict: 'id' });

@@ -16,7 +16,7 @@ const Settings = () => {
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState(1);
-  const [credits, setCredits] = useState(0);
+  const [gemBalance, setGemBalance] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [subscription, setSubscription] = useState({
     tier: 'free',
@@ -139,7 +139,7 @@ const Settings = () => {
             {
               id: session.user.id,
               email: session.user.email,
-              credits: 0,
+              gem_balance: 0,
               subscription_tier: 'free',
               subscription_status: 'inactive'
             }
@@ -171,7 +171,7 @@ const Settings = () => {
 
       console.log('Successfully fetched user data:', userData);
       setUserData(userData);
-      setCredits(userData.credits || 0);
+      setGemBalance(userData.gem_balance || 0);
       setSubscription({
         tier: userData.subscription_tier || 'free',
         status: userData.subscription_status || 'inactive',
@@ -554,19 +554,19 @@ const Settings = () => {
     );
   }
 
-  console.log('Rendering settings page with data:', { userData, credits, subscription, isAdmin });
+  console.log('Rendering settings page with data:', { userData, gemBalance, subscription, isAdmin });
 
   return (
     <div className={styles.settingsContainer}>
       <h1>Settings</h1>
 
       <section className={styles.section}>
-        <h2>Your Credits</h2>
+        <h2>Your Gems</h2>
         <div className={styles.creditsInfo}>
-          <h3>Available Credits</h3>
-          <div className={styles.creditsAmount}>{credits}</div>
+          <h3>Available Gems</h3>
+          <div className={styles.creditsAmount}>{gemBalance}</div>
           <div className={styles.creditsCallToAction}>
-            <p>Use your credits to support your favorite streamers!</p>
+            <p>Use your gems to support your favorite streamers!</p>
             <div className={styles.ctaButtons}>
               <Link to="/" className={styles.ctaButton}>
                 🔍 Discover Streamers
@@ -704,7 +704,7 @@ const Settings = () => {
                   <ul style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
                     <li>Cannot be undone</li>
                     <li>Will delete all your data</li>
-                    <li>Will remove all your credits</li>
+                    <li>Will remove all your gems</li>
                     <li>Will cancel any active subscriptions</li>
                   </ul>
                 </div>

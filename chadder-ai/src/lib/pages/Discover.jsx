@@ -113,13 +113,7 @@ const Discover = () => {
 
         // Fetch user balance if logged in
         if (user) {
-          const { data: balanceData } = await supabase
-            .from('users')
-            .select('credits')
-            .eq('id', user.id)
-            .single();
-          
-          setUserBalance(balanceData?.credits || 0);
+          await fetchUserBalance();
         }
 
         await fetchTotalDonations();
@@ -156,6 +150,25 @@ const Discover = () => {
     } catch (error) {
       console.error("Error fetching votes:", error);
       return {};
+    }
+  };
+
+  const fetchUserBalance = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: balanceData, error } = await supabase
+        .from('users')
+        .select('gem_balance')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      
+      setUserBalance(balanceData?.gem_balance || 0);
+    } catch (err) {
+      console.error('Error fetching user balance:', err);
     }
   };
 

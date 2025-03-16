@@ -32,6 +32,13 @@ const AnalyticsDashboard = () => {
   const [streamerPopularityData, setStreamerPopularityData] = useState([]);
   const [revenueData, setRevenueData] = useState([]);
   const [timeframe, setTimeframe] = useState('month'); // 'week', 'month', 'year'
+  const [dashboardData, setDashboardData] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalVotes: 0,
+    totalGemBalance: 0,
+    // ... existing code ...
+  });
 
   // Colors for charts
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#a4de6c', '#d0ed57'];
@@ -287,31 +294,31 @@ const AnalyticsDashboard = () => {
   // Fetch credit distribution data
   const fetchCreditDistribution = async () => {
     try {
-      // Get users group by subscription tier with sum of credits
-      const { data, error } = await supabase
+      // Get users group by subscription tier with sum of gems
+      const { data: tierData, error: tierError } = await supabase
         .from('users')
-        .select('subscription_tier, credits');
+        .select('subscription_tier, gem_balance');
       
-      if (error) throw error;
+      if (tierError) throw tierError;
       
       // Aggregate data by subscription tier
       const aggregatedData = {};
       
-      data.forEach(user => {
+      tierData.forEach(user => {
         const tier = user.subscription_tier || 'free';
         if (!aggregatedData[tier]) {
-          aggregatedData[tier] = { name: tier, credits: 0, users: 0 };
+          aggregatedData[tier] = { name: tier, gems: 0, users: 0 };
         }
-        aggregatedData[tier].credits += (user.credits || 0);
+        aggregatedData[tier].gems += (user.gem_balance || 0);
         aggregatedData[tier].users += 1;
       });
       
       // Format for charts
       const formattedData = Object.values(aggregatedData).map(item => ({
         name: item.name.charAt(0).toUpperCase() + item.name.slice(1),
-        credits: item.credits,
+        gems: item.gems,
         users: item.users,
-        value: item.credits, // for pie chart
+        value: item.gems, // for pie chart
         color: SUBSCRIPTION_COLORS[item.name] || '#757575'
       }));
       
@@ -767,7 +774,7 @@ const AnalyticsDashboard = () => {
                           label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                           outerRadius={80}
                           fill="#8884d8"
-                          dataKey="credits"
+                          dataKey="gems"
                         >
                           {creditDistributionData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
@@ -789,7 +796,7 @@ const AnalyticsDashboard = () => {
                         <YAxis dataKey="name" type="category" stroke="#ccc" width={100} />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend />
-                        <Bar dataKey="credits" name="Credits" fill="#8884d8" />
+                        <Bar dataKey="gems" name="Credits" fill="#8884d8" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

@@ -1,7 +1,7 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../supabaseClient";
-import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
+import InsufficientGemsModal from '../components/InsufficientGemsModal';
 import WatchAdButton from '../components/WatchAdButton';
 import GemBalanceDisplay from '../components/GemBalanceDisplay';
 import './StreamPage.css';
@@ -12,16 +12,14 @@ const StreamPage = () => {
   const { username } = useParams();
   const normalizedUsername = username.toLowerCase();
   const [voteStats, setVoteStats] = useState({ today: 0, week: 0, allTime: 0 });
-  const [credits, setCredits] = useState({
-    available: 0
-  });
+  const [gemBalance, setGemBalance] = useState(0);
   const [selectedAmount, setSelectedAmount] = useState(5);
   const [userIp, setUserIp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
   const [voteSuccess, setVoteSuccess] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showGemsModal, setShowGemsModal] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState({
     endTime: null,
     prizePool: 0
@@ -33,7 +31,7 @@ const StreamPage = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [streamerInfo, setStreamerInfo] = useState({ bio: '', profileImageUrl: '' });
   const [topSupporters, setTopSupporters] = useState([]);
-  const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(false);
+  const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isIOS, setIsIOS] = useState(false);
@@ -310,8 +308,7 @@ const StreamPage = () => {
   // Add effect to ensure vote container is properly visible on desktop
   useEffect(() => {
     if (!isMobile) {
-      // Initially show the vote container expanded
-      setIsVotePaneCollapsed(false);
+      // Keep it collapsed by default (don't set isVotePaneCollapsed here)
       
       // Update vote container position on window resize
       const handleResize = () => {
@@ -497,15 +494,13 @@ const StreamPage = () => {
 
       const { data: userData, error: checkError } = await supabase
         .from("users")
-        .select("credits, subscription_tier, subscription_status")
+        .select("gem_balance, subscription_tier, subscription_status")
         .eq("id", user.id)
         .single();
 
       if (checkError) throw checkError;
 
-      setCredits({
-        available: userData.credits || 0
-      });
+      setGemBalance(userData.gem_balance || 0);
     } catch (err) {
       console.error("Error fetching user credits:", err.message);
       setErrorMessage(err.message);
@@ -631,9 +626,9 @@ const StreamPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("Please log in to continue.");
 
-      // Check if user has enough credits
-      if (credits.available < selectedAmount) {
-        setShowCreditsModal(true);
+      // Check if user has enough gems
+      if (gemBalance < selectedAmount) {
+        setShowGemsModal(true);
         setIsVoting(false);
         return;
       }
@@ -665,20 +660,18 @@ const StreamPage = () => {
 
       if (voteError) throw voteError;
 
-      // Update user's credits
+      // Update user's gems
       const { error: updateError } = await supabase
         .from("users")
         .update({
-          credits: credits.available - selectedAmount
+          gem_balance: gemBalance - selectedAmount
         })
         .eq("id", user.id);
 
       if (updateError) throw updateError;
 
       // Update local state
-      setCredits({
-        available: credits.available - selectedAmount
-      });
+      setGemBalance(gemBalance - selectedAmount);
       
       await fetchVoteStats();
       setErrorMessage("");
@@ -694,8 +687,8 @@ const StreamPage = () => {
     }
   };
 
-  const handlePurchaseCredits = () => {
-    setShowCreditsModal(false);
+  const handlePurchaseGems = () => {
+    setShowGemsModal(false);
     navigate('/credits');
   };
 
@@ -712,7 +705,22 @@ const StreamPage = () => {
 
   // Add this new function to refresh user credits after watching an ad
   const refreshUserCredits = async () => {
-    await fetchUserCredits();
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Please log in to continue.");
+
+      const { data: userData, error: checkError } = await supabase
+        .from("users")
+        .select("gem_balance, subscription_tier, subscription_status")
+        .eq("id", user.id)
+        .single();
+
+      if (checkError) throw checkError;
+
+      setGemBalance(userData.gem_balance || 0);
+    } catch (err) {
+      console.error("Error refreshing gem balance:", err.message);
+    }
   };
 
   // Add this function to handle sending chat messages through the iframe
@@ -891,7 +899,7 @@ const StreamPage = () => {
               Vote
             </button>
             <div className="panel-gems-section">
-              <span className="panel-balance">Available: {credits ? credits.available : 0} gems</span>
+              <span className="panel-balance">Available: {gemBalance} gems</span>
               <span className="panel-earn">
                 <button onClick={showWatchAdModal} className="earn-gems-button">
                   + Earn Gems
@@ -975,13 +983,16 @@ const StreamPage = () => {
 
         {/* Desktop Voting Panel - Moved higher in the component hierarchy for visibility */}
         {!isMobile && (
-          <div className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}>
+          <div 
+            className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
+            title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
+          >
             <button 
               className="collapse-toggle"
               onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
               aria-label={isVotePaneCollapsed ? "Expand voting panel" : "Collapse voting panel"}
             >
-              {isVotePaneCollapsed ? '↑' : '↓'}
+              {isVotePaneCollapsed ? '' : '↓'}
             </button>
 
             <div className="vote-options">
@@ -1028,11 +1039,11 @@ const StreamPage = () => {
               <div className="gems-section">
                 <p className="credit-balance">
                   {isVoting ? (
-                    `Processing... Current Balance: ${credits.available} 💎`
+                    `Processing... Current Balance: ${gemBalance} 💎`
                   ) : errorMessage ? (
                     `Error: ${errorMessage}`
                   ) : (
-                    `Available Gems: ${credits.available} 💎`
+                    `Available Gems: ${gemBalance} 💎`
                   )}
                 </p>
                 
@@ -1045,12 +1056,12 @@ const StreamPage = () => {
         )}
       </div>
 
-      <InsufficientCreditsModal
-        isOpen={showCreditsModal}
-        onClose={() => setShowCreditsModal(false)}
+      <InsufficientGemsModal
+        isOpen={showGemsModal}
+        onClose={() => setShowGemsModal(false)}
         requiredAmount={selectedAmount}
-        currentCredits={credits.available}
-        onPurchase={handlePurchaseCredits}
+        currentCredits={gemBalance}
+        onPurchase={handlePurchaseGems}
       />
     </div>
   );

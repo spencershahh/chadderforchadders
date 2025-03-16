@@ -215,8 +215,8 @@ const UserManagement = () => {
               <option value="created_at:asc">Oldest First</option>
               <option value="email:asc">Email (A-Z)</option>
               <option value="email:desc">Email (Z-A)</option>
-              <option value="credits:desc">Most Credits</option>
-              <option value="credits:asc">Least Credits</option>
+              <option value="gem_balance:desc">Most Gems</option>
+              <option value="gem_balance:asc">Least Gems</option>
             </select>
           </div>
           
@@ -245,7 +245,7 @@ const UserManagement = () => {
             <tr>
               <th>Email</th>
               <th>Name</th>
-              <th>Credits</th>
+              <th>Gems</th>
               <th>Subscription</th>
               <th>Joined</th>
               <th>Admin</th>
@@ -263,7 +263,7 @@ const UserManagement = () => {
               <tr key={user.id} className={user.isAdmin ? styles.adminRow : ''}>
                 <td>{user.email || 'N/A'}</td>
                 <td>{user.display_name || 'No name'}</td>
-                <td>{user.credits || 0}</td>
+                <td>{user.gem_balance || 0}</td>
                 <td>
                   <span className={styles.subscriptionBadge + ' ' + styles[user.subscription_tier || 'free']}>
                     {user.subscription_tier?.charAt(0).toUpperCase() + user.subscription_tier?.slice(1) || 'Free'}
@@ -336,8 +336,8 @@ const UserManagement = () => {
                 </div>
                 
                 <div className={styles.statItem}>
-                  <span className={styles.statLabel}>Credits:</span>
-                  <span className={styles.statValue}>{selectedUser.credits || 0}</span>
+                  <span className={styles.statLabel}>Gems:</span>
+                  <span className={styles.statValue}>{selectedUser.gem_balance || 0}</span>
                 </div>
                 
                 <div className={styles.statItem}>

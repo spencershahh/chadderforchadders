@@ -1,14 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WatchAdButton from './WatchAdButton';
 import { supabase } from '../supabaseClient';
 
-const InsufficientCreditsModal = ({ isOpen, onClose, requiredAmount, currentCredits, onPurchase }) => {
+const InsufficientGemsModal = ({ isOpen, onClose, requiredAmount, currentCredits, onPurchase }) => {
+  const [isVisible, setIsVisible] = useState(isOpen);
+  const [currentGemBalance, setCurrentGemBalance] = useState(currentCredits);
   const [showAdOption, setShowAdOption] = useState(false);
   
-  if (!isOpen) return null;
-
-  const neededCredits = requiredAmount - currentCredits;
+  const neededGems = requiredAmount - currentGemBalance;
   
+  useEffect(() => {
+    // Refresh the current gem balance from the database
+    const refreshGemBalance = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data, error } = await supabase
+          .from('users')
+          .select('gem_balance')
+          .eq('id', user.id)
+          .single();
+          
+        if (error) throw error;
+        
+        setCurrentGemBalance(data.gem_balance || 0);
+      } catch (err) {
+        console.error('Error fetching gem balance:', err);
+      }
+    };
+    
+    if (isOpen) {
+      setIsVisible(true);
+      refreshGemBalance();
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen]);
+  
+  if (!isVisible) return null;
+
   const handleGemsEarned = async () => {
     // Refresh the current credits from the database
     try {
@@ -16,13 +47,13 @@ const InsufficientCreditsModal = ({ isOpen, onClose, requiredAmount, currentCred
       if (user) {
         const { data, error } = await supabase
           .from('users')
-          .select('gem_balance, credits')
+          .select('gem_balance')
           .eq('id', user.id)
           .single();
           
         if (!error && data) {
           // If we've earned enough gems, close the modal
-          const updatedBalance = data.gem_balance !== undefined ? data.gem_balance : data.credits || 0;
+          const updatedBalance = data.gem_balance || 0;
           if (updatedBalance >= requiredAmount) {
             onClose();
           }
@@ -36,44 +67,29 @@ const InsufficientCreditsModal = ({ isOpen, onClose, requiredAmount, currentCred
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title">Insufficient Gems</h3>
-        <p className="modal-message">
-          You need <span className="credits-amount">{neededCredits} more gems</span> to make this vote.
-          <br />
-          Current balance: {currentCredits} gems
-        </p>
-        
-        {showAdOption ? (
-          <div className="ad-option-container">
-            <p>Watch ads to earn gems:</p>
-            <WatchAdButton onGemsEarned={handleGemsEarned} />
-            <button 
-              className="modal-button secondary" 
-              onClick={() => setShowAdOption(false)}
-              style={{ marginTop: '10px' }}
-            >
-              Back
-            </button>
-          </div>
-        ) : (
-          <div className="modal-buttons">
-            <button className="modal-button primary" onClick={onPurchase}>
-              Buy Gems
-            </button>
-            <button 
-              className="modal-button secondary" 
-              onClick={() => setShowAdOption(true)}
-            >
-              Watch Ads
-            </button>
-            <button className="modal-button tertiary" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        )}
+        <div className="modal-header">
+          <h3>Insufficient Gems</h3>
+          <button className="close-button" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <p>
+            You need <span className="gems-amount">{neededGems} more gems</span> to make this vote.
+          </p>
+          <p>
+            Current balance: {currentGemBalance} gems
+          </p>
+        </div>
+        <div className="modal-footer">
+          <button className="secondary-button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary-button" onClick={onPurchase}>
+            Get More Gems
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-export default InsufficientCreditsModal; 
+export default InsufficientGemsModal; 
