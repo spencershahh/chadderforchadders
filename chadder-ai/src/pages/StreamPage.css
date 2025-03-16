@@ -517,12 +517,24 @@
   cursor: pointer;
   transition: background-color 0.2s;
   border: 1px solid transparent;
+  position: relative; /* Add position relative */
+  z-index: 1012; /* Higher z-index to ensure clickability */
+  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3); /* Better visual feedback on tap */
 }
 
 .panel-amount-button:active,
 .panel-amount-button:hover {
   background-color: rgba(145, 71, 255, 0.5);
   border-color: #9147ff;
+}
+
+/* Add selected state for panel amount buttons */
+.panel-amount-button.selected {
+  background-color: #9147ff;
+  color: white;
+  border-color: white;
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(145, 71, 255, 0.5);
 }
 
 .panel-custom-input {
@@ -535,6 +547,8 @@
   font-size: 16px;
   margin: 10px 0;
   transition: all 0.2s;
+  position: relative; /* Add position relative */
+  z-index: 1012; /* Higher z-index to ensure clickability */
 }
 
 .panel-custom-input:focus {
@@ -559,11 +573,33 @@
   margin-top: 10px;
   transition: background-color 0.3s ease;
   width: 100%;
+  position: relative; /* Add position relative */
+  z-index: 1012; /* Higher z-index to ensure clickability */
+  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3); /* Better visual feedback on tap */
 }
 
 .panel-submit-button:active,
 .panel-submit-button:hover {
   background-color: #a970ff;
+}
+
+/* Add success state for vote button */
+.panel-submit-button.success {
+  background-color: #43a047; /* Green for success */
+  animation: pulse-success 1s ease-in-out;
+}
+
+@keyframes pulse-success {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Fix disabled button state */
+.panel-submit-button:disabled {
+  background-color: rgba(145, 71, 255, 0.5);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* Fix iOS specific issues */
@@ -595,6 +631,49 @@
 .mobile-vote-backdrop {
   z-index: 1005 !important;
   -webkit-tap-highlight-color: transparent !important;
+}
+
+/* New panel grid layout to ensure buttons are clickable */
+.panel-amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+  position: relative;
+  z-index: 1012;
+}
+
+/* Additional panel interaction fixes */
+.panel-gems-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  position: relative;
+  z-index: 1012;
+}
+
+.panel-balance {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.earn-gems-button {
+  background-color: transparent;
+  color: #9147ff;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 5px 10px;
+  position: relative;
+  z-index: 1012;
+}
+
+.panel-title {
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: 600;
+  position: relative;
+  z-index: 1012;
 }
 
 /* Chat input container */
@@ -808,6 +887,34 @@
     border-radius: 12px 12px 0 0;
     z-index: 1000;
     pointer-events: auto;
+  }
+  
+  /* Ensure mobile panel is always on top */
+  .mobile-vote-panel {
+    isolation: isolate;
+  }
+  
+  /* Make buttons more tappable on mobile */
+  .panel-amount-button, 
+  .panel-submit-button,
+  .earn-gems-button {
+    min-height: 48px;
+  }
+  
+  .panel-custom-input {
+    min-height: 48px;
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+  
+  /* Add active state styling for immediate touch feedback */
+  .panel-amount-button:active {
+    transform: scale(0.97);
+    transition: transform 0.1s;
+  }
+  
+  .panel-submit-button:active {
+    transform: scale(0.98);
+    transition: transform 0.1s;
   }
 }
 

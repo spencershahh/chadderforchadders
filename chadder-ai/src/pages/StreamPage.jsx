@@ -678,6 +678,28 @@ const StreamPage = () => {
 
       // After successful vote
       setVoteSuccess(true);
+      
+      // Reset custom amount
+      setCustomAmount('');
+      
+      // For mobile: Close the vote panel after successful vote
+      if (isMobile) {
+        // Use setTimeout to ensure UI shows "Processing..." briefly before closing
+        setTimeout(() => {
+          const panel = document.querySelector('.mobile-vote-panel');
+          if (panel) {
+            panel.classList.remove('show');
+          }
+          
+          // Remove the backdrop
+          const backdrop = document.querySelector('.mobile-vote-backdrop');
+          if (backdrop) {
+            backdrop.remove();
+          }
+        }, 700); // Short delay to show success state
+      }
+      
+      // Reset vote success message after a delay
       setTimeout(() => setVoteSuccess(false), 2000);
     } catch (err) {
       setErrorMessage(err.message);
@@ -791,26 +813,9 @@ const StreamPage = () => {
     
     const voteAmount = parseInt(amount);
     setSelectedAmount(voteAmount);
-    setCustomAmount('');
     
-    // Call the vote handler
+    // Call the vote handler directly
     handleVote();
-    
-    // Hide mobile panel after vote
-    const panel = document.querySelector('.mobile-vote-panel');
-    const button = document.querySelector('.mobile-vote-button');
-    if (panel) {
-      panel.classList.remove('show');
-    }
-    if (button) {
-      button.classList.remove('active');
-    }
-    
-    // Remove the backdrop after submitting vote
-    const backdrop = document.querySelector('.mobile-vote-backdrop');
-    if (backdrop) {
-      backdrop.remove();
-    }
   };
 
   // Add function to show watch ad modal
@@ -872,40 +877,61 @@ const StreamPage = () => {
           <button 
             className="mobile-vote-button" 
             onClick={toggleMobileVotePanel}
+            aria-label="Open vote panel"
           >
             <span className="vote-button-text">Vote</span>
           </button>
           <div className="mobile-vote-panel">
             <h3 className="panel-title">Vote with Gems</h3>
             <div className="panel-amount-grid">
-              <button className="panel-amount-button" onClick={() => handleVoteSubmit(10)}>10</button>
-              <button className="panel-amount-button" onClick={() => handleVoteSubmit(20)}>20</button>
-              <button className="panel-amount-button" onClick={() => handleVoteSubmit(50)}>50</button>
-              <button className="panel-amount-button" onClick={() => handleVoteSubmit(100)}>100</button>
-              <button className="panel-amount-button" onClick={() => handleVoteSubmit(200)}>200</button>
-              <button className="panel-amount-button" onClick={() => handleVoteSubmit(500)}>500</button>
+              {[10, 20, 50, 100, 200, 500].map((amount) => (
+                <button 
+                  key={amount} 
+                  className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                  onClick={() => {
+                    setSelectedAmount(amount);
+                    setCustomAmount('');
+                  }}
+                >
+                  {amount}
+                </button>
+              ))}
             </div>
             <input 
               type="number" 
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="panel-custom-input"
               value={customAmount} 
-              onChange={(e) => setCustomAmount(e.target.value)} 
+              onChange={handleCustomAmountChange}
+              onFocus={() => {
+                // Clear field on focus for easier entry
+                if (customAmount === '') {
+                  setCustomAmount('');
+                }
+              }}
               placeholder="Custom amount" 
             />
             <button 
-              className="panel-submit-button" 
-              onClick={() => handleVoteSubmit(customAmount)}
+              className={`panel-submit-button ${voteSuccess ? 'success' : ''}`} 
+              onClick={() => customAmount ? handleVoteSubmit(customAmount) : handleVote()}
+              disabled={isVoting}
             >
-              Vote
+              {isVoting ? 'Processing...' : voteSuccess ? 'Vote Successful!' : `Vote with ${selectedAmount} 💎`}
             </button>
             <div className="panel-gems-section">
-              <span className="panel-balance">Available: {gemBalance} gems</span>
+              <span className="panel-balance">Available: {gemBalance} 💎</span>
               <span className="panel-earn">
                 <button onClick={showWatchAdModal} className="earn-gems-button">
                   + Earn Gems
                 </button>
               </span>
             </div>
+            {errorMessage && (
+              <div className="error-message" style={{ color: '#ff6b6b', marginTop: '10px', textAlign: 'center' }}>
+                {errorMessage}
+              </div>
+            )}
           </div>
         </>
       )}
