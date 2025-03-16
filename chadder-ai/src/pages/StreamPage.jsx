@@ -5,7 +5,6 @@ import InsufficientGemsModal from '../components/InsufficientGemsModal';
 import WatchAdButton from '../components/WatchAdButton';
 import GemBalanceDisplay from '../components/GemBalanceDisplay';
 import './StreamPage.css';
-import './MobileStreamPage.css';
 
 
 const StreamPage = () => {
@@ -35,31 +34,21 @@ const StreamPage = () => {
   const [streamerInfo, setStreamerInfo] = useState({ bio: '', profileImageUrl: '' });
   const [topSupporters, setTopSupporters] = useState([]);
   const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(true);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const [mobileVotePanelVisible, setMobileVotePanelVisible] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sendSuccess, setSendSuccess] = useState(false);
-  const layoutUpdatedRef = useRef(false);
-  const panelVisibleRef = useRef(false);
   const [error, setError] = useState(null);
 
-  // Add debug logging for component state
+  // Simplified debug logging
   useEffect(() => {
     console.log("Current component state:", {
       username,
       normalizedUsername,
-      isMobile,
-      isPortrait,
       loading,
-      mobileVotePanelVisible,
       gemBalance
     });
-  }, [username, normalizedUsername, isMobile, isPortrait, loading, mobileVotePanelVisible, gemBalance]);
+  }, [username, normalizedUsername, loading, gemBalance]);
 
-  // Add logging to help troubleshoot
+  // Simplified logging
   useEffect(() => {
-    console.log("StreamPage mounting", { username, isMobile });
+    console.log("StreamPage mounting", { username });
     
     // Add error boundary
     const originalError = console.error;
@@ -72,15 +61,7 @@ const StreamPage = () => {
       console.log("StreamPage unmounting");
       console.error = originalError;
     };
-  }, [username, isMobile]);
-
-  // Remove iOS detection - treat all mobile devices the same
-  useEffect(() => {
-    // Ensure no special device classes are added
-    document.body.classList.remove('ios');
-    document.documentElement.classList.remove('ios-device');
-    document.documentElement.classList.remove('ios');
-  }, []);
+  }, [username]);
 
   useEffect(() => {
     let mounted = true;
@@ -181,24 +162,6 @@ const StreamPage = () => {
     };
   }, [normalizedUsername]);
 
-  // Simple mobile detection
-  useEffect(() => {
-    const handleResize = () => {
-      const newIsMobile = window.innerWidth <= 768;
-      setIsMobile(newIsMobile);
-    };
-    
-    // Initial detection
-    handleResize();
-    
-    // Add listener for window resize
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
   // Add scroll management effect
   useEffect(() => {
     // Scroll to top when component mounts
@@ -217,36 +180,32 @@ const StreamPage = () => {
     };
   }, []);
 
-  // Add effect to ensure vote container is properly visible on desktop
+  // Desktop vote container visibility effect
   useEffect(() => {
-    if (!isMobile) {
-      // Keep it collapsed by default (don't set isVotePaneCollapsed here)
-      
-      // Update vote container position on window resize
-      const handleResize = () => {
-        const voteContainer = document.querySelector('.floating-vote-container');
-        if (voteContainer) {
-          // Ensure it's always in viewport by adjusting position if needed
-          const viewportHeight = window.innerHeight;
-          const containerHeight = voteContainer.offsetHeight;
-          
-          if (containerHeight > viewportHeight * 0.8) {
-            // If container is too tall, ensure it has scrolling
-            voteContainer.style.maxHeight = `${viewportHeight * 0.8}px`;
-            voteContainer.style.overflowY = 'auto';
-          }
+    // Update vote container position on window resize
+    const handleResize = () => {
+      const voteContainer = document.querySelector('.floating-vote-container');
+      if (voteContainer) {
+        // Ensure it's always in viewport by adjusting position if needed
+        const viewportHeight = window.innerHeight;
+        const containerHeight = voteContainer.offsetHeight;
+        
+        if (containerHeight > viewportHeight * 0.8) {
+          // If container is too tall, ensure it has scrolling
+          voteContainer.style.maxHeight = `${viewportHeight * 0.8}px`;
+          voteContainer.style.overflowY = 'auto';
         }
-      };
-      
-      // Run once on mount and add listener for future resizes
-      handleResize();
-      window.addEventListener('resize', handleResize);
-      
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, [isMobile]);
+      }
+    };
+    
+    // Run once on mount and add listener for future resizes
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const calculateDonationBomb = (votes) => {
     const WACP = 0.0725; // Fixed WACP value
@@ -566,7 +525,7 @@ const StreamPage = () => {
     }
   };
 
-  // Add this new function to refresh user credits after watching an ad
+  // Function to refresh user credits after watching an ad
   const refreshUserCredits = async () => {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -586,7 +545,7 @@ const StreamPage = () => {
     }
   };
 
-  // Add this function to handle sending chat messages through the iframe
+  // Function to handle sending chat messages through the iframe
   const sendChatMessage = (message) => {
     const chatIframe = document.querySelector("#twitch-chat iframe");
     if (chatIframe && message.trim()) {
@@ -604,76 +563,9 @@ const StreamPage = () => {
     }
   };
 
-  // Simplified toggleMobileVotePanel function
-  const toggleMobileVotePanel = () => {
-    try {
-      const newVisibleState = !mobileVotePanelVisible;
-      setMobileVotePanelVisible(newVisibleState);
-      
-      // Get panel element
-      const panel = document.querySelector('.mobile-vote-panel');
-      
-      // Handle backdrop
-      if (newVisibleState) {
-        // Create backdrop if it doesn't exist
-        let backdrop = document.querySelector('.mobile-vote-backdrop');
-        if (!backdrop) {
-          backdrop = document.createElement('div');
-          backdrop.className = 'mobile-vote-backdrop';
-          document.body.appendChild(backdrop);
-          
-          // Add click handler to close panel when backdrop is clicked
-          backdrop.addEventListener('click', toggleMobileVotePanel);
-        }
-        
-        // Show backdrop
-        setTimeout(() => {
-          backdrop.classList.add('show');
-        }, 10); // Small delay to ensure DOM has updated
-        
-        // Show panel
-        if (panel) panel.classList.add('show');
-      } else {
-        // Hide backdrop
-        const backdrop = document.querySelector('.mobile-vote-backdrop');
-        if (backdrop) {
-          backdrop.classList.remove('show');
-          setTimeout(() => {
-            if (backdrop && backdrop.parentNode) {
-              backdrop.removeEventListener('click', toggleMobileVotePanel);
-              backdrop.parentNode.removeChild(backdrop);
-            }
-          }, 300); // Match transition duration
-        }
-        
-        // Hide panel
-        if (panel) panel.classList.remove('show');
-      }
-
-      // Toggle the active class on the vote button
-      const mobileVoteButton = document.querySelector('.mobile-vote-button');
-      if (mobileVoteButton) {
-        if (newVisibleState) {
-          mobileVoteButton.classList.add('active');
-        } else {
-          mobileVoteButton.classList.remove('active');
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling mobile vote panel:', error);
-      // Emergency cleanup
-      setMobileVotePanelVisible(false);
-      const panel = document.querySelector('.mobile-vote-panel');
-      if (panel) panel.classList.remove('show');
-      const backdrop = document.querySelector('.mobile-vote-backdrop');
-      if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
-    }
-  };
-
-  // Simplified handleSendVote function
+  // Desktop vote function
   const handleSendVote = (e) => {
     if (e) e.preventDefault();
-    if (sending) return;
     
     const amount = parseInt(customAmount) || selectedAmount;
     if (!amount) {
@@ -681,82 +573,32 @@ const StreamPage = () => {
       return;
     }
     
-    setSending(true);
-    
     // Process the vote
     handleVote()
       .then(() => {
         // Show success state
-        setSendSuccess(true);
-        
-        // Reset custom amount
         setCustomAmount('');
-        
-        // Close panel after successful vote with a delay
-        setTimeout(() => {
-          if (isMobile) {
-            toggleMobileVotePanel();
-          }
-          setSendSuccess(false);
-        }, 1500);
       })
       .catch(error => {
         console.error("Error sending vote:", error);
         setErrorMessage(error.message || "Failed to send vote");
-      })
-      .finally(() => {
-        setSending(false);
       });
   };
 
-  // Add cleanup function for mobile elements
-  useEffect(() => {
-    return () => {
-      // Clean up any backdrop when component unmounts
-      const backdrop = document.querySelector('.mobile-vote-backdrop');
-      if (backdrop && backdrop.parentNode) {
-        backdrop.parentNode.removeChild(backdrop);
-      }
-      
-      // Reset mobile state
-      setMobileVotePanelVisible(false);
-    };
-  }, []);
-
-  // Add function to show watch ad modal
-  const showWatchAdModal = () => {
-    // You might already have this functionality in WatchAdButton
-    // This is just a placeholder that will be used by the mobile panel
-    const watchAdButton = document.querySelector('.watch-ad-button');
-    if (watchAdButton) {
-      watchAdButton.click();
-    }
-  };
-
-  // Add this new function to handle the desktop vote button click
+  // Desktop vote panel toggle
   const toggleDesktopVotePanel = (e) => {
     e.stopPropagation();
     setIsVotePaneCollapsed(!isVotePaneCollapsed);
   };
 
-  // Add useEffect for initialization and error handling
+  // Simplified initialization
   useEffect(() => {
-    // Debug logging to help troubleshoot
+    // Debug logging
     console.log("StreamPage mounted");
     console.log("Username:", username);
-    console.log("isMobile:", isMobile);
     
     // Initialize
     try {
-      // Clean up any leftover backdrops
-      const existingBackdrop = document.querySelector('.mobile-vote-backdrop');
-      if (existingBackdrop && existingBackdrop.parentNode) {
-        existingBackdrop.parentNode.removeChild(existingBackdrop);
-      }
-      
-      // Set initial gem balance (for demo)
-      setGemBalance(1000);
-      
       // Set loading state
       setLoading(false);
     } catch (error) {
@@ -764,15 +606,6 @@ const StreamPage = () => {
       setError("Failed to initialize stream page");
       setLoading(false);
     }
-    
-    // Cleanup function
-    return () => {
-      // Remove any backdrop when component unmounts
-      const backdrop = document.querySelector('.mobile-vote-backdrop');
-      if (backdrop && backdrop.parentNode) {
-        backdrop.parentNode.removeChild(backdrop);
-      }
-    };
   }, [username]);
 
   // Render component
@@ -803,97 +636,9 @@ const StreamPage = () => {
       );
     }
     
-    // Main render - simplify panel balance section, using emoji instead of gemIcon
+    // Main render
     return (
       <div className="stream-page">
-        {/* Mobile Vote Panel - Positioned as direct child of main container */}
-        <div 
-          className={`mobile-vote-panel ${mobileVotePanelVisible ? 'show' : ''}`}
-        >
-          <div className="panel-header">
-            <h3 className="panel-title">Send Gems to {username}</h3>
-            <button 
-              className="panel-close" 
-              onClick={toggleMobileVotePanel}
-              aria-label="Close panel"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="panel-body">
-            <p className="panel-description">
-              Support {username} by sending gems during the stream!
-            </p>
-            
-            <div className="panel-balance">
-              <span>💎</span>
-              <span className="balance-amount">Your gem balance: {gemBalance || 0}</span>
-              <button 
-                className="earn-gems-button"
-                onClick={() => navigate('/credits')}
-              >
-                Get More
-              </button>
-            </div>
-            
-            <div className="panel-amounts">
-              <div className="panel-amount-grid">
-                {[1, 5, 10, 50, 100, 500].map(amount => (
-                  <button
-                    key={amount}
-                    className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedAmount(amount);
-                      setCustomAmount('');
-                      setErrorMessage('');
-                    }}
-                  >
-                    {amount}
-                  </button>
-                ))}
-              </div>
-              
-              <input
-                type="number"
-                inputMode="numeric"
-                className="panel-custom-input"
-                placeholder="Custom amount"
-                value={customAmount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === '' || parseInt(value) > 0) {
-                    setCustomAmount(value);
-                    setSelectedAmount(value ? parseInt(value) : null);
-                    setErrorMessage('');
-                  }
-                }}
-              />
-              
-              {errorMessage && (
-                <div className="error-message">{errorMessage}</div>
-              )}
-              
-              <button
-                className={`panel-submit-button ${sendSuccess ? 'success' : ''}`}
-                onClick={handleSendVote}
-                disabled={sending || (!selectedAmount && !customAmount)}
-              >
-                {sending ? 'Sending...' : sendSuccess ? 'Sent!' : 'Send Gems'}
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Mobile Vote Button - Positioned as direct child of main container */}
-        <button
-          className={`mobile-vote-button ${mobileVotePanelVisible ? 'active' : ''}`}
-          onClick={toggleMobileVotePanel}
-          aria-label="Vote for streamer"
-        >
-          VOTE
-        </button>
-        
         <h2 className="stream-title">Watching {username}'s Stream</h2>
         
         <div className="stream-layout">
@@ -904,33 +649,6 @@ const StreamPage = () => {
           <div className="stream-right-container">
             <div className="stream-chat-container" id="twitch-chat">
               {/* Chat iframe will be injected here */}
-              {isMobile && (
-                <div className="chat-input-container" id="chat-input-container">
-                  <input
-                    type="text"
-                    className="chat-input"
-                    placeholder="Send a message"
-                    aria-label="Chat input"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        sendChatMessage(e.target.value);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <button 
-                    onClick={(e) => {
-                      const input = e.target.previousSibling;
-                      sendChatMessage(input.value);
-                      input.value = '';
-                    }}
-                    className="chat-send-button"
-                    aria-label="Send message"
-                  >
-                    Send
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1006,112 +724,110 @@ const StreamPage = () => {
             </div>
           </div>
 
-          {/* Desktop Voting Panel - Fixing to make sure button is clickable */}
-          {!isMobile && (
-            <div 
-              className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
-              title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
-              onClick={(e) => {
-                if (isVotePaneCollapsed) {
-                  e.stopPropagation();
-                  setIsVotePaneCollapsed(false);
-                }
-              }}
-            >
-              {isVotePaneCollapsed ? (
-                // When collapsed, make the entire circle clickable
-                <div 
-                  className="vote-button-collapsed"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    zIndex: 1030
-                  }}
-                  onClick={toggleDesktopVotePanel}
-                >
-                  VOTE
+          {/* Desktop Voting Panel */}
+          <div 
+            className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
+            title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
+            onClick={(e) => {
+              if (isVotePaneCollapsed) {
+                e.stopPropagation();
+                setIsVotePaneCollapsed(false);
+              }
+            }}
+          >
+            {isVotePaneCollapsed ? (
+              // When collapsed, make the entire circle clickable
+              <div 
+                className="vote-button-collapsed"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  zIndex: 1030
+                }}
+                onClick={toggleDesktopVotePanel}
+              >
+                VOTE
+              </div>
+            ) : (
+              <button 
+                className="collapse-toggle"
+                onClick={(e) => {
+                  e.stopPropagation(); // Stop propagation to prevent conflicting toggles
+                  setIsVotePaneCollapsed(!isVotePaneCollapsed);
+                }}
+                aria-label="Collapse voting panel"
+              >
+                ↓
+              </button>
+            )}
+
+            {!isVotePaneCollapsed && (
+              <div className="vote-options" onClick={(e) => e.stopPropagation()}>
+                <h3 className="vote-title">Vote for {username}</h3>
+                <div className="vote-buttons">
+                  {[5, 10, 25, 50, 100].map((amount) => (
+                    <button
+                      key={amount}
+                      className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedAmount(amount);
+                        setCustomAmount('');
+                      }}
+                    >
+                      {amount} 💎
+                    </button>
+                  ))}
+                  <div className="custom-amount-wrapper">
+                    <input
+                      type="text"
+                      value={customAmount}
+                      onChange={handleCustomAmountChange}
+                      placeholder="Custom"
+                      className="custom-amount-input"
+                    />
+                    <span className="custom-amount-icon">💎</span>
+                  </div>
                 </div>
-              ) : (
+
                 <button 
-                  className="collapse-toggle"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Stop propagation to prevent conflicting toggles
-                    setIsVotePaneCollapsed(!isVotePaneCollapsed);
-                  }}
-                  aria-label="Collapse voting panel"
+                  className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
+                  onClick={handleSendVote} 
+                  disabled={isVoting || errorMessage === "Please log in to continue."}
                 >
-                  ↓
+                  {isVoting ? (
+                    `Processing Vote (${selectedAmount} 💎)`
+                  ) : voteSuccess ? (
+                    `Vote Successful! (${selectedAmount} 💎)`
+                  ) : (
+                    `👍 Vote with ${selectedAmount} 💎`
+                  )}
                 </button>
-              )}
 
-              {!isVotePaneCollapsed && (
-                <div className="vote-options" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="vote-title">Vote for {username}</h3>
-                  <div className="vote-buttons">
-                    {[5, 10, 25, 50, 100].map((amount) => (
-                      <button
-                        key={amount}
-                        className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                        onClick={() => {
-                          setSelectedAmount(amount);
-                          setCustomAmount('');
-                        }}
-                      >
-                        {amount} 💎
-                      </button>
-                    ))}
-                    <div className="custom-amount-wrapper">
-                      <input
-                        type="text"
-                        value={customAmount}
-                        onChange={handleCustomAmountChange}
-                        placeholder="Custom"
-                        className="custom-amount-input"
-                      />
-                      <span className="custom-amount-icon">💎</span>
-                    </div>
-                  </div>
-
-                  <button 
-                    className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
-                    onClick={handleSendVote} 
-                    disabled={isVoting || errorMessage === "Please log in to continue."}
-                  >
+                <div className="gems-section">
+                  <p className="credit-balance">
                     {isVoting ? (
-                      `Processing Vote (${selectedAmount} 💎)`
-                    ) : voteSuccess ? (
-                      `Vote Successful! (${selectedAmount} 💎)`
+                      `Processing... Current Balance: ${gemBalance} 💎`
+                    ) : errorMessage ? (
+                      `Error: ${errorMessage}`
                     ) : (
-                      `👍 Vote with ${selectedAmount} 💎`
+                      `Available Gems: ${gemBalance} 💎`
                     )}
-                  </button>
-
-                  <div className="gems-section">
-                    <p className="credit-balance">
-                      {isVoting ? (
-                        `Processing... Current Balance: ${gemBalance} 💎`
-                      ) : errorMessage ? (
-                        `Error: ${errorMessage}`
-                      ) : (
-                        `Available Gems: ${gemBalance} 💎`
-                      )}
-                    </p>
-                    
-                    <div className="earn-more-gems">
-                      <WatchAdButton onGemsEarned={refreshUserCredits} />
-                    </div>
+                  </p>
+                  
+                  <div className="earn-more-gems">
+                    <WatchAdButton onGemsEarned={refreshUserCredits} />
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         <InsufficientGemsModal
