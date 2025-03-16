@@ -621,7 +621,7 @@ const StreamPage = () => {
       if (gemBalance < selectedAmount) {
         setShowGemsModal(true);
         setIsVoting(false);
-        return;
+        throw new Error("Insufficient gems");
       }
 
       // Get user's display name
@@ -673,28 +673,14 @@ const StreamPage = () => {
       // Reset custom amount
       setCustomAmount('');
       
-      // For mobile: Close the vote panel after successful vote
-      if (isMobile) {
-        // Use setTimeout to ensure UI shows "Processing..." briefly before closing
-        setTimeout(() => {
-          const panel = document.querySelector('.mobile-vote-panel');
-          if (panel) {
-            panel.classList.remove('show');
-          }
-          
-          // Remove the backdrop
-          const backdrop = document.querySelector('.mobile-vote-backdrop');
-          if (backdrop) {
-            backdrop.remove();
-          }
-        }, 700); // Short delay to show success state
-      }
-      
       // Reset vote success message after a delay
       setTimeout(() => setVoteSuccess(false), 2000);
+      
+      return true; // Return successful result
     } catch (err) {
       setErrorMessage(err.message);
       console.error("Vote error:", err);
+      throw err; // Re-throw the error for the calling function to handle
     } finally {
       setIsVoting(false);
     }
@@ -774,11 +760,7 @@ const StreamPage = () => {
           document.body.appendChild(backdrop);
           
           // Add click handler to close panel when backdrop is clicked
-          backdrop.addEventListener('click', (e) => {
-            if (e.target === backdrop) {
-              toggleMobileVotePanel();
-            }
-          });
+          backdrop.addEventListener('click', toggleMobileVotePanel);
         }
         
         // Show backdrop and panel with animation
@@ -791,15 +773,13 @@ const StreamPage = () => {
           }
         });
         
-        // Lock body scroll when panel is open
-        document.body.style.overflow = 'hidden';
-        
       } else {
         // Hide backdrop and panel with animation
         if (backdrop) {
           backdrop.classList.remove('show');
           setTimeout(() => {
             if (backdrop && backdrop.parentNode) {
+              backdrop.removeEventListener('click', toggleMobileVotePanel);
               backdrop.parentNode.removeChild(backdrop);
             }
           }, 300);
@@ -808,37 +788,54 @@ const StreamPage = () => {
         if (panel) {
           panel.classList.remove('show');
         }
-        
-        // Restore body scroll when panel is closed
-        document.body.style.overflow = '';
       }
       
       // Toggle active class on mobile vote button
       const mobileVoteButton = document.querySelector('.mobile-vote-button');
       if (mobileVoteButton) {
-        if (newVisibleState) {
-          mobileVoteButton.classList.add('active');
-        } else {
-          mobileVoteButton.classList.remove('active');
-        }
+        mobileVoteButton.classList.toggle('active', newVisibleState);
       }
     } catch (error) {
       console.error('Error toggling mobile vote panel:', error);
+      // Fallback: force close panel on error
+      setMobileVotePanelVisible(false);
+      const panel = document.querySelector('.mobile-vote-panel');
+      if (panel) panel.classList.remove('show');
+      const backdrop = document.querySelector('.mobile-vote-backdrop');
+      if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
     }
   };
 
   // Replace handleSendVote with an improved version
   const handleSendVote = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (sending) return;
     
     const amount = parseInt(customAmount) || selectedAmount;
-    if (!amount) return;
+    if (!amount) {
+      setErrorMessage("Please select an amount");
+      return;
+    }
     
     setSending(true);
     
-    // Actually process the vote instead of using setTimeout
-    handleVote();
+    // Process the vote
+    handleVote()
+      .then(() => {
+        // Close panel after successful vote with a slight delay to show success state
+        setTimeout(() => {
+          if (isMobile) {
+            toggleMobileVotePanel();
+          }
+        }, 1000);
+      })
+      .catch(error => {
+        console.error("Error sending vote:", error);
+        setErrorMessage(error.message || "Failed to send vote");
+      })
+      .finally(() => {
+        setSending(false);
+      });
   };
 
   // Add an improved cleanup function when component unmounts
@@ -986,7 +983,6 @@ const StreamPage = () => {
         {/* Mobile Vote Panel */}
         <div 
           className={`mobile-vote-panel ${mobileVotePanelVisible ? 'show' : ''}`}
-          onClick={(e) => e.stopPropagation()}
         >
           <div className="panel-header">
             <h3 className="panel-title">Send Gems to {username}</h3>
@@ -1031,23 +1027,24 @@ const StreamPage = () => {
                 ))}
               </div>
               
-              <div className="panel-custom-amount">
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className="panel-custom-input"
-                  placeholder="Custom amount"
-                  value={customAmount}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || (/^\d+$/.test(value) && parseInt(value) > 0)) {
-                      setCustomAmount(value);
-                      setSelectedAmount(value ? parseInt(value) : null);
-                    }
-                  }}
-                />
-              </div>
+              <input
+                type="number"
+                inputMode="numeric"
+                className="panel-custom-input"
+                placeholder="Custom amount"
+                value={customAmount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || parseInt(value) > 0) {
+                    setCustomAmount(value);
+                    setSelectedAmount(value ? parseInt(value) : null);
+                  }
+                }}
+              />
+              
+              {errorMessage && (
+                <div className="error-message">{errorMessage}</div>
+              )}
               
               <button
                 className={`panel-submit-button ${sendSuccess ? 'success' : ''}`}
@@ -1215,7 +1212,7 @@ const StreamPage = () => {
 
                   <button 
                     className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
-                    onClick={handleVote} 
+                    onClick={handleSendVote} 
                     disabled={isVoting || errorMessage === "Please log in to continue."}
                   >
                     {isVoting ? (

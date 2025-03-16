@@ -1,6 +1,48 @@
 /* Mobile-specific styles for StreamPage */
 
-/* Mobile Vote Button Animation */
+/* Mobile layout - 40% video, 60% chat */
+@media screen and (max-width: 768px) {
+  .stream-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .stream-video-container {
+    height: 40vh;
+    width: 100%;
+    position: relative;
+  }
+
+  .stream-right-container {
+    height: 60vh;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  #twitch-embed, 
+  #twitch-chat {
+    width: 100%;
+    height: 100%;
+  }
+
+  .stream-chat-container {
+    height: 100%;
+  }
+
+  /* Hide unnecessary elements on mobile */
+  .stream-title {
+    font-size: 1.2rem;
+    margin: 8px 0;
+  }
+
+  .supporting-content {
+    display: none;
+  }
+}
+
+/* Mobile Vote Button */
 .mobile-vote-button {
   position: fixed;
   bottom: 20px;
@@ -15,12 +57,11 @@
   align-items: center;
   border: none;
   cursor: pointer;
-  z-index: 1020; /* Increased z-index to ensure visibility */
+  z-index: 1020; 
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
   animation: pulse 2s infinite;
-  outline: none; /* Remove outline for better appearance */
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+  font-weight: bold;
 }
 
 .mobile-vote-button:active {
@@ -30,24 +71,6 @@
 .mobile-vote-button.active {
   background-color: #4a3178;
   animation: none;
-}
-
-.vote-button-text {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.earn-gems-button {
-  background-color: #6441a5;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
 }
 
 @keyframes pulse {
@@ -62,44 +85,105 @@
   }
 }
 
-/* Mobile Vote Panel */
+/* Mobile Vote Panel - Fixed Version */
 .mobile-vote-panel {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  max-height: 80%; /* Reduced from 90% */
-  overflow-y: auto;
-  background-color: rgba(30, 30, 33, 0.98);
-  backdrop-filter: blur(5px);
+  max-height: 80%;
+  background-color: #1e1e21;
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
   padding: 16px;
-  z-index: 1010;
-  transform: translateY(100%); /* Ensure panel starts hidden */
+  z-index: 1030; /* Higher than backdrop */
+  transform: translateY(100%);
   transition: transform 0.3s ease;
   box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
-  pointer-events: auto !important; /* Force pointer events to work */
-  touch-action: auto !important; /* Ensure touch actions work properly */
-  -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
-  border-top: 2px solid #9147ff; /* Visual indicator */
+  border-top: 2px solid #9147ff;
+  overflow-y: auto;
 }
 
-/* Important: only show when explicitly toggled with the .show class */
 .mobile-vote-panel.show {
   transform: translateY(0);
-  display: block;
+}
+
+/* Backdrop */
+.mobile-vote-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1025; /* Between button and panel */
+  background-color: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none; /* Start with no pointer events */
+}
+
+.mobile-vote-backdrop.show {
+  opacity: 1;
+  pointer-events: auto; /* Enable pointer events when shown */
+}
+
+/* Panel Header */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.panel-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
 }
 
 .panel-title {
   font-size: 1.1rem;
   color: white;
-  text-align: center;
   font-weight: 600;
-  margin-bottom: 10px;
-  user-select: none; /* Prevent text selection */
+  margin: 0;
 }
 
+/* Panel Body */
+.panel-description {
+  color: #ccc;
+  margin-bottom: 16px;
+}
+
+.panel-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.balance-amount {
+  flex-grow: 1;
+  color: white;
+}
+
+.earn-gems-button {
+  background-color: #6441a5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Amount Buttons */
 .panel-amount-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -116,9 +200,6 @@
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
 }
 
 .panel-amount-button.selected {
@@ -126,30 +207,19 @@
   font-weight: bold;
 }
 
-.panel-amount-button:active {
-  background-color: #a970ff;
-  transform: scale(0.97);
-}
-
 .panel-custom-input {
   width: 100%;
   padding: 12px;
   background-color: rgba(255, 255, 255, 0.1);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: none;
   border-radius: 8px;
   font-size: 16px;
   margin: 10px 0;
-  transition: all 0.2s;
-}
-
-.panel-custom-input:focus {
-  border-color: #9147ff;
-  outline: none;
-  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .panel-submit-button {
+  width: 100%;
   padding: 12px;
   background-color: #9147ff;
   color: white;
@@ -158,47 +228,38 @@
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   margin-top: 10px;
-  transition: all 0.3s ease;
-  outline: none;
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
 }
 
-.panel-submit-button:active {
-  background-color: #a970ff;
-  transform: scale(0.97);
+.panel-submit-button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
 }
 
-.panel-gems-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.panel-submit-button.success {
+  background-color: #43b581;
+}
+
+/* Error Message */
+.error-message {
+  color: #ff5252;
   font-size: 14px;
-  color: white;
+  margin: 8px 0;
+  padding: 8px;
+  background-color: rgba(255, 82, 82, 0.1);
+  border-radius: 4px;
+  text-align: center;
 }
 
-.panel-balance {
-  font-weight: 500;
-}
-
-/* Create a proper backdrop for clicks */
-.mobile-vote-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1005; /* Between button and panel */
-  background-color: rgba(0,0,0,0.5);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: auto;
+/* Remove unnecessary/conflicting styles */
+@supports (-webkit-touch-callout: none) {
+  .mobile-vote-button {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0));
+  }
+  
+  .mobile-vote-panel {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  }
 }
 
 /* iOS Safari specific fixes */
