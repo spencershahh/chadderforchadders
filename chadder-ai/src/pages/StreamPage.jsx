@@ -33,7 +33,7 @@ const StreamPage = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [streamerInfo, setStreamerInfo] = useState({ bio: '', profileImageUrl: '' });
   const [topSupporters, setTopSupporters] = useState([]);
-  const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(true);
+  const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isIOS, setIsIOS] = useState(false);
@@ -306,6 +306,38 @@ const StreamPage = () => {
       }
     };
   }, []);
+
+  // Add effect to ensure vote container is properly visible on desktop
+  useEffect(() => {
+    if (!isMobile) {
+      // Initially show the vote container expanded
+      setIsVotePaneCollapsed(false);
+      
+      // Update vote container position on window resize
+      const handleResize = () => {
+        const voteContainer = document.querySelector('.floating-vote-container');
+        if (voteContainer) {
+          // Ensure it's always in viewport by adjusting position if needed
+          const viewportHeight = window.innerHeight;
+          const containerHeight = voteContainer.offsetHeight;
+          
+          if (containerHeight > viewportHeight * 0.8) {
+            // If container is too tall, ensure it has scrolling
+            voteContainer.style.maxHeight = `${viewportHeight * 0.8}px`;
+            voteContainer.style.overflowY = 'auto';
+          }
+        }
+      };
+      
+      // Run once on mount and add listener for future resizes
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, [isMobile]);
 
   const calculateDonationBomb = (votes) => {
     const WACP = 0.0725; // Fixed WACP value
@@ -742,7 +774,7 @@ const StreamPage = () => {
     }
   };
 
-  // Add this function to handle vote submission (referenced in mobile panel but missing)
+  // Handle vote submission (for mobile panel)
   const handleVoteSubmit = (amount) => {
     if (!amount || amount <= 0) {
       setErrorMessage("Please enter a valid amount");
@@ -764,6 +796,12 @@ const StreamPage = () => {
     }
     if (button) {
       button.classList.remove('active');
+    }
+    
+    // Remove the backdrop after submitting vote
+    const backdrop = document.querySelector('.mobile-vote-backdrop');
+    if (backdrop) {
+      backdrop.remove();
     }
   };
 
@@ -853,7 +891,7 @@ const StreamPage = () => {
               Vote
             </button>
             <div className="panel-gems-section">
-              <span className="panel-balance">Available: {credits ? credits.available : userCredit} gems</span>
+              <span className="panel-balance">Available: {credits ? credits.available : 0} gems</span>
               <span className="panel-earn">
                 <button onClick={showWatchAdModal} className="earn-gems-button">
                   + Earn Gems
@@ -935,73 +973,76 @@ const StreamPage = () => {
           </div>
         </div>
 
-        <div className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}>
-          <button 
-            className="collapse-toggle"
-            onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
-            aria-label={isVotePaneCollapsed ? "Expand voting panel" : "Collapse voting panel"}
-          >
-            {isVotePaneCollapsed ? '↑' : '↓'}
-          </button>
-
-          <div className="vote-options">
-            <h3 className="vote-title">Vote for {username}</h3>
-            <div className="vote-buttons">
-              {[5, 10, 25, 50, 100].map((amount) => (
-                <button
-                  key={amount}
-                  className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedAmount(amount);
-                    setCustomAmount('');
-                  }}
-                >
-                  {amount} 💎
-                </button>
-              ))}
-              <div className="custom-amount-wrapper">
-                <input
-                  type="text"
-                  value={customAmount}
-                  onChange={handleCustomAmountChange}
-                  placeholder="Custom"
-                  className="custom-amount-input"
-                />
-                <span className="custom-amount-icon">💎</span>
-              </div>
-            </div>
-
+        {/* Desktop Voting Panel - Moved higher in the component hierarchy for visibility */}
+        {!isMobile && (
+          <div className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}>
             <button 
-              className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
-              onClick={handleVote} 
-              disabled={isVoting || errorMessage === "Please log in to continue."}
+              className="collapse-toggle"
+              onClick={() => setIsVotePaneCollapsed(!isVotePaneCollapsed)}
+              aria-label={isVotePaneCollapsed ? "Expand voting panel" : "Collapse voting panel"}
             >
-              {isVoting ? (
-                `Processing Vote (${selectedAmount} 💎)`
-              ) : voteSuccess ? (
-                `Vote Successful! (${selectedAmount} 💎)`
-              ) : (
-                `👍 Vote with ${selectedAmount} 💎`
-              )}
+              {isVotePaneCollapsed ? '↑' : '↓'}
             </button>
 
-            <div className="gems-section">
-              <p className="credit-balance">
+            <div className="vote-options">
+              <h3 className="vote-title">Vote for {username}</h3>
+              <div className="vote-buttons">
+                {[5, 10, 25, 50, 100].map((amount) => (
+                  <button
+                    key={amount}
+                    className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedAmount(amount);
+                      setCustomAmount('');
+                    }}
+                  >
+                    {amount} 💎
+                  </button>
+                ))}
+                <div className="custom-amount-wrapper">
+                  <input
+                    type="text"
+                    value={customAmount}
+                    onChange={handleCustomAmountChange}
+                    placeholder="Custom"
+                    className="custom-amount-input"
+                  />
+                  <span className="custom-amount-icon">💎</span>
+                </div>
+              </div>
+
+              <button 
+                className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
+                onClick={handleVote} 
+                disabled={isVoting || errorMessage === "Please log in to continue."}
+              >
                 {isVoting ? (
-                  `Processing... Current Balance: ${credits.available} 💎`
-                ) : errorMessage ? (
-                  `Error: ${errorMessage}`
+                  `Processing Vote (${selectedAmount} 💎)`
+                ) : voteSuccess ? (
+                  `Vote Successful! (${selectedAmount} 💎)`
                 ) : (
-                  `Available Gems: ${credits.available} 💎`
+                  `👍 Vote with ${selectedAmount} 💎`
                 )}
-              </p>
-              
-              <div className="earn-more-gems">
-                <WatchAdButton onGemsEarned={refreshUserCredits} />
+              </button>
+
+              <div className="gems-section">
+                <p className="credit-balance">
+                  {isVoting ? (
+                    `Processing... Current Balance: ${credits.available} 💎`
+                  ) : errorMessage ? (
+                    `Error: ${errorMessage}`
+                  ) : (
+                    `Available Gems: ${credits.available} 💎`
+                  )}
+                </p>
+                
+                <div className="earn-more-gems">
+                  <WatchAdButton onGemsEarned={refreshUserCredits} />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <InsufficientCreditsModal
