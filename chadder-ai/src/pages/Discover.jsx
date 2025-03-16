@@ -394,6 +394,38 @@ const Discover = () => {
       setIsLoading(true);
       setLoadError(null);
       
+      // Check if the API server is reachable before making the full request
+      if (import.meta.env.VITE_API_URL) {
+        try {
+          console.log('Testing API connectivity...');
+          const testResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/health`, { 
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }).catch(e => {
+            console.error('API connectivity test failed:', e);
+            return { ok: false, status: 0 };
+          });
+          
+          if (!testResponse.ok) {
+            console.warn('API server not responding properly. Status:', testResponse.status);
+            if (testResponse.status === 0) {
+              setLoadError('Unable to connect to the API server. The server may be down or unavailable.');
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            console.log('API server is reachable.');
+          }
+        } catch (connectError) {
+          console.error('Error testing API connectivity:', connectError);
+          // Continue anyway to show the proper error from the API call
+        }
+      }
+      
       const streamersData = await fetchStreamers();
       console.log('Loaded streamers from API:', streamersData);
       
@@ -884,6 +916,15 @@ const Discover = () => {
               <h3>Oops! We couldn't load the streamers</h3>
               <p>{loadError}</p>
               <p>We're working on fixing this. Please try using a different browser or device.</p>
+              <div className={styles.errorDetails}>
+                <p><strong>Troubleshooting Tips:</strong></p>
+                <ul>
+                  <li>Make sure your internet connection is stable</li>
+                  <li>Check if you're using a VPN or proxy that might block access</li>
+                  <li>Try clearing your browser cache</li>
+                  <li>If you're using an ad blocker, try disabling it temporarily</li>
+                </ul>
+              </div>
               <div className={styles.buttonGroup}>
                 <button 
                   onClick={() => loadStreamers()} 

@@ -48,83 +48,70 @@ export const fetchStreamers = async () => {
         const apiUrl = `${API_URL}/api/twitch/streamers?logins=${streamerLogins}`;
         console.log(`Attempting to fetch enriched data from: ${apiUrl}`);
         
-        // Add additional headers that might help with CORS issues
-        const headers = {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': window.location.origin,
-          'Cache-Control': 'no-cache'
-        };
-        
-        // Add different fetch strategies based on platform
-        let response;
-        if (isMobile) {
-          // Mobile fetch strategy
-          response = await fetch(apiUrl, {
+        // Simplified fetch with consistent CORS settings
+        try {
+          const response = await fetch(apiUrl, {
             method: 'GET',
-            headers: headers,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
             mode: 'cors',
-            cache: 'no-cache',
-            credentials: 'same-origin'
+            credentials: 'include', // Changed from 'same-origin' to 'include' for cross-origin requests
           });
-        } else {
-          // Desktop fetch strategies - try multiple approaches
-          try {
-            // Try with fetch API first
-            response = await fetch(apiUrl, {
-              method: 'GET',
-              headers: headers,
-              mode: 'cors',
-              cache: 'no-cache'
-            });
-          } catch (fetchError) {
-            console.error('Fetch API failed on desktop, trying axios:', fetchError);
-            
-            // Try with axios as backup
-            const axiosResponse = await axios.get(apiUrl, { 
-              headers: headers
-            });
-            
-            // Convert axios response to fetch-like response
-            response = {
-              ok: axiosResponse.status >= 200 && axiosResponse.status < 300,
-              status: axiosResponse.status,
-              json: async () => axiosResponse.data
-            };
-          }
-        }
-        
-        if (response.ok) {
-          const enrichedData = await response.json();
           
-          if (enrichedData && enrichedData.length > 0) {
-            console.log('Successfully fetched enriched data from backend:', enrichedData.length, 'streamers');
+          if (response.ok) {
+            const enrichedData = await response.json();
             
-            // Log the first streamer data to help with debugging
-            if (enrichedData[0]) {
-              console.log('Sample enriched streamer data:', {
-                name: enrichedData[0].user_name,
-                status: enrichedData[0].type,
-                thumbnail: enrichedData[0].thumbnail_url ? 'present' : 'missing',
-                profile: enrichedData[0].profile_image_url ? 'present' : 'missing'
-              });
+            if (enrichedData && enrichedData.length > 0) {
+              console.log('Successfully fetched enriched data from backend:', enrichedData.length, 'streamers');
+              
+              // Log the first streamer data to help with debugging
+              if (enrichedData[0]) {
+                console.log('Sample enriched streamer data:', {
+                  name: enrichedData[0].user_name,
+                  status: enrichedData[0].type,
+                  thumbnail: enrichedData[0].thumbnail_url ? 'present' : 'missing',
+                  profile: enrichedData[0].profile_image_url ? 'present' : 'missing'
+                });
+              }
+              
+              // Return the enriched data
+              return enrichedData;
+            } else {
+              console.warn('Backend returned empty enriched data');
+              return { error: true, message: 'No streamers available at this time. Please try again later.' };
             }
-            
-            // Return the enriched data
-            return enrichedData;
           } else {
-            console.warn('Backend returned empty enriched data');
-            return { error: true, message: 'No streamers available at this time. Please try again later.' };
+            console.warn('Backend returned error status:', response.status);
+            try {
+              const errorData = await response.json();
+              console.warn('Error details:', errorData);
+            } catch (e) {
+              console.warn('Could not parse error response');
+            }
+            return { error: true, message: `Could not retrieve streamer data. Server returned status ${response.status}.` };
           }
-        } else {
-          console.warn('Backend returned error status:', response.status);
+        } catch (fetchError) {
+          console.error('Fetch attempt failed, trying axios as fallback:', fetchError);
+          
           try {
-            const errorData = await response.json();
-            console.warn('Error details:', errorData);
-          } catch (e) {
-            console.warn('Could not parse error response');
+            // Try with axios as backup with no credentials to avoid CORS issues
+            const axiosResponse = await axios.get(apiUrl, { 
+              withCredentials: false
+            });
+            
+            if (axiosResponse.status >= 200 && axiosResponse.status < 300 && axiosResponse.data) {
+              console.log('Successfully fetched data via axios:', axiosResponse.data.length, 'streamers');
+              return axiosResponse.data;
+            } else {
+              console.warn('Axios request failed:', axiosResponse.status);
+              return { error: true, message: 'Failed to retrieve streamer data via backup method.' };
+            }
+          } catch (axiosError) {
+            console.error('All fetch attempts failed:', axiosError);
+            throw axiosError;
           }
-          return { error: true, message: `Could not retrieve streamer data. Server returned status ${response.status}.` };
         }
       } catch (enrichError) {
         console.error('Error fetching enriched data:', enrichError.message);
