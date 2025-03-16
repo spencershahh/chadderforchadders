@@ -13,7 +13,7 @@ const StreamPage = () => {
   const normalizedUsername = username.toLowerCase();
   const [voteStats, setVoteStats] = useState({ today: 0, week: 0, allTime: 0 });
   const [gemBalance, setGemBalance] = useState(0);
-  const [selectedAmount, setSelectedAmount] = useState(5);
+  const [selectedAmount, setSelectedAmount] = useState(null);
   const [userIp, setUserIp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,14 +34,16 @@ const StreamPage = () => {
   const [isVotePaneCollapsed, setIsVotePaneCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const [isIOS, setIsIOS] = useState(false);
+  const [mobileVotePanelVisible, setMobileVotePanelVisible] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
   const layoutUpdatedRef = useRef(false);
   const panelVisibleRef = useRef(false);
-  const [showMobileVotePanel, setShowMobileVotePanel] = useState(false);
+  const [error, setError] = useState(null);
 
   // Add logging to help troubleshoot
   useEffect(() => {
-    console.log("StreamPage mounting", { username, isMobile, isIOS });
+    console.log("StreamPage mounting", { username, isMobile });
     
     // Add error boundary
     const originalError = console.error;
@@ -54,30 +56,13 @@ const StreamPage = () => {
       console.log("StreamPage unmounting");
       console.error = originalError;
     };
-  }, [username, isMobile, isIOS]);
+  }, [username, isMobile]);
 
-  // Detect iOS - more robust detection
+  // Remove iOS detection - treat all mobile devices the same
   useEffect(() => {
-    const checkIOS = () => {
-      const userAgent = window.navigator.userAgent.toLowerCase();
-      
-      // iOS detection methods
-      const isIOS = 
-        /ipad|iphone|ipod/.test(userAgent) && !window.MSStream || // Standard detection
-        (userAgent.includes('mac') && 'ontouchend' in document) || // iPad with new iPadOS
-        (/iPad|iPhone|iPod/.test(navigator.platform) ||           // Older devices
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-      
-      setIsIOS(isIOS);
-      
-      // Add iOS class to body if needed
-      if (isIOS) {
-        document.body.classList.add('ios');
-        console.log('iOS device detected');
-      }
-    };
-    
-    checkIOS();
+    // Ensure no iOS-specific classes are added
+    document.body.classList.remove('ios');
+    document.documentElement.classList.remove('ios-device');
   }, []);
 
   useEffect(() => {
@@ -769,162 +754,86 @@ const StreamPage = () => {
     }
   };
 
-  // Toggle mobile vote panel with improved iOS handling
-  const toggleMobileVotePanel = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    // Toggle panel visibility
-    const newState = !showMobileVotePanel;
-    setShowMobileVotePanel(newState);
-    
+  // Replace toggleMobileVotePanel with a simpler version
+  const toggleMobileVotePanel = () => {
     try {
-      // Toggle backdrop
-      if (newState) {
-        // Create backdrop element if it doesn't exist
-        let backdrop = document.querySelector('.mobile-vote-backdrop');
+      const newVisibleState = !mobileVotePanelVisible;
+      
+      // Update state
+      setMobileVotePanelVisible(newVisibleState);
+      
+      // Handle backdrop
+      let backdrop = document.querySelector('.mobile-vote-backdrop');
+      
+      if (newVisibleState) {
         if (!backdrop) {
           backdrop = document.createElement('div');
           backdrop.className = 'mobile-vote-backdrop';
           document.body.appendChild(backdrop);
-        }
-        
-        // IMPORTANT: Make sure backdrop is below clickable elements
-        backdrop.style.zIndex = '9000'; // Lower z-index than the panel (10000)
-        
-        // Special handling for iOS - CRITICAL FIX
-        if (isIOS) {
-          // For iOS, set backdrop to not capture pointer events
-          // This allows clicks to pass through to elements above it
-          backdrop.style.pointerEvents = 'none';
           
-          // Lock body scrolling on iOS
-          document.body.style.position = 'fixed';
-          document.body.style.top = `-${window.scrollY}px`;
-          document.body.style.width = '100%';
-          document.body.style.overflowY = 'hidden';
-          
-          // Set backdrop click handler for iOS
-          setTimeout(() => {
-            // Create a close button in the backdrop for iOS
-            const closeButton = document.createElement('button');
-            closeButton.className = 'backdrop-close-button';
-            closeButton.textContent = 'Close';
-            closeButton.style.position = 'absolute';
-            closeButton.style.bottom = '20px';
-            closeButton.style.left = '50%';
-            closeButton.style.transform = 'translateX(-50%)';
-            closeButton.style.padding = '10px 20px';
-            closeButton.style.background = 'rgba(0,0,0,0.7)';
-            closeButton.style.color = 'white';
-            closeButton.style.borderRadius = '20px';
-            closeButton.style.border = 'none';
-            closeButton.style.zIndex = '9999';
-            closeButton.style.pointerEvents = 'auto'; // Make this clickable
-            
-            closeButton.onclick = (e) => {
-              e.preventDefault();
-              e.stopPropagation();
+          // Add click handler to close panel when backdrop is clicked
+          backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) {
               toggleMobileVotePanel();
-            };
-            
-            if (backdrop) {
-              backdrop.appendChild(closeButton);
             }
-          }, 100);
-        } else {
-          // Non-iOS can use normal backdrop click to close
-          backdrop.style.pointerEvents = 'auto';
-          backdrop.onclick = () => {
-            toggleMobileVotePanel();
-          };
+          });
         }
         
-        // Show backdrop
-        backdrop.style.display = 'block';
+        // Show backdrop with animation
         setTimeout(() => {
-          if (backdrop) backdrop.style.opacity = '1';
+          backdrop.style.opacity = '1';
         }, 10);
         
-        // Force layout reflow for iOS
-        if (isIOS) {
-          const panel = document.querySelector('.mobile-vote-panel');
-          if (panel) {
-            panel.style.display = 'block';
-            // Force reflow
-            void panel.offsetWidth;
-            panel.classList.add('show');
-            
-            // CRITICAL: Make panel itself receive pointer events
-            panel.style.pointerEvents = 'auto';
-            panel.style.zIndex = '10000';
-            
-            // Schedule button initialization
-            setTimeout(() => {
-              const buttons = panel.querySelectorAll('button');
-              buttons.forEach(button => {
-                // Ensure pointer events is enabled
-                button.style.pointerEvents = 'auto';
-                button.style.zIndex = '10001';
-                button.style.position = 'relative';
-                // Add tap highlight color
-                button.style.webkitTapHighlightColor = 'rgba(0,0,0,0)';
-              });
-              
-              // Also ensure input is clickable
-              const inputs = panel.querySelectorAll('input');
-              inputs.forEach(input => {
-                input.style.pointerEvents = 'auto';
-                input.style.zIndex = '10001';
-                input.style.position = 'relative';
-              });
-            }, 100);
-          }
-        }
       } else {
-        // Hide backdrop
-        const backdrop = document.querySelector('.mobile-vote-backdrop');
+        // Hide backdrop with animation
         if (backdrop) {
           backdrop.style.opacity = '0';
           setTimeout(() => {
-            if (backdrop) {
-              backdrop.style.display = 'none';
-              // Remove any close buttons
-              const closeButton = backdrop.querySelector('.backdrop-close-button');
-              if (closeButton) closeButton.remove();
+            if (backdrop && backdrop.parentNode) {
+              backdrop.parentNode.removeChild(backdrop);
             }
           }, 300);
         }
-        
-        // Unlock body scrolling on iOS
-        if (isIOS) {
-          const scrollY = document.body.style.top;
-          document.body.style.position = '';
-          document.body.style.top = '';
-          document.body.style.overflowY = '';
-          document.body.style.width = '';
-          window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+      
+      // Toggle active class on mobile vote button
+      const mobileVoteButton = document.querySelector('.mobile-vote-button');
+      if (mobileVoteButton) {
+        if (newVisibleState) {
+          mobileVoteButton.classList.add('active');
+        } else {
+          mobileVoteButton.classList.remove('active');
         }
       }
     } catch (error) {
-      console.error("Error in toggleMobileVotePanel:", error);
+      console.error('Error toggling mobile vote panel:', error);
     }
   };
 
-  // Handle vote submission (for mobile panel)
-  const handleVoteSubmit = (amount) => {
-    if (!amount || amount <= 0) {
-      setErrorMessage("Please enter a valid amount");
-      return;
-    }
+  // Replace handleSendVote with a simpler version
+  const handleSendVote = (e) => {
+    e.preventDefault();
+    if (sending) return;
     
-    const voteAmount = parseInt(amount);
-    setSelectedAmount(voteAmount);
+    const amount = customAmount || selectedAmount;
+    if (!amount) return;
     
-    // Call the vote handler directly
-    handleVote();
+    setSending(true);
+    
+    // Call API to send vote
+    setTimeout(() => {
+      console.log(`Vote sent: ${amount} gems`);
+      setSending(false);
+      setSendSuccess(true);
+      
+      // Reset success state after showing confirmation
+      setTimeout(() => {
+        setSendSuccess(false);
+        setSelectedAmount(null);
+        setCustomAmount('');
+        toggleMobileVotePanel();
+      }, 1500);
+    }, 1000);
   };
 
   // Add function to show watch ad modal
@@ -943,251 +852,73 @@ const StreamPage = () => {
     setIsVotePaneCollapsed(!isVotePaneCollapsed);
   };
 
-  // Add a special effect to handle iOS button initialization
+  // Add useEffect for initialization and error handling
   useEffect(() => {
-    if (!isIOS) return; // Only for iOS devices
+    // Debug logging to help troubleshoot
+    console.log("StreamPage mounted");
+    console.log("Username:", username);
+    console.log("isMobile:", isMobile);
     
-    const initializeIOSButtons = () => {
-      const panel = document.querySelector('.mobile-vote-panel');
-      if (!panel || !panel.classList.contains('show')) return;
+    // Initialize
+    try {
+      // Clean up any leftover backdrops
+      const existingBackdrop = document.querySelector('.mobile-vote-backdrop');
+      if (existingBackdrop && existingBackdrop.parentNode) {
+        existingBackdrop.parentNode.removeChild(existingBackdrop);
+      }
       
-      console.log('Initializing iOS buttons');
+      // Set initial gem balance (for demo)
+      setGemBalance(1000);
       
-      // Get all buttons in the panel
-      const buttons = panel.querySelectorAll('button');
-      
-      // Add special iOS event handling
-      buttons.forEach(button => {
-        // Make sure button has the iOS touch class
-        button.classList.add('ios-touch-button');
-        
-        // Remove existing event listeners (to prevent duplicates)
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-        
-        // Add new direct touch event listeners
-        newButton.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // Visual feedback
-          newButton.style.opacity = '0.8';
-          
-          // Get button type
-          if (newButton.classList.contains('panel-amount-button')) {
-            // Amount button
-            const amount = parseInt(newButton.textContent.trim(), 10);
-            if (!isNaN(amount)) {
-              setSelectedAmount(amount);
-              setCustomAmount('');
-              
-              // Clear selected state from all buttons
-              const amountButtons = panel.querySelectorAll('.panel-amount-button');
-              amountButtons.forEach(btn => btn.classList.remove('selected'));
-              
-              // Add selected state to this button
-              newButton.classList.add('selected');
-            }
-          } else if (newButton.classList.contains('panel-submit-button')) {
-            // Submit button (vote)
-            handleVote();
-          } else if (newButton.classList.contains('earn-gems-button')) {
-            // Earn gems button
-            showWatchAdModal();
-          }
-          
-          // Restore opacity after a delay
-          setTimeout(() => {
-            newButton.style.opacity = '1';
-          }, 200);
-        }, { passive: false });
-        
-        // Also add regular click as fallback
-        newButton.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // Similar functionality as touchstart
-          if (newButton.classList.contains('panel-amount-button')) {
-            const amount = parseInt(newButton.textContent.trim(), 10);
-            if (!isNaN(amount)) {
-              setSelectedAmount(amount);
-              setCustomAmount('');
-              
-              // Update selected state
-              const amountButtons = panel.querySelectorAll('.panel-amount-button');
-              amountButtons.forEach(btn => btn.classList.remove('selected'));
-              newButton.classList.add('selected');
-            }
-          } else if (newButton.classList.contains('panel-submit-button')) {
-            handleVote();
-          } else if (newButton.classList.contains('earn-gems-button')) {
-            showWatchAdModal();
-          }
-        }, { passive: false });
-      });
-    };
-    
-    // Add a mutation observer to detect when the panel becomes visible
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.target.classList && 
-            mutation.target.classList.contains('mobile-vote-panel') && 
-            mutation.target.classList.contains('show')) {
-          // Panel became visible, initialize buttons
-          initializeIOSButtons();
-          panelVisibleRef.current = true;
-        }
-      });
-    });
-    
-    // Start observing
-    const panel = document.querySelector('.mobile-vote-panel');
-    if (panel) {
-      observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+      // Set loading state
+      setLoading(false);
+    } catch (error) {
+      console.error("Error initializing StreamPage:", error);
+      setError("Failed to initialize stream page");
+      setLoading(false);
     }
     
-    // Cleanup
+    // Cleanup function
     return () => {
-      if (observer) {
-        observer.disconnect();
+      // Remove any backdrop when component unmounts
+      const backdrop = document.querySelector('.mobile-vote-backdrop');
+      if (backdrop && backdrop.parentNode) {
+        backdrop.parentNode.removeChild(backdrop);
       }
     };
-  }, [isIOS, handleVote, setSelectedAmount, showWatchAdModal]);
+  }, [username]);
 
-  // Cleanup for iOS-specific touch event handlers
-  useEffect(() => {
-    if (!isIOS) return;
-    
-    // Set up universal touch event handler for iOS
-    const preventDefaultForIOS = (e) => {
-      if (showMobileVotePanel && e.target.closest('.mobile-vote-panel')) {
-        // Don't block default behavior within the vote panel
-        return;
-      }
-      
-      // Prevent double-tap zoom on iOS when vote panel is open
-      if (showMobileVotePanel) {
-        e.preventDefault();
-      }
-    };
-    
-    // Add iOS-specific touch handlers
-    if (isIOS) {
-      document.addEventListener('touchstart', preventDefaultForIOS, { passive: false });
-      document.addEventListener('touchmove', preventDefaultForIOS, { passive: false });
-      
-      // Prevent pinch zoom on iOS
-      document.addEventListener('gesturestart', (e) => {
-        if (showMobileVotePanel) {
-          e.preventDefault();
-        }
-      }, { passive: false });
-    }
-    
-    // Cleanup
-    return () => {
-      if (isIOS) {
-        document.removeEventListener('touchstart', preventDefaultForIOS);
-        document.removeEventListener('touchmove', preventDefaultForIOS);
-        document.removeEventListener('gesturestart', preventDefaultForIOS);
-      }
-    };
-  }, [isIOS, showMobileVotePanel]);
-
-  // Add special touch events for direct handling
-  const handleButtonInteraction = (e, buttonType, amount = null) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Add visual feedback
-    if (e.currentTarget) {
-      e.currentTarget.style.opacity = '0.7';
-      setTimeout(() => {
-        if (e.currentTarget) e.currentTarget.style.opacity = '1';
-      }, 150);
-    }
-    
-    // Handle based on button type
-    switch (buttonType) {
-      case 'amount':
-        if (amount !== null) {
-          setSelectedAmount(amount);
-          setCustomAmount('');
-          
-          // Clear selected state from all buttons
-          const panel = document.querySelector('.mobile-vote-panel');
-          if (panel) {
-            const amountButtons = panel.querySelectorAll('.panel-amount-button');
-            amountButtons.forEach(btn => btn.classList.remove('selected'));
-            
-            // Add selected to current button
-            e.currentTarget.classList.add('selected');
-          }
-        }
-        break;
-      case 'vote':
-        handleVote();
-        break;
-      case 'earn':
-        showWatchAdModal();
-        break;
-      case 'close':
-        toggleMobileVotePanel();
-        break;
-      default:
-        break;
-    }
-  };
-
-  // Fix viewport on iOS
-  useEffect(() => {
-    if (!isIOS) return;
-    
-    if (showMobileVotePanel) {
-      // When panel is showing on iOS, fix viewport
-      const metaViewport = document.querySelector('meta[name=viewport]');
-      if (metaViewport) {
-        // Save original viewport
-        const originalContent = metaViewport.getAttribute('content');
-        metaViewport._originalContent = originalContent;
-        
-        // Set fixed viewport that prevents scaling/zooming
-        metaViewport.setAttribute('content', 
-          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-        
-        // Force redraw
-        document.body.style.display = 'none';
-        setTimeout(() => {
-          document.body.style.display = '';
-        }, 10);
-      }
-    } else {
-      // Restore original viewport when panel is closed
-      const metaViewport = document.querySelector('meta[name=viewport]');
-      if (metaViewport && metaViewport._originalContent) {
-        metaViewport.setAttribute('content', metaViewport._originalContent);
-      }
-    }
-  }, [isIOS, showMobileVotePanel]);
-
-  // Add a try-catch wrapper around the render to diagnose issues
-  if (!username) {
-    return <div className="error-state">Username is required to view the stream</div>;
-  }
-
-  // Return loading state when initializing  
-  if (loading) {
-    return (
-      <div className="loading-state">
-        <h2>Loading stream for {username}...</h2>
-      </div>
-    );
-  }
-
+  // Wrap the render with error handling
   try {
+    // Show loading state
+    if (loading) {
+      return (
+        <div className="stream-page loading-container">
+          <div className="loading-message">Loading stream...</div>
+        </div>
+      );
+    }
+    
+    // Show error state
+    if (error || !username) {
+      return (
+        <div className="stream-page error-container">
+          <div className="error-message">
+            {error || "Unable to load stream. Please try again."}
+          </div>
+          <button 
+            className="retry-button"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    
+    // Main render
     return (
-      <div className={`stream-page ${isIOS ? 'ios' : ''}`}>
+      <div className="stream-page">
         <h2 className="stream-title">Watching {username}'s Stream</h2>
         
         <div className="stream-layout">
@@ -1229,143 +960,88 @@ const StreamPage = () => {
           </div>
         </div>
 
-        {/* Mobile Vote Button and Panel */}
-        {isMobile && (
-          <>
+        {/* Mobile Vote Panel */}
+        <div 
+          className={`mobile-vote-panel ${mobileVotePanelVisible ? 'show' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="panel-header">
+            <h3 className="panel-title">Send Gems to {username}</h3>
             <button 
-              className="mobile-vote-button" 
-              onClick={(e) => {
-                e.preventDefault(); // Prevent default touch behavior
-                e.stopPropagation(); // Prevent event bubbling
-                toggleMobileVotePanel();
-              }}
-              onTouchStart={(e) => {
-                // For iOS, add touchstart handler
-                if (isIOS) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleMobileVotePanel();
-                }
-              }}
-              aria-label="Open vote panel"
+              className="panel-close" 
+              onClick={toggleMobileVotePanel}
             >
-              <span className="vote-button-text">VOTE</span>
+              ✕
             </button>
-            <div 
-              className={`mobile-vote-panel ${showMobileVotePanel ? 'show' : ''} ${isIOS ? 'ios' : ''}`}
-              onClick={(e) => e.stopPropagation()} 
-              style={{ 
-                zIndex: 10000,
-                position: 'fixed',
-                pointerEvents: 'auto',
-                touchAction: 'auto'
-              }}
-            >
-              <div className="panel-header">
-                <div className="panel-title">Support {username}</div>
-                <button 
-                  className="panel-close" 
-                  onClick={(e) => handleButtonInteraction(e, 'close')}
-                  onTouchStart={(e) => handleButtonInteraction(e, 'close')}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Close vote panel"
-                  style={{ 
-                    pointerEvents: 'auto',
-                    zIndex: 10001,
-                    position: 'relative' 
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="panel-body">
-                <div className="panel-description">
-                  Your support helps the creator climb the rankings.
-                </div>
-                <div className="panel-balance">
-                  <span className="balance-amount">💎 {gemBalance || 0}</span>
-                  <button 
-                    className="earn-gems-button ios-touch-button" 
-                    onClick={(e) => handleButtonInteraction(e, 'earn')}
-                    onTouchStart={(e) => handleButtonInteraction(e, 'earn')}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Earn gems"
-                    style={{ 
-                      pointerEvents: 'auto',
-                      zIndex: 10001,
-                      position: 'relative' 
+          </div>
+          
+          <div className="panel-body">
+            <p className="panel-description">
+              Support {username} by sending gems during the stream!
+            </p>
+            
+            <div className="panel-balance">
+              <span>💎</span>
+              <span className="balance-amount">Your gem balance: {gemBalance || 0}</span>
+              <button 
+                className="earn-gems-button"
+                onClick={() => {
+                  console.log('Earn gems clicked');
+                  // Add your earn gems logic here
+                }}
+              >
+                Get More
+              </button>
+            </div>
+            
+            <div className="panel-amounts">
+              <div className="panel-amount-grid">
+                {[1, 5, 10, 50, 100, 500].map(amount => (
+                  <button
+                    key={amount}
+                    className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedAmount(amount);
+                      setCustomAmount('');
                     }}
                   >
-                    <span>+ Earn More</span>
+                    {amount}
                   </button>
-                </div>
-                <div className="panel-amounts">
-                  {[100, 500, 1000, 5000].map((amount) => (
-                    <button
-                      key={amount}
-                      className={`panel-amount-button ios-touch-button ${selectedAmount === amount ? 'selected' : ''}`}
-                      onClick={(e) => handleButtonInteraction(e, 'amount', amount)}
-                      onTouchStart={(e) => handleButtonInteraction(e, 'amount', amount)}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Vote ${amount} gems`}
-                      style={{ 
-                        pointerEvents: 'auto',
-                        zIndex: 10001,
-                        position: 'relative' 
-                      }}
-                    >
-                      {amount}
-                    </button>
-                  ))}
-                </div>
-                <div className="panel-custom-amount">
-                  <input
-                    type="number"
-                    value={customAmount}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setCustomAmount(e.target.value);
-                      if (e.target.value) {
-                        setSelectedAmount(parseInt(e.target.value));
-                      } else {
-                        setSelectedAmount(0);
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    placeholder="Custom amount"
-                    min="1"
-                    max="1000000"
-                    style={{ 
-                      pointerEvents: 'auto',
-                      zIndex: 10001,
-                      position: 'relative' 
-                    }}
-                  />
-                </div>
-                <button 
-                  className="panel-submit-button ios-touch-button" 
-                  onClick={(e) => handleButtonInteraction(e, 'vote')}
-                  onTouchStart={(e) => handleButtonInteraction(e, 'vote')}
-                  disabled={!selectedAmount && !customAmount}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Submit vote"
-                  style={{ 
-                    pointerEvents: 'auto',
-                    zIndex: 10001,
-                    position: 'relative' 
-                  }}
-                >
-                  Vote
-                </button>
+                ))}
               </div>
+              
+              <div className="panel-custom-amount">
+                <input
+                  type="number"
+                  className="panel-custom-input"
+                  placeholder="Custom amount"
+                  value={customAmount}
+                  onChange={(e) => {
+                    setCustomAmount(e.target.value);
+                    setSelectedAmount(null);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              
+              <button
+                className={`panel-submit-button ${sendSuccess ? 'success' : ''}`}
+                onClick={handleSendVote}
+                disabled={sending || (!selectedAmount && !customAmount)}
+              >
+                {sending ? 'Sending...' : sendSuccess ? 'Sent!' : 'Send Gems'}
+              </button>
             </div>
-          </>
-        )}
+          </div>
+        </div>
+        
+        {/* Mobile Vote Button */}
+        <button
+          className={`mobile-vote-button ${mobileVotePanelVisible ? 'active' : ''}`}
+          onClick={toggleMobileVotePanel}
+        >
+          <span className="vote-button-text">Vote</span>
+        </button>
 
         {/* Supporting Content Section */}
         <div className="supporting-content">
@@ -1555,13 +1231,19 @@ const StreamPage = () => {
         />
       </div>
     );
-  } catch (error) {
-    console.error('Render error:', error);
+  } catch (renderError) {
+    console.error("Error rendering StreamPage:", renderError);
     return (
-      <div className="error-state">
-        <h2>Something went wrong</h2>
-        <p>There was an error loading the stream. Please try refreshing the page.</p>
-        <p>Error details: {error.message}</p>
+      <div className="stream-page error-container">
+        <div className="error-message">
+          An unexpected error occurred. Please try again.
+        </div>
+        <button 
+          className="retry-button"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
       </div>
     );
   }

@@ -490,462 +490,105 @@
 
 /* Fix mobile vote panel */
 .mobile-vote-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  max-height: 80%; 
-  overflow-y: auto;
-  background-color: rgba(30, 30, 33, 0.98);
-  backdrop-filter: blur(5px);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  padding: 16px;
-  z-index: 9999 !important; /* Extreme high z-index to ensure it's above everything */
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
-  box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
-  border-top: 2px solid #9147ff;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-top-left-radius: 20px !important;
+  border-top-right-radius: 20px !important;
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.2) !important;
+  transform: translateY(100%) !important;
+  transition: transform 0.3s ease-out !important;
+  padding: 20px !important;
+  z-index: 10000 !important;
   pointer-events: auto !important;
-  touch-action: auto !important;
-  user-select: none;
-  -webkit-user-select: none;
-  will-change: transform; /* Improve performance */
+  display: none;
 }
 
-.mobile-vote-panel.show {
-  transform: translateY(0);
-  pointer-events: auto !important;
-  touch-action: auto !important;
-}
-
-/* Improve mobile vote button visibility */
-.mobile-vote-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background-color: #9147ff;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: none;
-  cursor: pointer;
-  z-index: 1020;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
-  animation: pulse 2s infinite;
-  font-weight: bold;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent; /* Improve iOS tap appearance */
-}
-
-.mobile-vote-button .vote-button-text {
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.mobile-vote-button:active,
-.mobile-vote-button:hover {
-  transform: scale(1.05);
-  background-color: #a970ff;
-}
-
-.panel-amount-button {
-  padding: 12px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer !important;
-  transition: background-color 0.2s;
-  border: 1px solid transparent;
-  position: relative;
-  z-index: 1035;
-  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3);
-}
-
-.panel-amount-button:active,
-.panel-amount-button:hover {
-  background-color: rgba(145, 71, 255, 0.5);
-  border-color: #9147ff;
-}
-
-/* Add selected state for panel amount buttons */
-.panel-amount-button.selected {
-  background-color: #9147ff;
-  color: white;
-  border-color: white;
-  transform: scale(1.05);
-  box-shadow: 0 0 10px rgba(145, 71, 255, 0.5);
-}
-
-.panel-custom-input {
-  width: 100%;
-  padding: 12px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  font-size: 16px;
-  margin: 10px 0;
-  transition: all 0.2s;
-  position: relative;
-  z-index: 1035;
-}
-
-.panel-custom-input:focus {
-  border-color: #9147ff;
-  outline: none;
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.panel-submit-button {
-  padding: 12px;
-  background-color: #9147ff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 10px;
-  transition: background-color 0.3s ease;
-  width: 100%;
-  position: relative;
-  z-index: 1035;
-  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3);
-}
-
-.panel-submit-button:active,
-.panel-submit-button:hover {
-  background-color: #a970ff;
-}
-
-/* Add success state for vote button */
-.panel-submit-button.success {
-  background-color: #43a047; /* Green for success */
-  animation: pulse-success 1s ease-in-out;
-}
-
-@keyframes pulse-success {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-/* Fix disabled button state */
-.panel-submit-button:disabled {
-  background-color: rgba(145, 71, 255, 0.5);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* Enhanced iOS-specific fixes */
-@supports (-webkit-touch-callout: none) {
-  .ios .mobile-vote-panel {
-    transform: translate3d(0, 100%, 0);
-    -webkit-transform: translate3d(0, 100%, 0);
-  }
-  
-  .ios .mobile-vote-panel.show {
-    transform: translate3d(0, 0, 0) !important;
-    -webkit-transform: translate3d(0, 0, 0) !important;
-    pointer-events: auto !important;
-    touch-action: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-  }
-  
-  .ios .mobile-vote-button {
-    transform: translate3d(0, 0, 0);
-    -webkit-transform: translate3d(0, 0, 0);
-    pointer-events: auto !important;
-    touch-action: auto !important;
-    -webkit-tap-highlight-color: transparent !important;
-    -webkit-touch-callout: none !important;
-    -webkit-user-select: none !important;
-    right: 20px !important;
-    bottom: 20px !important;
-    position: fixed !important;
-  }
-  
-  .ios .panel-amount-button,
-  .ios .panel-submit-button,
-  .ios .panel-custom-input,
-  .ios .floating-vote-container,
-  .ios .collapse-toggle {
-    -webkit-touch-callout: none !important;
-    -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
-    -webkit-user-select: none !important;
-    cursor: pointer !important;
-    outline: none !important;
-    pointer-events: auto !important;
-    touch-action: auto !important;
-  }
-
-  /* Force iOS buttons to be clickable */
-  .ios .panel-amount-button,
-  .ios .panel-submit-button {
-    cursor: pointer !important;
-    -webkit-appearance: none !important;
-    -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3) !important;
-    position: relative !important;
-    z-index: 1050 !important;
-  }
-
-  /* Prevent any scrolling interference with the modal */
-  .ios body.modal-open {
-    position: fixed;
-    width: 100%;
-    overflow: hidden;
-  }
-}
-
-/* Make backdrop higher z-index to ensure it catches all clicks */
-.mobile-vote-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 9000 !important; /* Important - keep this BELOW the panel z-index of 10000 */
-  transition: opacity 0.3s ease;
-}
-
-/* For iOS specifically */
-.ios .mobile-vote-backdrop {
-  pointer-events: none !important; /* Critical - let clicks pass through to elements above */
-}
-
-.backdrop-close-button {
-  display: block;
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 10px 20px;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border-radius: 20px;
-  border: none;
-  z-index: 9999;
-  pointer-events: auto !important; /* Make sure this is clickable */
-  cursor: pointer;
-}
-
-/* Ensure the panel containers are properly positioned and interactive */
 .mobile-vote-panel.show {
   transform: translateY(0) !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  z-index: 10000 !important;
+  display: block !important;
 }
 
-/* Fix interaction issues with panel content */
-.panel-header, 
+/* Make all buttons in the panel clickable */
+.mobile-vote-panel button,
+.panel-amount-button,
+.panel-submit-button,
+.earn-gems-button,
+.panel-close {
+  z-index: 10001 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Make inputs in the panel clickable */
+.mobile-vote-panel input {
+  z-index: 10001 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+}
+
+/* Styling for the backdrop */
+.mobile-vote-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 9000 !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+  pointer-events: auto !important;
+  display: block !important;
+}
+
+/* Ensure all container elements in the panel are properly styled */
+.panel-header,
 .panel-body,
-.panel-title,
 .panel-description,
 .panel-balance,
 .panel-amounts,
 .panel-custom-amount {
-  pointer-events: auto !important;
   position: relative !important;
   z-index: 10000 !important;
 }
 
-/* Fix iOS hover state */
-.ios .panel-amount-button:hover,
-.ios .panel-submit-button:hover,
-.ios .earn-gems-button:hover,
-.ios .panel-close:hover {
-  opacity: 1 !important; /* Prevent hover state on touch devices */
+/* Panel button styles */
+.panel-amount-button {
+  flex: 1 !important;
+  min-width: 70px !important;
+  height: 50px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  background-color: #f0f0f0 !important;
+  color: #333 !important;
+  border-radius: 12px !important;
+  margin: 5px !important;
+  border: none !important;
 }
 
-/* Panel header styling */
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+.panel-amount-button.selected {
+  background-color: #007aff !important;
+  color: white !important;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3) !important;
 }
 
-.panel-title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.panel-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 5px 10px;
-}
-
-/* Panel body styling */
-.panel-body {
-  padding: 10px 0;
-}
-
-.panel-description {
-  margin-bottom: 15px;
-  color: #666;
-}
-
-.panel-balance {
-  display: flex;
-  align-items: center;
-  margin-bottom: 15px;
-  background-color: #f8f8f8;
-  padding: 10px;
-  border-radius: 10px;
-}
-
-.gem-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 5px;
-}
-
-.balance-amount {
-  flex: 1;
-  font-weight: bold;
-}
-
-/* Active state transitions for iOS buttons */
-.ios .ios-touch-button:active {
-  transition: transform 0.1s, opacity 0.1s;
-}
-
-/* iOS-specific button hover effect for touch feedback */
-@media (hover: hover) {
-  .ios .ios-touch-button:hover {
-    opacity: 0.9;
-  }
-}
-
-/* New panel grid layout to ensure buttons are clickable */
-.panel-amount-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 10px 0;
-  position: relative;
-  z-index: 1035;
-  touch-action: manipulation;
-}
-
-/* Additional panel interaction fixes */
-.panel-gems-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-  position: relative;
-  z-index: 1035;
-}
-
-.panel-balance {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.earn-gems-button {
-  background-color: transparent;
-  color: #9147ff;
-  border: none;
-  font-weight: bold;
-  cursor: pointer;
-  padding: 5px 10px;
-  position: relative;
-  z-index: 1035;
-}
-
-.panel-title {
-  margin-bottom: 15px;
-  font-size: 18px;
-  font-weight: 600;
-  position: relative;
-  z-index: 1035;
-}
-
-/* Chat input container */
-.chat-input-container {
-  height: 50px;
-  padding: 8px;
-  background: #18181b;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-}
-
-.chat-input {
-  flex: 1;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 18px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #efeff1;
-  font-size: 14px;
-}
-
-.chat-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.chat-send-button {
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 18px;
-  border: none;
-  background: #9147ff;
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.chat-send-button:hover {
-  background: #772ce8;
-}
-
-.chat-send-button:active {
-  background: #5c16c5;
-}
-
-/* Animation for updating items */
-@keyframes highlight {
-  0% { background-color: rgba(145, 71, 255, 0.2); }
-  100% { background-color: rgba(255, 255, 255, 0.05); }
-}
-
-.animate-update {
-  animation: highlight 1.5s ease-out;
+.panel-submit-button {
+  width: 100% !important;
+  height: 50px !important;
+  background-color: #007aff !important;
+  color: white !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  margin-top: 15px !important;
+  border-radius: 12px !important;
+  border: none !important;
 }
 
 /* Tablet and Desktop Media Queries */
@@ -1454,33 +1097,25 @@
 
 /* Mobile vote panel touchable action fix */
 .mobile-vote-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  max-height: 80%; 
-  overflow-y: auto;
-  background-color: rgba(30, 30, 33, 0.98);
-  backdrop-filter: blur(5px);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  padding: 16px;
-  z-index: 9999 !important; /* Extreme high z-index to ensure it's above everything */
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
-  box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
-  border-top: 2px solid #9147ff;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-top-left-radius: 20px !important;
+  border-top-right-radius: 20px !important;
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.2) !important;
+  transform: translateY(100%) !important;
+  transition: transform 0.3s ease-out !important;
+  padding: 20px !important;
+  z-index: 10000 !important;
   pointer-events: auto !important;
-  touch-action: auto !important;
-  user-select: none;
-  -webkit-user-select: none;
-  will-change: transform; /* Improve performance */
+  display: none;
 }
 
 .mobile-vote-panel.show {
-  transform: translateY(0);
-  pointer-events: auto !important;
-  touch-action: auto !important;
+  transform: translateY(0) !important;
+  display: block !important;
 }
 
 /* iOS-specific styles for native button look */
@@ -1621,7 +1256,6 @@
   /* Force hardware acceleration */
   -webkit-transform: translateZ(0);
   -webkit-backface-visibility: hidden;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .ios .ios-touch-button:active,
@@ -1746,4 +1380,132 @@
   .panel-close:active {
     opacity: 0.8 !important;
   }
+}
+
+/* Mobile Vote Button */
+.mobile-vote-button {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 50% !important;
+  background-color: #007aff !important;
+  color: white !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border: none !important;
+  cursor: pointer !important;
+  z-index: 9999 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.2s ease !important;
+  font-weight: bold !important;
+}
+
+.mobile-vote-button.active {
+  background-color: #0056b3 !important;
+  transform: scale(0.95) !important;
+}
+
+.mobile-vote-button:active {
+  transform: scale(0.95) !important;
+}
+
+.vote-button-text {
+  font-size: 14px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Make mobile vote panel visible on smaller screens only */
+@media (min-width: 769px) {
+  .mobile-vote-button, 
+  .mobile-vote-panel {
+    display: none !important;
+  }
+}
+
+/* Responsive styling for panel grid */
+.panel-amount-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 10px !important;
+  margin-bottom: 15px !important;
+}
+
+/* Panel Custom Input styling */
+.panel-custom-input {
+  width: 100% !important;
+  padding: 12px !important;
+  background-color: #f0f0f0 !important;
+  color: #333 !important;
+  border: 1px solid #ddd !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+  margin-bottom: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.panel-custom-input:focus {
+  outline: none !important;
+  border-color: #007aff !important;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3) !important;
+}
+
+/* Fix backdrop initial state */
+.mobile-vote-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 9000 !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+  pointer-events: auto !important;
+  display: block !important;
+}
+
+/* Loading and Error States */
+.loading-container,
+.error-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100vh !important;
+  width: 100% !important;
+  padding: 20px !important;
+  text-align: center !important;
+  background-color: #f8f9fa !important;
+}
+
+.loading-message {
+  font-size: 24px !important;
+  color: #333 !important;
+  margin-bottom: 20px !important;
+}
+
+.error-message {
+  font-size: 20px !important;
+  color: #dc3545 !important;
+  margin-bottom: 20px !important;
+  max-width: 600px !important;
+}
+
+.retry-button {
+  padding: 10px 20px !important;
+  background-color: #007aff !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 5px !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  transition: background-color 0.3s !important;
+}
+
+.retry-button:hover {
+  background-color: #0056b3 !important;
 } 
