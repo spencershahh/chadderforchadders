@@ -512,26 +512,17 @@ const Settings = () => {
     return contributions[tier] || 0;
   };
 
-  if (authLoading) {
-    console.log('Auth is loading...');
+  if (authLoading || loading) {
+    console.log('Loading state - Auth loading:', authLoading, 'Data loading:', loading);
     return (
       <div className={styles.settingsContainer}>
-        <div className={styles.loading}>Checking authentication...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    console.log('No user found in render');
-    return (
-      <div className={styles.settingsContainer}>
-        <div className={styles.error}>Please log in to view settings.</div>
+        <div className={styles.loading}>Loading your settings...</div>
       </div>
     );
   }
 
   if (error) {
-    console.log('Rendering error state:', error);
+    console.log('Error state:', error);
     return (
       <div className={styles.settingsContainer}>
         <div className={styles.error}>
@@ -545,16 +536,14 @@ const Settings = () => {
     );
   }
 
-  if (loading) {
-    console.log('Rendering loading state...');
+  if (!user) {
+    console.log('No user found in render');
     return (
       <div className={styles.settingsContainer}>
-        <div className={styles.loading}>Loading your settings...</div>
+        <div className={styles.error}>Please log in to view settings.</div>
       </div>
     );
   }
-
-  console.log('Rendering settings page with data:', { userData, gemBalance, subscription, isAdmin });
 
   return (
     <div className={styles.settingsContainer}>
@@ -593,7 +582,7 @@ const Settings = () => {
         </div>
       </section>
 
-      <form onSubmit={handleSubmit}>
+      <form>
         <section className={styles.section}>
           <h2>Account</h2>
           <div className={styles.accountInfo}>
@@ -609,7 +598,7 @@ const Settings = () => {
               </button>
               
               {showEmailUpdate && (
-                <form onSubmit={handleEmailUpdate} className={styles.emailUpdateForm}>
+                <div className={styles.emailUpdateForm}>
                   <input
                     type="email"
                     value={newEmail}
@@ -630,14 +619,15 @@ const Settings = () => {
                       Cancel
                     </button>
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleEmailUpdate}
                       disabled={isEmailUpdateLoading || !newEmail}
                       className={styles.primaryButton}
                     >
                       {isEmailUpdateLoading ? 'Updating...' : 'Update Email'}
                     </button>
                   </div>
-                </form>
+                </div>
               )}
             </div>
             <button

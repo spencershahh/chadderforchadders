@@ -3,6 +3,11 @@
   margin: 0 auto;
   padding: 3rem 2rem;
   color: #efeff1;
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  background-color: #0e0e10;
+  min-height: calc(100vh - 70px); /* Account for navbar */
 }
 
 .loading, .error {
@@ -252,20 +257,21 @@
 }
 
 .ctaButton {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  background: linear-gradient(90deg, #9147ff, #6441a5);
   color: white;
   text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
   font-weight: 500;
-  transition: transform 0.2s, background 0.2s;
+  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.2);
 }
 
 .ctaButton:hover {
   transform: translateY(-2px);
-  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  box-shadow: 0 8px 24px rgba(145, 71, 255, 0.3);
+  color: white;
 }
 
 .adminSection {
