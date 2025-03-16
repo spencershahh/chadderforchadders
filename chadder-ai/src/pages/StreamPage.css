@@ -501,7 +501,7 @@
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
   padding: 16px;
-  z-index: 1030;
+  z-index: 9999 !important; /* Extreme high z-index to ensure it's above everything */
   transform: translateY(100%);
   transition: transform 0.3s ease;
   box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
@@ -510,10 +510,13 @@
   touch-action: auto !important;
   user-select: none;
   -webkit-user-select: none;
+  will-change: transform; /* Improve performance */
 }
 
 .mobile-vote-panel.show {
   transform: translateY(0);
+  pointer-events: auto !important;
+  touch-action: auto !important;
 }
 
 /* Improve mobile vote button visibility */
@@ -568,9 +571,6 @@
   position: relative;
   z-index: 1035;
   -webkit-tap-highlight-color: rgba(145, 71, 255, 0.3);
-  touch-action: manipulation !important;
-  -webkit-appearance: none !important; /* Fix iOS button appearance */
-  outline: none !important;
 }
 
 .panel-amount-button:active,
@@ -717,10 +717,84 @@
 
 /* Make backdrop higher z-index to ensure it catches all clicks */
 .mobile-vote-backdrop {
-  z-index: 1010 !important;
-  -webkit-tap-highlight-color: transparent !important;
-  touch-action: auto !important;
-  pointer-events: auto !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998; /* Just below the panel */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: none;
+}
+
+/* For iOS, make sure backdrop doesn't block clicks on the panel */
+.ios .mobile-vote-backdrop {
+  z-index: 9998;
+}
+
+/* Panel header styling */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.panel-title {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.panel-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px 10px;
+}
+
+/* Panel body styling */
+.panel-body {
+  padding: 10px 0;
+}
+
+.panel-description {
+  margin-bottom: 15px;
+  color: #666;
+}
+
+.panel-balance {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  background-color: #f8f8f8;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.gem-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+}
+
+.balance-amount {
+  flex: 1;
+  font-weight: bold;
+}
+
+/* Active state transitions for iOS buttons */
+.ios .ios-touch-button:active {
+  transition: transform 0.1s, opacity 0.1s;
+}
+
+/* iOS-specific button hover effect for touch feedback */
+@media (hover: hover) {
+  .ios .ios-touch-button:hover {
+    opacity: 0.9;
+  }
 }
 
 /* New panel grid layout to ensure buttons are clickable */
@@ -1332,4 +1406,236 @@
 .ios .panel-amount-button:active,
 .ios .panel-submit-button:active {
   animation: highlight-touch 0.3s ease-out;
+}
+
+/* Mobile vote panel touchable action fix */
+.mobile-vote-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 80%; 
+  overflow-y: auto;
+  background-color: rgba(30, 30, 33, 0.98);
+  backdrop-filter: blur(5px);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  padding: 16px;
+  z-index: 9999 !important; /* Extreme high z-index to ensure it's above everything */
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
+  border-top: 2px solid #9147ff;
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform; /* Improve performance */
+}
+
+.mobile-vote-panel.show {
+  transform: translateY(0);
+  pointer-events: auto !important;
+  touch-action: auto !important;
+}
+
+/* iOS-specific styles for native button look */
+.ios .ios-touch-button {
+  -webkit-appearance: none !important;
+  border: none !important;
+  background-color: rgba(145, 71, 255, 1) !important; /* Solid color instead of transparent */
+  color: white !important;
+  text-align: center !important;
+  font-weight: bold !important;
+  padding: 15px 10px !important;
+  margin: 10px 0 !important;
+  border-radius: 10px !important;
+  min-height: 44px !important;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) !important;
+  
+  /* iOS native button gradient */
+  background-image: linear-gradient(to bottom, 
+                    rgba(255,255,255,0.1) 0%, 
+                    rgba(255,255,255,0.05) 50%, 
+                    rgba(0,0,0,0.05) 51%, 
+                    rgba(0,0,0,0.1) 100%) !important;
+  
+  /* Remove any interaction styles that might interfere */
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.5) !important;
+  user-select: none !important;
+  
+  /* Force pointer events and touch actions */
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
+  
+  /* Override any pseudo-elements */
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Active state for iOS buttons */
+.ios .ios-touch-button:active {
+  opacity: 0.8 !important;
+  transform: scale(0.98) !important;
+  background-image: linear-gradient(to bottom, 
+                    rgba(0,0,0,0.1) 0%, 
+                    rgba(0,0,0,0.05) 50%, 
+                    rgba(255,255,255,0.05) 51%, 
+                    rgba(255,255,255,0.1) 100%) !important;
+}
+
+/* iOS panel buttons look */
+.ios .panel-amount-button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  letter-spacing: 0.5px !important;
+  text-transform: none !important;
+  font-size: 18px !important;
+  line-height: 1.2 !important;
+}
+
+/* iOS button for "Vote with X" */
+.ios .panel-submit-button {
+  background-color: #28a745 !important; /* Green for primary action */
+  font-size: 17px !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+  padding: 15px !important;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3) !important;
+}
+
+/* Final iOS touch fallback - direct touch handling */
+.ios-touch-button {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -webkit-tap-highlight-color: rgba(145, 71, 255, 0.5) !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
+  display: block !important;
+  position: relative !important;
+}
+
+/* iOS-specific fixes */
+.ios .mobile-vote-panel {
+  z-index: 9999 !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(0);
+  transition: transform 0.3s ease-out;
+  padding: 20px;
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  will-change: transform;
+  /* Force hardware acceleration on iOS */
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+}
+
+.ios .mobile-vote-panel.show {
+  display: block;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.ios .ios-touch-button {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #007aff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 12px 20px;
+  margin: 5px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  outline: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+  z-index: 10000;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  /* Force hardware acceleration */
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ios .ios-touch-button:active,
+.ios .ios-touch-button.active {
+  opacity: 0.8;
+  transform: scale(0.97);
+}
+
+.ios .panel-amount-button {
+  flex: 1;
+  min-width: 70px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #f0f0f0;
+  color: #333;
+  border-radius: 12px;
+  margin: 5px;
+}
+
+.ios .panel-amount-button.selected {
+  background-color: #007aff;
+  color: white;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
+}
+
+.ios .panel-submit-button {
+  width: 100%;
+  height: 50px;
+  background-color: #007aff;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 15px;
+  border-radius: 12px;
+}
+
+.ios .panel-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+
+.ios .panel-custom-amount {
+  margin: 10px 0;
+}
+
+.ios .panel-custom-amount input {
+  width: 100%;
+  height: 50px;
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
 } 

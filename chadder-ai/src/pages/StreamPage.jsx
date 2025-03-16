@@ -36,42 +36,31 @@ const StreamPage = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isIOS, setIsIOS] = useState(false);
   const layoutUpdatedRef = useRef(false);
+  const panelVisibleRef = useRef(false);
+  const [showMobileVotePanel, setShowMobileVotePanel] = useState(false);
 
   useEffect(() => {
-    // More robust iOS detection
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-               (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-    setIsIOS(iOS);
-    
-    // If iOS, force mobile view regardless of window width
-    if (iOS) {
-      setIsMobile(true);
+    // Detect iOS - more robust detection
+    const checkIOS = () => {
+      const userAgent = window.navigator.userAgent.toLowerCase();
       
-      // Add iOS class to html element for CSS targeting
-      document.documentElement.classList.add('ios');
+      // iOS detection methods
+      const isIOS = 
+        /ipad|iphone|ipod/.test(userAgent) && !window.MSStream || // Standard detection
+        (userAgent.includes('mac') && 'ontouchend' in document) || // iPad with new iPadOS
+        (/iPad|iPhone|iPod/.test(navigator.platform) ||           // Older devices
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
       
-      // Prevent double-tap zoom on iOS
-      document.addEventListener('touchend', function(event) {
-        const now = Date.now();
-        const DOUBLE_TAP_THRESHOLD = 300;
-        if (now - lastTouchEnd <= DOUBLE_TAP_THRESHOLD) {
-          event.preventDefault();
-        }
-        lastTouchEnd = now;
-      }, false);
+      setIsIOS(isIOS);
       
-      // Prevent pinch zoom on iOS
-      document.addEventListener('gesturestart', function(event) {
-        event.preventDefault();
-      });
-    }
+      // Add iOS class to body if needed
+      if (isIOS) {
+        document.body.classList.add('ios');
+        console.log('iOS device detected');
+      }
+    };
     
-    // Reset layout updated flag when component mounts
-    layoutUpdatedRef.current = false;
-    
-    // Initialize lastTouchEnd for iOS double-tap prevention
-    let lastTouchEnd = 0;
+    checkIOS();
   }, []);
 
   useEffect(() => {
@@ -763,81 +752,90 @@ const StreamPage = () => {
     }
   };
 
-  const toggleMobileVotePanel = () => {
-    const panel = document.querySelector('.mobile-vote-panel');
-    if (panel) {
-      // Force re-flow to ensure iOS renders correctly
-      void panel.offsetWidth;
-      
-      // Toggle show class
-      panel.classList.toggle('show');
-      
-      const button = document.querySelector('.mobile-vote-button');
-      if (button) {
-        button.classList.toggle('active');
+  // Toggle mobile vote panel with improved iOS handling
+  const toggleMobileVotePanel = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Toggle panel visibility
+    const newState = !showMobileVotePanel;
+    setShowMobileVotePanel(newState);
+    
+    // Toggle backdrop
+    if (newState) {
+      // Create backdrop element if it doesn't exist
+      let backdrop = document.querySelector('.mobile-vote-backdrop');
+      if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.className = 'mobile-vote-backdrop';
+        document.body.appendChild(backdrop);
       }
       
-      // Add a backdrop that catches clicks outside of the panel
-      if (panel.classList.contains('show')) {
-        // Create backdrop if it doesn't exist
-        if (!document.querySelector('.mobile-vote-backdrop')) {
-          const backdrop = document.createElement('div');
-          backdrop.className = 'mobile-vote-backdrop';
-          backdrop.style.position = 'fixed';
-          backdrop.style.top = '0';
-          backdrop.style.left = '0';
-          backdrop.style.right = '0';
-          backdrop.style.bottom = '0';
-          backdrop.style.zIndex = '1010'; // Between button and panel
-          backdrop.style.backgroundColor = 'rgba(0,0,0,0.5)';
-          
-          // Close panel when backdrop is clicked
-          backdrop.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleMobileVotePanel();
-          });
-          
-          document.body.appendChild(backdrop);
-          
-          // For iOS, prevent body scrolling when panel is open
-          if (isIOS) {
-            document.body.classList.add('modal-open');
-            document.body.style.overflow = 'hidden';
-            document.body.style.position = 'fixed';
-            document.body.style.width = '100%';
-            document.body.style.height = '100%';
-          }
-        }
-      } else {
-        // Remove backdrop when panel is closed
-        const backdrop = document.querySelector('.mobile-vote-backdrop');
-        if (backdrop) {
-          backdrop.remove();
-        }
-        
-        // For iOS, restore body scrolling when panel is closed
-        if (isIOS) {
-          document.body.classList.remove('modal-open');
-          document.body.style.overflow = '';
-          document.body.style.position = '';
-          document.body.style.width = '';
-          document.body.style.height = '';
-        }
-      }
-      
-      // iOS needs special handling to ensure the panel is properly rendered
+      // Special handling for iOS
       if (isIOS) {
-        // Force a repaint after toggle
+        // Make sure backdrop is below panel in z-index
+        backdrop.style.zIndex = '9998';
+        backdrop.style.pointerEvents = 'auto';
+        
+        // Lock body scrolling on iOS
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${window.scrollY}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflowY = 'hidden';
+      }
+      
+      // Add click handler to backdrop to close panel
+      backdrop.onclick = () => {
+        toggleMobileVotePanel();
+      };
+      
+      // Show backdrop
+      backdrop.style.display = 'block';
+      setTimeout(() => {
+        backdrop.style.opacity = '1';
+      }, 10);
+      
+      // Force layout reflow for iOS
+      if (isIOS) {
+        const panel = document.querySelector('.mobile-vote-panel');
+        if (panel) {
+          panel.style.display = 'block';
+          // Force reflow
+          void panel.offsetWidth;
+          panel.classList.add('show');
+          
+          // Schedule button initialization
+          setTimeout(() => {
+            const buttons = panel.querySelectorAll('button');
+            buttons.forEach(button => {
+              // Ensure pointer events is enabled
+              button.style.pointerEvents = 'auto';
+              // Add tap highlight color
+              button.style.webkitTapHighlightColor = 'rgba(0,0,0,0)';
+            });
+          }, 100);
+        }
+      }
+    } else {
+      // Hide backdrop
+      const backdrop = document.querySelector('.mobile-vote-backdrop');
+      if (backdrop) {
+        backdrop.style.opacity = '0';
         setTimeout(() => {
-          if (panel.classList.contains('show')) {
-            panel.style.transform = 'translateY(0)';
-            panel.style.webkitTransform = 'translateY(0)';
-          } else {
-            panel.style.transform = 'translateY(100%)';
-            panel.style.webkitTransform = 'translateY(100%)';
-          }
-        }, 10);
+          backdrop.style.display = 'none';
+        }, 300);
+      }
+      
+      // Unlock body scrolling on iOS
+      if (isIOS) {
+        const scrollY = document.body.style.top;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.overflowY = '';
+        document.body.style.width = '';
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
       }
     }
   };
@@ -871,6 +869,158 @@ const StreamPage = () => {
     e.stopPropagation();
     setIsVotePaneCollapsed(!isVotePaneCollapsed);
   };
+
+  // Add a special effect to handle iOS button initialization
+  useEffect(() => {
+    if (!isIOS) return; // Only for iOS devices
+    
+    const initializeIOSButtons = () => {
+      const panel = document.querySelector('.mobile-vote-panel');
+      if (!panel || !panel.classList.contains('show')) return;
+      
+      console.log('Initializing iOS buttons');
+      
+      // Get all buttons in the panel
+      const buttons = panel.querySelectorAll('button');
+      
+      // Add special iOS event handling
+      buttons.forEach(button => {
+        // Make sure button has the iOS touch class
+        button.classList.add('ios-touch-button');
+        
+        // Remove existing event listeners (to prevent duplicates)
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        
+        // Add new direct touch event listeners
+        newButton.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Visual feedback
+          newButton.style.opacity = '0.8';
+          
+          // Get button type
+          if (newButton.classList.contains('panel-amount-button')) {
+            // Amount button
+            const amount = parseInt(newButton.textContent.trim(), 10);
+            if (!isNaN(amount)) {
+              setSelectedAmount(amount);
+              setCustomAmount('');
+              
+              // Clear selected state from all buttons
+              const amountButtons = panel.querySelectorAll('.panel-amount-button');
+              amountButtons.forEach(btn => btn.classList.remove('selected'));
+              
+              // Add selected state to this button
+              newButton.classList.add('selected');
+            }
+          } else if (newButton.classList.contains('panel-submit-button')) {
+            // Submit button (vote)
+            handleVote();
+          } else if (newButton.classList.contains('earn-gems-button')) {
+            // Earn gems button
+            showWatchAdModal();
+          }
+          
+          // Restore opacity after a delay
+          setTimeout(() => {
+            newButton.style.opacity = '1';
+          }, 200);
+        }, { passive: false });
+        
+        // Also add regular click as fallback
+        newButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Similar functionality as touchstart
+          if (newButton.classList.contains('panel-amount-button')) {
+            const amount = parseInt(newButton.textContent.trim(), 10);
+            if (!isNaN(amount)) {
+              setSelectedAmount(amount);
+              setCustomAmount('');
+              
+              // Update selected state
+              const amountButtons = panel.querySelectorAll('.panel-amount-button');
+              amountButtons.forEach(btn => btn.classList.remove('selected'));
+              newButton.classList.add('selected');
+            }
+          } else if (newButton.classList.contains('panel-submit-button')) {
+            handleVote();
+          } else if (newButton.classList.contains('earn-gems-button')) {
+            showWatchAdModal();
+          }
+        }, { passive: false });
+      });
+    };
+    
+    // Add a mutation observer to detect when the panel becomes visible
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.target.classList && 
+            mutation.target.classList.contains('mobile-vote-panel') && 
+            mutation.target.classList.contains('show')) {
+          // Panel became visible, initialize buttons
+          initializeIOSButtons();
+          panelVisibleRef.current = true;
+        }
+      });
+    });
+    
+    // Start observing
+    const panel = document.querySelector('.mobile-vote-panel');
+    if (panel) {
+      observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+    }
+    
+    // Cleanup
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [isIOS, handleVote, setSelectedAmount, showWatchAdModal]);
+
+  // Cleanup for iOS-specific touch event handlers
+  useEffect(() => {
+    if (!isIOS) return;
+    
+    // Set up universal touch event handler for iOS
+    const preventDefaultForIOS = (e) => {
+      if (showMobileVotePanel && e.target.closest('.mobile-vote-panel')) {
+        // Don't block default behavior within the vote panel
+        return;
+      }
+      
+      // Prevent double-tap zoom on iOS when vote panel is open
+      if (showMobileVotePanel) {
+        e.preventDefault();
+      }
+    };
+    
+    // Add iOS-specific touch handlers
+    if (isIOS) {
+      document.addEventListener('touchstart', preventDefaultForIOS, { passive: false });
+      document.addEventListener('touchmove', preventDefaultForIOS, { passive: false });
+      
+      // Prevent pinch zoom on iOS
+      document.addEventListener('gesturestart', (e) => {
+        if (showMobileVotePanel) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    }
+    
+    // Cleanup
+    return () => {
+      if (isIOS) {
+        document.removeEventListener('touchstart', preventDefaultForIOS);
+        document.removeEventListener('touchmove', preventDefaultForIOS);
+        document.removeEventListener('gesturestart', preventDefaultForIOS);
+      }
+    };
+  }, [isIOS, showMobileVotePanel]);
 
   return (
     <div className={`stream-page ${isIOS ? 'ios' : ''}`}>
@@ -925,85 +1075,98 @@ const StreamPage = () => {
               e.stopPropagation(); // Prevent event bubbling
               toggleMobileVotePanel();
             }}
+            onTouchStart={(e) => {
+              // For iOS, add touchstart handler
+              if (isIOS) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleMobileVotePanel();
+              }
+            }}
             aria-label="Open vote panel"
           >
             <span className="vote-button-text">VOTE</span>
           </button>
           <div 
-            className="mobile-vote-panel" 
+            className={`mobile-vote-panel ${showMobileVotePanel ? 'show' : ''} ${isIOS ? 'ios' : ''}`}
             onClick={(e) => {
               e.preventDefault(); // Prevent default
               e.stopPropagation(); // Prevent clicks from bubbling up to the backdrop
             }}
+            onTouchStart={(e) => e.stopPropagation()} // Prevent touch from bubbling
+            onTouchMove={(e) => e.stopPropagation()} // Prevent touch move from bubbling
+            onTouchEnd={(e) => e.stopPropagation()} // Prevent touch end from bubbling
           >
-            <h3 className="panel-title">Vote with Gems</h3>
-            <div className="panel-amount-grid">
-              {[10, 20, 50, 100, 200, 500].map((amount) => (
-                <button 
-                  key={amount} 
-                  className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault(); // Prevent default
-                    e.stopPropagation(); // Prevent event bubbling
-                    setSelectedAmount(amount);
-                    setCustomAmount('');
-                  }}
-                >
-                  {amount}
-                </button>
-              ))}
+            <div className="panel-header">
+              <div className="panel-title">Support {activeUser?.username || 'creator'}</div>
+              <button 
+                className="panel-close" 
+                onClick={toggleMobileVotePanel}
+                role="button"
+                tabIndex={0}
+                aria-label="Close vote panel"
+              >
+                ✕
+              </button>
             </div>
-            <input 
-              type="number" 
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="panel-custom-input"
-              value={customAmount} 
-              onChange={(e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                handleCustomAmountChange(e);
-              }}
-              onClick={(e) => e.stopPropagation()} // Prevent event bubbling
-              onFocus={(e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                // Clear field on focus for easier entry
-                if (customAmount === '') {
-                  setCustomAmount('');
-                }
-              }}
-              placeholder="Custom amount" 
-            />
-            <button 
-              className={`panel-submit-button ${voteSuccess ? 'success' : ''}`} 
-              onClick={(e) => {
-                e.preventDefault(); // Prevent default
-                e.stopPropagation(); // Prevent event bubbling
-                customAmount ? handleVoteSubmit(customAmount) : handleVote();
-              }}
-              disabled={isVoting}
-            >
-              {isVoting ? 'Processing...' : voteSuccess ? 'Vote Successful!' : `Vote with ${selectedAmount} 💎`}
-            </button>
-            <div className="panel-gems-section" onClick={(e) => e.stopPropagation()}>
-              <span className="panel-balance">Available: {gemBalance} 💎</span>
-              <span className="panel-earn">
-                <button 
-                  onClick={(e) => {
-                    e.preventDefault(); // Prevent default
-                    e.stopPropagation(); // Prevent event bubbling
-                    showWatchAdModal();
-                  }} 
-                  className="earn-gems-button"
-                >
-                  + Earn Gems
-                </button>
-              </span>
-            </div>
-            {errorMessage && (
-              <div className="error-message" style={{ color: '#ff6b6b', marginTop: '10px', textAlign: 'center' }}>
-                {errorMessage}
+            <div className="panel-body">
+              <div className="panel-description">
+                Your support helps the creator climb the rankings.
               </div>
-            )}
+              <div className="panel-balance">
+                <img src={gemIcon} alt="Gems" className="gem-icon" />
+                <span className="balance-amount">{credits || 0}</span>
+                <button 
+                  className="earn-gems-button ios-touch-button" 
+                  onClick={showWatchAdModal}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Earn gems"
+                >
+                  <span>+</span>
+                </button>
+              </div>
+              <div className="panel-amounts">
+                {[100, 500, 1000, 5000].map((amount) => (
+                  <button
+                    key={amount}
+                    className={`panel-amount-button ios-touch-button ${selectedAmount === amount ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedAmount(amount);
+                      setCustomAmount('');
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Vote ${amount} gems`}
+                  >
+                    {amount}
+                  </button>
+                ))}
+              </div>
+              <div className="panel-custom-amount">
+                <input
+                  type="number"
+                  value={customAmount}
+                  onChange={(e) => {
+                    setCustomAmount(e.target.value);
+                    setSelectedAmount(0);
+                  }}
+                  placeholder="Custom amount"
+                  min="1"
+                  max="1000000"
+                />
+              </div>
+              <button 
+                className="panel-submit-button ios-touch-button" 
+                onClick={handleVote}
+                disabled={!selectedAmount && !customAmount}
+                role="button"
+                tabIndex={0}
+                aria-label="Submit vote"
+              >
+                Vote
+              </button>
+            </div>
           </div>
         </>
       )}
