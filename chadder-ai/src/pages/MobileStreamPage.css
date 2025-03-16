@@ -1,4 +1,4 @@
-/* Mobile-specific styles for StreamPage */
+/* Simple Mobile Styles for StreamPage */
 
 /* Mobile layout - 40% video, 60% chat */
 @media screen and (max-width: 768px) {
@@ -21,28 +21,30 @@
     overflow: hidden;
   }
 
-  #twitch-embed, 
-  #twitch-chat {
-    width: 100%;
-    height: 100%;
-  }
-
   .stream-chat-container {
     height: 100%;
+    width: 100%;
   }
 
-  /* Hide unnecessary elements on mobile */
-  .stream-title {
-    font-size: 1.2rem;
-    margin: 8px 0;
+  /* Hide desktop-only elements on mobile */
+  .floating-vote-container {
+    display: none !important;
   }
 
+  /* Hide supporting content on mobile */
   .supporting-content {
     display: none;
   }
+
+  /* Basic title styling */
+  .stream-title {
+    font-size: 1.2rem;
+    margin: 8px 0;
+    text-align: center;
+  }
 }
 
-/* Mobile Vote Button */
+/* Simple Vote Button */
 .mobile-vote-button {
   position: fixed;
   bottom: 20px;
@@ -57,91 +59,53 @@
   align-items: center;
   border: none;
   cursor: pointer;
-  z-index: 1020; 
+  z-index: 1020;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
-  animation: pulse 2s infinite;
   font-weight: bold;
 }
 
-.mobile-vote-button:active {
-  transform: scale(0.95);
-}
-
-.mobile-vote-button.active {
-  background-color: #4a3178;
-  animation: none;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(145, 71, 255, 0.7);
-  }
-  70% {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 10px rgba(145, 71, 255, 0);
-  }
-  100% {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(145, 71, 255, 0);
-  }
-}
-
-/* Mobile Vote Panel - Fixed Version */
+/* Simple Vote Panel */
 .mobile-vote-panel {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  max-height: 80%;
   background-color: #1e1e21;
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
   padding: 16px;
-  z-index: 1030; /* Higher than backdrop */
+  z-index: 1030;
   transform: translateY(100%);
   transition: transform 0.3s ease;
-  box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
   border-top: 2px solid #9147ff;
-  overflow-y: auto;
 }
 
 .mobile-vote-panel.show {
   transform: translateY(0);
 }
 
-/* Backdrop */
+/* Simple Backdrop */
 .mobile-vote-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1025; /* Between button and panel */
+  z-index: 1025;
   background-color: rgba(0,0,0,0.5);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none; /* Start with no pointer events */
+  display: none;
 }
 
 .mobile-vote-backdrop.show {
-  opacity: 1;
-  pointer-events: auto; /* Enable pointer events when shown */
+  display: block;
 }
 
-/* Panel Header */
+/* Panel Elements */
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-}
-
-.panel-close {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 4px 8px;
 }
 
 .panel-title {
@@ -151,9 +115,20 @@
   margin: 0;
 }
 
-/* Panel Body */
+.panel-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Panel Content */
+.panel-body {
+  color: white;
+}
+
 .panel-description {
-  color: #ccc;
   margin-bottom: 16px;
 }
 
@@ -161,15 +136,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: rgba(255, 255, 255, 0.05);
-  padding: 8px 12px;
-  border-radius: 8px;
   margin-bottom: 16px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
 }
 
 .balance-amount {
   flex-grow: 1;
-  color: white;
 }
 
 .earn-gems-button {
@@ -179,11 +153,9 @@
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
 }
 
-/* Amount Buttons */
+/* Vote Buttons */
 .panel-amount-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -198,13 +170,10 @@
   border: none;
   border-radius: 8px;
   font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
 }
 
 .panel-amount-button.selected {
   background-color: #9147ff;
-  font-weight: bold;
 }
 
 .panel-custom-input {
@@ -227,13 +196,11 @@
   border-radius: 8px;
   font-size: 16px;
   font-weight: bold;
-  cursor: pointer;
   margin-top: 10px;
 }
 
 .panel-submit-button:disabled {
   background-color: #666;
-  cursor: not-allowed;
 }
 
 .panel-submit-button.success {

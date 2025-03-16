@@ -94,16 +94,7 @@ const StreamPage = () => {
         // Force scroll to top before loading content
         window.scrollTo(0, 0);
         
-        // For mobile devices, use standard viewport settings
-        if (isMobile) {
-          // Apply standard mobile viewport settings only
-          const viewportMeta = document.querySelector('meta[name="viewport"]');
-          if (viewportMeta) {
-            viewportMeta.setAttribute('content', 
-              'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-          }
-        }
-        
+        // Fetch essential data
         await Promise.all([
           fetchUserCredits(),
           fetchVoteStats(),
@@ -113,12 +104,11 @@ const StreamPage = () => {
           fetchStreamerInfo(),
           fetchTopSupporters()
         ]);
+        
         if (mounted) {
           setupTwitchEmbed();
           setupTwitchChatEmbed();
           setLoading(false);
-          // Ensure we're at the top after everything loads
-          window.scrollTo(0, 0);
         }
       } catch (error) {
         console.error('Error initializing page:', error);
@@ -189,69 +179,25 @@ const StreamPage = () => {
         chatContainer.innerHTML = "";
       }
     };
-  }, [normalizedUsername, isMobile, isPortrait]);
+  }, [normalizedUsername]);
 
+  // Simple mobile detection
   useEffect(() => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth <= 768;
-      const newIsPortrait = window.innerHeight > window.innerWidth;
-      
       setIsMobile(newIsMobile);
-      setIsPortrait(newIsPortrait);
-      
-      // Mark that we're updating the layout
-      layoutUpdatedRef.current = true;
     };
     
-    // More robust orientation change handling
-    const handleOrientationChange = () => {
-      // Some devices need a timeout to correctly report dimensions after orientation change
-      setTimeout(() => {
-        const newIsPortrait = window.innerHeight > window.innerWidth;
-        setIsPortrait(newIsPortrait);
-        layoutUpdatedRef.current = true;
-        
-        // Standard orientation change handling for mobile
-        window.scrollTo(0, 0);
-        
-        // Update viewport settings
-        const viewportMeta = document.querySelector('meta[name="viewport"]');
-        if (viewportMeta) {
-          // First disable scaling to prevent layout shift
-          viewportMeta.setAttribute('content', 
-            'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-        }
-        
-        // Reset chat iframe to fix potential display issues
-        setTimeout(() => {
-          setupTwitchChatEmbed();
-        }, 500);
-      }, 100);
-    };
-
-    // Handle both resize and orientation events
+    // Initial detection
+    handleResize();
+    
+    // Add listener for window resize
     window.addEventListener('resize', handleResize);
     
-    // Add orientation change event listener
-    if (window.orientation !== undefined || 'orientation' in window) {
-      window.addEventListener('orientationchange', handleOrientationChange);
-    } else {
-      // Fallback for browsers that don't support orientationchange
-      const mediaQuery = window.matchMedia("(orientation: portrait)");
-      mediaQuery.addListener(handleOrientationChange);
-    }
-
     return () => {
       window.removeEventListener('resize', handleResize);
-      
-      if (window.orientation !== undefined || 'orientation' in window) {
-        window.removeEventListener('orientationchange', handleOrientationChange);
-      } else {
-        const mediaQuery = window.matchMedia("(orientation: portrait)");
-        mediaQuery.removeListener(handleOrientationChange);
-      }
     };
-  }, [normalizedUsername]);
+  }, []);
 
   // Add scroll management effect
   useEffect(() => {
@@ -349,123 +295,41 @@ const StreamPage = () => {
 
   const setupTwitchEmbed = () => {
     try {
-      if (!document.getElementById("twitch-embed-script")) {
-        const script = document.createElement("script");
-        script.setAttribute("src", "https://player.twitch.tv/js/embed/v1.js");
-        script.setAttribute("async", true);
-        script.setAttribute("id", "twitch-embed-script");
-        script.onload = () => createEmbed();
-        script.onerror = (error) => {
-          console.error("Error loading Twitch embed script:", error);
-          // Use fallback method if script fails to load
-          const embedContainer = document.getElementById("twitch-embed");
-          if (embedContainer) {
-            embedContainer.innerHTML = "";
-            
-            // Create simple iframe as fallback
-            const fallbackIframe = document.createElement("iframe");
-            fallbackIframe.src = `https://player.twitch.tv/?channel=${normalizedUsername}&parent=${window.location.hostname}`;
-            fallbackIframe.allowFullscreen = true;
-            fallbackIframe.style.width = "100%";
-            fallbackIframe.style.height = "100%";
-            embedContainer.appendChild(fallbackIframe);
-          }
-        };
-        document.body.appendChild(script);
-      } else {
-        createEmbed();
-      }
+      const embedContainer = document.getElementById("twitch-embed");
+      if (!embedContainer) return;
+      
+      embedContainer.innerHTML = "";
+      
+      // Create Twitch embed iframe
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://player.twitch.tv/?channel=${normalizedUsername}&parent=${window.location.hostname}`;
+      iframe.width = "100%";
+      iframe.height = "100%";
+      iframe.allowFullscreen = true;
+      
+      embedContainer.appendChild(iframe);
     } catch (error) {
       console.error("Error in setupTwitchEmbed:", error);
     }
   };
 
-  const createEmbed = () => {
-    const embedContainer = document.getElementById("twitch-embed");
-    if (!embedContainer) return;
-    
-    embedContainer.innerHTML = "";
-
-    try {
-      // Make sure we have the Twitch lib available
-      if (!window.Twitch || !window.Twitch.Embed) {
-        console.error("Twitch embed library not loaded");
-        // Fallback to a simple iframe if the embed library isn't available
-        const fallbackIframe = document.createElement("iframe");
-        fallbackIframe.src = `https://player.twitch.tv/?channel=${normalizedUsername}&parent=${window.location.hostname}`;
-        fallbackIframe.allowFullscreen = true;
-        fallbackIframe.style.width = "100%";
-        fallbackIframe.style.height = "100%";
-        embedContainer.appendChild(fallbackIframe);
-        return;
-      }
-
-      // Use standard embed otherwise
-      new window.Twitch.Embed("twitch-embed", {
-        width: "100%",
-        height: "100%",
-        channel: normalizedUsername,
-        layout: "video",
-        autoplay: true,
-        parent: ["chadderai.vercel.app", "localhost", window.location.hostname],
-        muted: isMobile // Auto-mute on mobile to avoid autoplay restrictions
-      });
-
-      embedContainer.style.width = "100%";
-      embedContainer.style.height = "100%";
-    } catch (error) {
-      console.error("Error creating Twitch embed:", error);
-    }
-  };
-
   const setupTwitchChatEmbed = () => {
-    const chatContainer = document.getElementById("twitch-chat");
-    if (!chatContainer) return;
-    
     try {
+      const chatContainer = document.getElementById("twitch-chat");
+      if (!chatContainer) return;
+      
       chatContainer.innerHTML = "";
       
+      // Create chat iframe
       const chatIframe = document.createElement("iframe");
+      chatIframe.src = `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=${window.location.hostname}`;
+      chatIframe.width = "100%";
+      chatIframe.height = "100%";
+      chatIframe.style.border = "none";
       
-      // Add a unique identifier to force cache refresh
-      const cacheBreaker = Date.now();
-      
-      // Set correct parent domains
-      const parentDomains = [
-        window.location.hostname,
-        'localhost', 
-        'chadderai.vercel.app', 
-        'chadderforchadders-4uv7d1m5i-spencershahhs-projects.vercel.app',
-        'chadder.ai'
-      ];
-      
-      // Deduplicate domains
-      const uniqueDomains = [...new Set(parentDomains)];
-      const parentParams = uniqueDomains.map(domain => `parent=${domain}`).join('&');
-      
-      // Create the iframe URL
-      let chatUrl = `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&${parentParams}&t=${cacheBreaker}`;
-      
-      // Add mobile=true parameter for mobile view
-      if (isMobile) {
-        chatUrl += "&mobile=true";
-      }
-      
-      chatIframe.setAttribute("src", chatUrl);
-      chatIframe.setAttribute("title", `${normalizedUsername} chat`);
-      chatIframe.setAttribute("allowfullscreen", "true");
-      
-      // Apply classes based on device
-      chatIframe.classList.add("chat-iframe");
-      if (isMobile) {
-        chatIframe.classList.add("mobile-iframe");
-      }
-      
-      // Append the iframe and make sure it's visible
       chatContainer.appendChild(chatIframe);
-      chatIframe.style.display = "block"; // Ensure the iframe is visible
     } catch (error) {
-      console.error("Error setting up Twitch chat:", error);
+      console.error("Error in setupTwitchChatEmbed:", error);
     }
   };
 
@@ -740,20 +604,16 @@ const StreamPage = () => {
     }
   };
 
-  // Replace toggleMobileVotePanel with a simpler version
+  // Simplified toggleMobileVotePanel function
   const toggleMobileVotePanel = () => {
     try {
       const newVisibleState = !mobileVotePanelVisible;
-      
-      // Update state
       setMobileVotePanelVisible(newVisibleState);
       
-      // Handle backdrop and panel visibility
-      const panel = document.querySelector('.mobile-vote-panel');
-      let backdrop = document.querySelector('.mobile-vote-backdrop');
-      
+      // Handle backdrop
       if (newVisibleState) {
         // Create backdrop if it doesn't exist
+        let backdrop = document.querySelector('.mobile-vote-backdrop');
         if (!backdrop) {
           backdrop = document.createElement('div');
           backdrop.className = 'mobile-vote-backdrop';
@@ -762,19 +622,10 @@ const StreamPage = () => {
           // Add click handler to close panel when backdrop is clicked
           backdrop.addEventListener('click', toggleMobileVotePanel);
         }
-        
-        // Show backdrop and panel with animation
-        requestAnimationFrame(() => {
-          if (backdrop) {
-            backdrop.classList.add('show');
-          }
-          if (panel) {
-            panel.classList.add('show');
-          }
-        });
-        
+        backdrop.classList.add('show');
       } else {
-        // Hide backdrop and panel with animation
+        // Hide and remove backdrop
+        const backdrop = document.querySelector('.mobile-vote-backdrop');
         if (backdrop) {
           backdrop.classList.remove('show');
           setTimeout(() => {
@@ -784,29 +635,27 @@ const StreamPage = () => {
             }
           }, 300);
         }
-        
-        if (panel) {
-          panel.classList.remove('show');
-        }
       }
-      
-      // Toggle active class on mobile vote button
+
+      // Toggle the active class on the vote button
       const mobileVoteButton = document.querySelector('.mobile-vote-button');
       if (mobileVoteButton) {
-        mobileVoteButton.classList.toggle('active', newVisibleState);
+        if (newVisibleState) {
+          mobileVoteButton.classList.add('active');
+        } else {
+          mobileVoteButton.classList.remove('active');
+        }
       }
     } catch (error) {
       console.error('Error toggling mobile vote panel:', error);
-      // Fallback: force close panel on error
+      // Emergency cleanup
       setMobileVotePanelVisible(false);
-      const panel = document.querySelector('.mobile-vote-panel');
-      if (panel) panel.classList.remove('show');
       const backdrop = document.querySelector('.mobile-vote-backdrop');
       if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
     }
   };
 
-  // Replace handleSendVote with an improved version
+  // Simplified handleSendVote function
   const handleSendVote = (e) => {
     if (e) e.preventDefault();
     if (sending) return;
@@ -822,12 +671,19 @@ const StreamPage = () => {
     // Process the vote
     handleVote()
       .then(() => {
-        // Close panel after successful vote with a slight delay to show success state
+        // Show success state
+        setSendSuccess(true);
+        
+        // Reset custom amount
+        setCustomAmount('');
+        
+        // Close panel after successful vote with a delay
         setTimeout(() => {
           if (isMobile) {
             toggleMobileVotePanel();
           }
-        }, 1000);
+          setSendSuccess(false);
+        }, 1500);
       })
       .catch(error => {
         console.error("Error sending vote:", error);
@@ -838,10 +694,8 @@ const StreamPage = () => {
       });
   };
 
-  // Add an improved cleanup function when component unmounts
+  // Add cleanup function for mobile elements
   useEffect(() => {
-    // ... existing setup code ...
-    
     return () => {
       // Clean up any backdrop when component unmounts
       const backdrop = document.querySelector('.mobile-vote-backdrop');
@@ -849,12 +703,10 @@ const StreamPage = () => {
         backdrop.parentNode.removeChild(backdrop);
       }
       
-      // Restore body scroll
-      document.body.style.overflow = '';
-      
-      // ... existing cleanup code ...
+      // Reset mobile state
+      setMobileVotePanelVisible(false);
     };
-  }, [normalizedUsername, isMobile, isPortrait]);
+  }, []);
 
   // Add function to show watch ad modal
   const showWatchAdModal = () => {
@@ -983,6 +835,7 @@ const StreamPage = () => {
         {/* Mobile Vote Panel */}
         <div 
           className={`mobile-vote-panel ${mobileVotePanelVisible ? 'show' : ''}`}
+          style={{ transform: mobileVotePanelVisible ? 'translateY(0)' : 'translateY(100%)' }}
         >
           <div className="panel-header">
             <h3 className="panel-title">Send Gems to {username}</h3>
@@ -1020,6 +873,7 @@ const StreamPage = () => {
                     onClick={() => {
                       setSelectedAmount(amount);
                       setCustomAmount('');
+                      setErrorMessage('');
                     }}
                   >
                     {amount}
@@ -1038,6 +892,7 @@ const StreamPage = () => {
                   if (value === '' || parseInt(value) > 0) {
                     setCustomAmount(value);
                     setSelectedAmount(value ? parseInt(value) : null);
+                    setErrorMessage('');
                   }
                 }}
               />

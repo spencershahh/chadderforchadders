@@ -297,7 +297,7 @@
   font-weight: 600;
 }
 
-/* Improved Floating Vote Container */
+/* Desktop Floating Vote Container */
 .floating-vote-container {
   position: fixed;
   bottom: 20px;
@@ -312,8 +312,6 @@
   border: 2px solid #9147ff;
   max-height: 80vh;
   overflow-y: auto;
-  touch-action: manipulation;
-  pointer-events: auto !important;
 }
 
 .floating-vote-container.collapsed {
@@ -321,7 +319,7 @@
   height: 60px;
   border-radius: 50%;
   padding: 0;
-  overflow: visible; /* Changed from hidden to visible */
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -332,23 +330,18 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(145, 71, 255, 0.7);
   animation: gentle-pulse 3s infinite;
   cursor: pointer;
-  pointer-events: auto !important;
 }
 
 /* Add specific styling for vote button collapsed state */
 .vote-button-collapsed {
-  cursor: pointer !important;
-  font-size: 14px !important;
-  font-weight: bold !important;
-  color: white !important;
-  border-radius: 50% !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
-  touch-action: manipulation !important;
-  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.3) !important;
-  text-align: center !important;
-  pointer-events: auto !important;
-  z-index: 1050 !important; /* Ensure this is on top */
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  border-radius: 50%;
+  user-select: none;
+  text-align: center;
+  z-index: 1050;
 }
 
 .floating-vote-container.collapsed:hover,
@@ -361,10 +354,6 @@
 .vote-button-collapsed:active {
   transform: scale(0.97);
   transition: transform 0.1s;
-}
-
-.floating-vote-container.collapsed::before {
-  content: none; /* Remove the diamond emoji */
 }
 
 @keyframes gentle-pulse {
@@ -399,7 +388,6 @@
   font-size: 16px;
   z-index: 1040;
   transition: all 0.2s ease;
-  pointer-events: auto !important;
 }
 
 .floating-vote-container.collapsed .collapse-toggle {
@@ -413,34 +401,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: auto !important;
-}
-
-.floating-vote-container.collapsed::before {
-  content: none; /* Remove any before pseudo-element */
 }
 
 .collapse-toggle:hover {
   background-color: rgba(145, 71, 255, 0.8);
 }
 
-.floating-vote-container.collapsed:hover {
-  transform: scale(1.1);
-  background-color: #a970ff;
-}
-
-/* Ensure the collapse toggle is always clickable */
-.floating-vote-container:not(.collapsed) .collapse-toggle {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.2);
-}
-
-/* Fix for custom amount wrapper */
+/* Desktop vote buttons styling */
 .custom-amount-wrapper {
   position: relative;
   grid-column: 1 / -1;
@@ -466,7 +433,6 @@
   color: white;
 }
 
-/* Add vote buttons container styling */
 .vote-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -474,7 +440,6 @@
   margin: 10px 0;
 }
 
-/* Make vote buttons more visually appealing */
 .vote-amount-button {
   padding: 10px 15px;
   background-color: rgba(255, 255, 255, 0.1);
@@ -523,295 +488,65 @@
   box-shadow: 0 5px 15px rgba(145, 71, 255, 0.3);
 }
 
-/* Mobile Portrait Mode - simplified without iOS */
-@media (max-width: 767px) {
-  .stream-page {
-    padding: 0;
-    margin: 0;
-    min-height: 100vh;
-    overflow-x: hidden; /* Prevent horizontal scroll */
-  }
-  
-  .stream-title {
-    position: sticky; /* Changed from fixed to sticky */
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 40px;
-    padding: 0.5rem 1rem;
-    margin: 0;
-    font-size: 1rem;
-    background: rgba(14, 14, 16, 0.95);
-    backdrop-filter: blur(10px);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-  }
-  
-  .stream-layout {
-    flex-direction: column;
-    /* Remove fixed positioning to allow normal scroll behavior */
-    position: relative; /* Changed from fixed to relative */
-    padding-top: 0; /* Remove padding that was offsetting the fixed header */
-    width: 100%;
-    z-index: 90;
-  }
-  
-  .stream-video-container {
-    width: 100%;
-    height: 40vh;
-    position: relative;
-    z-index: 90;
-    min-height: 150px;
-    border-radius: 0;
-  }
-  
-  .stream-right-container {
-    flex: 1;
-    width: 100%;
-    height: 60vh; /* Use viewport height but don't subtract header */
-    position: relative;
-    background: #18181b;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .stream-chat-container {
-    flex: 1;
-    border-radius: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    position: relative;
-    min-height: 0;
-  }
-  
-  .stream-chat-container iframe {
-    flex: 1;
-    width: 100%;
-    height: calc(100% - 50px);
-  }
-  
-  .supporting-content {
-    margin-top: 0; /* Remove the 100vh margin pushing content down */
-    padding: 1rem;
-    position: relative;
-    z-index: 80;
-  }
-  
-  .info-row {
-    flex-direction: column;
-    padding: 0;
-  }
-  
-  .streamer-bio-card,
-  .top-supporters-card {
-    width: 100%;
-    margin: 0;
-  }
-  
-  .vote-stats-container {
-    padding: 0;
-    margin-top: 1rem;
-  }
-  
-  .leaderboard-info-card {
-    margin: 1rem 0;
-    padding: 1.25rem;
-  }
-  
-  .floating-vote-container {
-    position: sticky;
-    bottom: 0;
-    border-radius: 12px 12px 0 0;
-    z-index: 1000;
-    pointer-events: auto;
-  }
-  
-  /* Make buttons more tappable on mobile - for all mobile devices */
-  .panel-amount-button, 
-  .panel-submit-button,
-  .earn-gems-button {
-    min-height: 48px;
-    position: relative;
-    z-index: 10001;
-    pointer-events: auto;
-    cursor: pointer;
-  }
-  
-  .panel-custom-input {
-    min-height: 48px;
-    font-size: 16px; /* Prevent zoom on focus */
-    position: relative;
-    z-index: 10001;
-    pointer-events: auto;
-  }
-  
-  /* Add active state styling for immediate touch feedback */
-  .panel-amount-button:active,
-  .panel-submit-button:active,
-  .mobile-vote-button:active,
-  .earn-gems-button:active {
-    transform: scale(0.97);
-    transition: transform 0.1s;
-    opacity: 0.8;
-  }
+.gems-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Mobile Landscape Mode - simplified */
-@media (max-width: 767px) and (orientation: landscape) {
-  .stream-layout {
-    flex-direction: row;
-  }
-  
-  .stream-video-container {
-    width: 65%;
-    height: calc(100vh - 40px);
-    min-height: unset;
-  }
-  
-  .stream-right-container {
-    width: 35%;
-    height: calc(100vh - 40px);
-  }
-  
-  .supporting-content {
-    margin-left: 65%;
-    margin-top: 0;
-  }
-  
-  .vote-stats-container,
-  .leaderboard-info-card {
-    margin-left: 0;
-  }
-  
-  .chat-input-container {
-    height: 40px;
-    padding: 4px 8px;
-  }
-  
-  .chat-input, 
-  .chat-send-button {
-    height: 32px;
-  }
+.credit-balance {
+  font-size: 14px;
+  color: white;
+  margin-bottom: 10px;
+  text-align: center;
 }
 
-/* Chat iframe styling - general for all devices */
-.chat-iframe {
-  width: 100%;
-  height: 100%;
+.earn-more-gems {
+  display: flex;
+  justify-content: center;
+}
+
+/* Loading and error states for both desktop and mobile */
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 20px;
+  text-align: center;
+}
+
+.loading-message {
+  font-size: 24px;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.error-message {
+  font-size: 20px;
+  color: #ff5252;
+  margin-bottom: 20px;
+  max-width: 600px;
+}
+
+.retry-button {
+  padding: 10px 20px;
+  background-color: #9147ff;
+  color: white;
   border: none;
-  flex: 1;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
-.mobile-iframe {
-  height: calc(100% - 50px);
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 50px;
-  z-index: 5;
+.retry-button:hover {
+  background-color: #a970ff;
 }
 
-/* Mobile Vote Panel */
-.mobile-vote-panel {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  background-color: rgba(24, 24, 27, 0.98) !important; /* Changed to match dark theme */
-  border-top-left-radius: 20px !important;
-  border-top-right-radius: 20px !important;
-  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.2) !important;
-  transform: translateY(100%) !important;
-  transition: transform 0.3s ease-out !important;
-  padding: 20px !important;
-  z-index: 10000 !important; /* Keep this very high */
-  pointer-events: auto !important;
-  display: none;
-  color: white !important; /* Ensure text is visible */
-}
-
-.mobile-vote-panel.show {
-  transform: translateY(0) !important;
-  display: block !important;
-}
-
-/* Styling for the backdrop */
-.mobile-vote-backdrop {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  z-index: 9990 !important; /* Below the panel but above other content */
-  opacity: 0 !important;
-  transition: opacity 0.3s ease !important;
-  pointer-events: auto !important;
-  display: none !important; /* Changed from block to none by default */
-}
-
-.mobile-vote-backdrop.show {
-  opacity: 1 !important;
-  display: block !important;
-}
-
-/* Mobile Vote Button - universal */
-.mobile-vote-button {
-  position: fixed !important;
-  bottom: 20px !important;
-  right: 20px !important;
-  width: 60px !important;
-  height: 60px !important;
-  border-radius: 50% !important;
-  background-color: #9147ff !important; /* Match twitch/theme color */
-  color: white !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  border: none !important;
-  cursor: pointer !important;
-  z-index: 9999 !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
-  transition: all 0.2s ease !important;
-  font-weight: bold !important;
-  -webkit-tap-highlight-color: transparent !important; /* Remove tap highlight */
-}
-
-.mobile-vote-button:active {
-  transform: scale(0.95) !important;
-  background-color: #a970ff !important;
-}
-
-/* Improve panel button styles for better touchability */
-.panel-amount-button, 
-.panel-submit-button,
-.earn-gems-button,
-.panel-close {
-  min-height: 48px !important; /* Minimum touch target size */
-  position: relative !important;
-  z-index: 10001 !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
-  touch-action: manipulation !important;
-}
-
-/* Ensure all container elements in the panel are properly styled */
-.panel-header,
-.panel-body,
-.panel-description,
-.panel-balance,
-.panel-amounts,
-.panel-custom-amount {
-  position: relative !important;
-  z-index: 10000 !important;
-  pointer-events: auto !important; /* Add this to ensure click events work */
-}
-
-/* Tablet and Desktop Media Queries */
+/* Tablet/desktop media query */
 @media (min-width: 768px) {
   .stream-page {
     padding: 1.25rem;
@@ -836,274 +571,14 @@
     grid-template-columns: 1fr 1fr;
   }
   
-  /* Center the top-supporters-card when it's alone in the row */
-  .info-row > .top-supporters-card:only-child {
-    grid-column: 1 / -1;
-    max-width: 600px;
-    justify-self: center;
-  }
-  
   .supporting-content {
     margin-top: 0.75rem;
   }
   
-  /* Make the vote stats and leaderboard card width consistent */
   .vote-stats-container,
   .leaderboard-info-card {
     max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
   }
-}
-
-/* Mobile Vote Button - universal */
-.mobile-vote-button {
-  position: fixed !important;
-  bottom: 20px !important;
-  right: 20px !important;
-  width: 60px !important;
-  height: 60px !important;
-  border-radius: 50% !important;
-  background-color: #007aff !important;
-  color: white !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  border: none !important;
-  cursor: pointer !important;
-  z-index: 9999 !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
-  transition: all 0.2s ease !important;
-  font-weight: bold !important;
-}
-
-.mobile-vote-button.active {
-  background-color: #0056b3 !important;
-  transform: scale(0.95) !important;
-}
-
-.mobile-vote-button:active {
-  transform: scale(0.95) !important;
-}
-
-.vote-button-text {
-  font-size: 14px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.5px !important;
-}
-
-/* Make mobile vote panel visible on smaller screens only */
-@media (min-width: 769px) {
-  .mobile-vote-button, 
-  .mobile-vote-panel {
-    display: none !important;
-  }
-}
-
-/* Responsive styling for panel grid */
-.panel-amount-grid {
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  gap: 10px !important;
-  margin-bottom: 15px !important;
-}
-
-/* Panel Custom Input styling */
-.panel-custom-input {
-  width: 100% !important;
-  padding: 12px !important;
-  background-color: #f0f0f0 !important;
-  color: #333 !important;
-  border: 1px solid #ddd !important;
-  border-radius: 12px !important;
-  font-size: 16px !important;
-  margin-bottom: 10px !important;
-  box-sizing: border-box !important;
-}
-
-.panel-custom-input:focus {
-  outline: none !important;
-  border-color: #007aff !important;
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3) !important;
-}
-
-/* Loading and Error States */
-.loading-container,
-.error-container {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: 100vh !important;
-  width: 100% !important;
-  padding: 20px !important;
-  text-align: center !important;
-  background-color: #f8f9fa !important;
-}
-
-.loading-message {
-  font-size: 24px !important;
-  color: #333 !important;
-  margin-bottom: 20px !important;
-}
-
-.error-message {
-  font-size: 20px !important;
-  color: #dc3545 !important;
-  margin-bottom: 20px !important;
-  max-width: 600px !important;
-}
-
-.retry-button {
-  padding: 10px 20px !important;
-  background-color: #007aff !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 5px !important;
-  font-size: 16px !important;
-  cursor: pointer !important;
-  transition: background-color 0.3s !important;
-}
-
-.retry-button:hover {
-  background-color: #0056b3 !important;
-}
-
-.error-details {
-  font-size: 14px !important;
-  color: #856404 !important;
-  background-color: #fff3cd !important;
-  padding: 10px !important;
-  border-radius: 4px !important;
-  margin-top: 10px !important;
-  text-align: left !important;
-  max-width: 100% !important;
-  overflow-wrap: break-word !important;
-  word-break: break-all !important;
-}
-
-/* Panel button styles - universal */
-.panel-amount-button {
-  flex: 1 !important;
-  min-width: 70px !important;
-  height: 50px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  background-color: rgba(145, 71, 255, 0.2) !important; /* Match theme */
-  color: white !important;
-  border-radius: 12px !important;
-  margin: 5px !important;
-  border: none !important;
-  transition: all 0.2s ease !important;
-}
-
-.panel-amount-button.selected {
-  background-color: #9147ff !important; /* Twitch purple */
-  color: white !important;
-  box-shadow: 0 0 0 2px rgba(145, 71, 255, 0.3) !important;
-  transform: scale(1.05) !important;
-}
-
-.panel-amount-button:active {
-  transform: scale(0.95) !important;
-  opacity: 0.8 !important;
-}
-
-.panel-submit-button {
-  width: 100% !important;
-  height: 50px !important;
-  background-color: #9147ff !important; /* Twitch purple */
-  color: white !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  margin-top: 15px !important;
-  border-radius: 12px !important;
-  border: none !important;
-  transition: all 0.2s ease !important;
-}
-
-.panel-submit-button:disabled {
-  background-color: rgba(145, 71, 255, 0.5) !important;
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-.panel-submit-button:active {
-  transform: scale(0.98) !important;
-}
-
-.panel-custom-input {
-  width: 100% !important;
-  height: 50px !important;
-  padding: 12px !important;
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
-  font-size: 16px !important;
-  margin-bottom: 10px !important;
-  box-sizing: border-box !important;
-}
-
-.panel-custom-input:focus {
-  outline: none !important;
-  border-color: #9147ff !important;
-  box-shadow: 0 0 0 2px rgba(145, 71, 255, 0.3) !important;
-}
-
-.panel-title {
-  font-size: 20px !important;
-  color: white !important;
-  margin-bottom: 15px !important;
-  padding-right: 25px !important; /* Make room for close button */
-}
-
-.panel-close {
-  position: absolute !important;
-  top: 15px !important;
-  right: 15px !important;
-  width: 30px !important;
-  height: 30px !important;
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border: none !important;
-  border-radius: 50% !important;
-  color: white !important;
-  font-size: 16px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  cursor: pointer !important;
-}
-
-.panel-description {
-  color: rgba(255, 255, 255, 0.8) !important;
-  margin-bottom: 15px !important;
-}
-
-.panel-balance {
-  display: flex !important;
-  align-items: center !important;
-  background-color: rgba(0, 0, 0, 0.2) !important;
-  padding: 10px 15px !important;
-  border-radius: 10px !important;
-  margin-bottom: 20px !important;
-}
-
-.balance-amount {
-  flex: 1 !important;
-  margin-left: 10px !important;
-  color: white !important;
-}
-
-.earn-gems-button {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
-  border: none !important;
-  padding: 6px 12px !important;
-  border-radius: 6px !important;
-  font-size: 14px !important;
-  font-weight: bold !important;
 } 
