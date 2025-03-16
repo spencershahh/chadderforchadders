@@ -10,7 +10,10 @@ import './MobileStreamPage.css';
 
 const StreamPage = () => {
   const { username } = useParams();
-  const normalizedUsername = username.toLowerCase();
+  console.log("StreamPage initializing with username:", username);
+  
+  const normalizedUsername = username ? username.toLowerCase() : '';
+  console.log("Normalized username:", normalizedUsername);
   const [voteStats, setVoteStats] = useState({ today: 0, week: 0, allTime: 0 });
   const [gemBalance, setGemBalance] = useState(0);
   const [selectedAmount, setSelectedAmount] = useState(null);
@@ -41,6 +44,19 @@ const StreamPage = () => {
   const panelVisibleRef = useRef(false);
   const [error, setError] = useState(null);
 
+  // Add debug logging for component state
+  useEffect(() => {
+    console.log("Current component state:", {
+      username,
+      normalizedUsername,
+      isMobile,
+      isPortrait,
+      loading,
+      mobileVotePanelVisible,
+      gemBalance
+    });
+  }, [username, normalizedUsername, isMobile, isPortrait, loading, mobileVotePanelVisible, gemBalance]);
+
   // Add logging to help troubleshoot
   useEffect(() => {
     console.log("StreamPage mounting", { username, isMobile });
@@ -65,6 +81,34 @@ const StreamPage = () => {
     document.documentElement.classList.remove('ios-device');
   }, []);
 
+  // Add an iOS detection
+  useEffect(() => {
+    // Check if running on iOS
+    const isIOS = () => {
+      return [
+        'iPad Simulator',
+        'iPhone Simulator',
+        'iPod Simulator',
+        'iPad',
+        'iPhone',
+        'iPod'
+      ].includes(navigator.platform)
+      // iPad on iOS 13 detection
+      || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    };
+    
+    // Add iOS class for styling if on iOS
+    if (isIOS()) {
+      console.log("iOS device detected");
+      document.documentElement.classList.add('ios');
+      document.body.classList.add('ios');
+    } else {
+      console.log("Not an iOS device");
+      document.documentElement.classList.remove('ios');
+      document.body.classList.remove('ios');
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     let subscriptionSubscription = null;
@@ -79,30 +123,12 @@ const StreamPage = () => {
         
         // For mobile devices, add appropriate classes and configure viewport
         if (isMobile) {
-          // Apply iOS-specific optimizations
-          if (isIOS) {
-            document.documentElement.classList.add('ios-device');
-            
-            // Force viewport settings for iOS
-            const viewportMeta = document.querySelector('meta[name="viewport"]');
-            if (viewportMeta) {
-              viewportMeta.setAttribute('content', 
-                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-            } else {
-              const newMeta = document.createElement('meta');
-              newMeta.name = 'viewport';
-              newMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-              document.head.appendChild(newMeta);
-            }
-            
-            // Add viewport-fit=cover meta tag for iPhone X and newer
-            const viewportFitMeta = document.querySelector('meta[name="viewport-fit"]');
-            if (!viewportFitMeta) {
-              const newViewportFitMeta = document.createElement('meta');
-              newViewportFitMeta.name = 'viewport-fit';
-              newViewportFitMeta.content = 'cover';
-              document.head.appendChild(newViewportFitMeta);
-            }
+          // No iOS-specific optimizations
+          // Apply standard mobile viewport settings
+          const viewportMeta = document.querySelector('meta[name="viewport"]');
+          if (viewportMeta) {
+            viewportMeta.setAttribute('content', 
+              'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
           }
         }
         
@@ -191,11 +217,11 @@ const StreamPage = () => {
         chatContainer.innerHTML = "";
       }
     };
-  }, [normalizedUsername, isIOS, isMobile, isPortrait]);
+  }, [normalizedUsername, isMobile, isPortrait]);
 
   useEffect(() => {
     const handleResize = () => {
-      const newIsMobile = window.innerWidth <= 768 || isIOS;
+      const newIsMobile = window.innerWidth <= 768;
       const newIsPortrait = window.innerHeight > window.innerWidth;
       
       setIsMobile(newIsMobile);
@@ -213,30 +239,21 @@ const StreamPage = () => {
         setIsPortrait(newIsPortrait);
         layoutUpdatedRef.current = true;
         
-        // iOS needs multiple updates after orientation change
-        if (isIOS) {
-          // Force a scroll reset and layout recalculation
-          window.scrollTo(0, 0);
-          
-          // Update viewport settings
-          const viewportMeta = document.querySelector('meta[name="viewport"]');
-          if (viewportMeta) {
-            // First disable scaling to prevent layout shift
-            viewportMeta.setAttribute('content', 
-              'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-            
-            // Then re-enable with proper settings
-            setTimeout(() => {
-              viewportMeta.setAttribute('content', 
-                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-            }, 300);
-          }
-          
-          // Reset chat iframe to fix potential display issues
-          setTimeout(() => {
-            setupTwitchChatEmbed();
-          }, 500);
+        // Standard orientation change handling for mobile
+        window.scrollTo(0, 0);
+        
+        // Update viewport settings
+        const viewportMeta = document.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+          // First disable scaling to prevent layout shift
+          viewportMeta.setAttribute('content', 
+            'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
         }
+        
+        // Reset chat iframe to fix potential display issues
+        setTimeout(() => {
+          setupTwitchChatEmbed();
+        }, 500);
       }, 100);
     };
 
@@ -251,16 +268,6 @@ const StreamPage = () => {
       const mediaQuery = window.matchMedia("(orientation: portrait)");
       mediaQuery.addListener(handleOrientationChange);
     }
-    
-    // For iOS, ensure we handle orientation changes properly
-    if (isIOS) {
-      // Fix for iOS Safari viewport issues on orientation change
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-          handleOrientationChange();
-        }
-      });
-    }
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -271,12 +278,8 @@ const StreamPage = () => {
         const mediaQuery = window.matchMedia("(orientation: portrait)");
         mediaQuery.removeListener(handleOrientationChange);
       }
-      
-      if (isIOS) {
-        document.removeEventListener('visibilitychange', handleOrientationChange);
-      }
     };
-  }, [normalizedUsername, isIOS]);
+  }, [normalizedUsername]);
 
   // Add scroll management effect
   useEffect(() => {
@@ -437,63 +440,41 @@ const StreamPage = () => {
         chatIframe.setAttribute("src", `${currentSrc}&mobile=true`);
         chatIframe.classList.add("mobile-iframe");
         
-        // Additional attributes for iOS
-        if (isIOS) {
-          chatIframe.setAttribute("scrolling", "yes");
-          chatIframe.setAttribute("allowfullscreen", "true");
-          
-          // For iOS, add extra styles and wrap in another div for better scrolling
-          chatIframe.style.webkitOverflowScrolling = "touch";
-          
-          // Create a wrapper div for iOS scrolling fixes
-          const iosScrollWrapper = document.createElement("div");
-          iosScrollWrapper.className = "ios-iframe-wrapper";
-          iosScrollWrapper.style.webkitOverflowScrolling = "touch";
-          iosScrollWrapper.style.overflow = "auto";
-          iosScrollWrapper.style.height = "100%";
-          iosScrollWrapper.style.width = "100%";
-          iosScrollWrapper.style.position = "relative";
-          
-          // Use the wrapper instead of directly appending to container
-          iosScrollWrapper.appendChild(chatIframe);
-          chatContainer.appendChild(iosScrollWrapper);
-          
-          // Add listener to fix common iOS iframe issues
-          chatIframe.addEventListener('load', () => {
-            // Force height recalculation on load
-            setTimeout(() => {
-              chatIframe.style.height = "calc(100% - 50px)";
-              // Sometimes iOS needs a scroll trigger to render properly
-              iosScrollWrapper.scrollTop = 1;
-              iosScrollWrapper.scrollTop = 0;
-            }, 500);
-          });
-          
-          return; // We've already appended the iframe to the container
-        }
+        // Standard mobile attributes
+        chatIframe.setAttribute("scrolling", "yes");
+        chatIframe.setAttribute("allowfullscreen", "true");
       }
       
-      // For non-iOS, just append directly
+      // Append directly to container
       chatContainer.appendChild(chatIframe);
     }
   };
 
   const fetchUserCredits = async () => {
+    console.log("Fetching user credits");
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("Please log in to continue.");
+      if (authError || !user) {
+        console.log("Auth error or no user:", authError);
+        throw new Error("Please log in to continue.");
+      }
 
+      console.log("User authenticated, getting gem balance");
       const { data: userData, error: checkError } = await supabase
         .from("users")
         .select("gem_balance, subscription_tier, subscription_status")
         .eq("id", user.id)
         .single();
 
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error("Error fetching user data:", checkError);
+        throw checkError;
+      }
 
+      console.log("Setting gem balance:", userData.gem_balance || 0);
       setGemBalance(userData.gem_balance || 0);
     } catch (err) {
-      console.error("Error fetching user credits:", err.message);
+      console.error("Error in fetchUserCredits:", err.message);
       setErrorMessage(err.message);
     }
   };
@@ -888,7 +869,7 @@ const StreamPage = () => {
     };
   }, [username]);
 
-  // Wrap the render with error handling
+  // Wrap the render with error handling and include more robust error handling
   try {
     // Show loading state
     if (loading) {
@@ -904,7 +885,7 @@ const StreamPage = () => {
       return (
         <div className="stream-page error-container">
           <div className="error-message">
-            {error || "Unable to load stream. Please try again."}
+            {error || "Unable to load stream. Username is required."}
           </div>
           <button 
             className="retry-button"
@@ -916,7 +897,7 @@ const StreamPage = () => {
       );
     }
     
-    // Main render
+    // Main render - simplify panel balance section, using emoji instead of gemIcon
     return (
       <div className="stream-page">
         <h2 className="stream-title">Watching {username}'s Stream</h2>
@@ -981,13 +962,18 @@ const StreamPage = () => {
             </p>
             
             <div className="panel-balance">
-              <span>💎</span>
+              <span role="img" aria-label="gem">💎</span>
               <span className="balance-amount">Your gem balance: {gemBalance || 0}</span>
               <button 
                 className="earn-gems-button"
                 onClick={() => {
                   console.log('Earn gems clicked');
-                  // Add your earn gems logic here
+                  // Use direct function call if available, otherwise log
+                  if (typeof showWatchAdModal === 'function') {
+                    showWatchAdModal();
+                  } else {
+                    console.log('showWatchAdModal not available');
+                  }
                 }}
               >
                 Get More
@@ -1236,7 +1222,12 @@ const StreamPage = () => {
     return (
       <div className="stream-page error-container">
         <div className="error-message">
-          An unexpected error occurred. Please try again.
+          An unexpected error occurred while rendering the page. Please try again.
+          {renderError && renderError.message ? 
+            <div className="error-details">
+              Error: {renderError.message}
+            </div> : null
+          }
         </div>
         <button 
           className="retry-button"

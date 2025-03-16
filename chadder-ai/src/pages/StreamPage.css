@@ -1508,4 +1508,17 @@
 
 .retry-button:hover {
   background-color: #0056b3 !important;
+}
+
+.error-details {
+  font-size: 14px !important;
+  color: #856404 !important;
+  background-color: #fff3cd !important;
+  padding: 10px !important;
+  border-radius: 4px !important;
+  margin-top: 10px !important;
+  text-align: left !important;
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-break: break-all !important;
 } 
