@@ -791,23 +791,56 @@ const StreamPage = () => {
           document.body.appendChild(backdrop);
         }
         
-        // Special handling for iOS
+        // IMPORTANT: Make sure backdrop is below clickable elements
+        backdrop.style.zIndex = '9000'; // Lower z-index than the panel (10000)
+        
+        // Special handling for iOS - CRITICAL FIX
         if (isIOS) {
-          // Make sure backdrop is below panel in z-index
-          backdrop.style.zIndex = '9998';
-          backdrop.style.pointerEvents = 'auto';
+          // For iOS, set backdrop to not capture pointer events
+          // This allows clicks to pass through to elements above it
+          backdrop.style.pointerEvents = 'none';
           
           // Lock body scrolling on iOS
           document.body.style.position = 'fixed';
           document.body.style.top = `-${window.scrollY}px`;
           document.body.style.width = '100%';
           document.body.style.overflowY = 'hidden';
+          
+          // Set backdrop click handler for iOS
+          setTimeout(() => {
+            // Create a close button in the backdrop for iOS
+            const closeButton = document.createElement('button');
+            closeButton.className = 'backdrop-close-button';
+            closeButton.textContent = 'Close';
+            closeButton.style.position = 'absolute';
+            closeButton.style.bottom = '20px';
+            closeButton.style.left = '50%';
+            closeButton.style.transform = 'translateX(-50%)';
+            closeButton.style.padding = '10px 20px';
+            closeButton.style.background = 'rgba(0,0,0,0.7)';
+            closeButton.style.color = 'white';
+            closeButton.style.borderRadius = '20px';
+            closeButton.style.border = 'none';
+            closeButton.style.zIndex = '9999';
+            closeButton.style.pointerEvents = 'auto'; // Make this clickable
+            
+            closeButton.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleMobileVotePanel();
+            };
+            
+            if (backdrop) {
+              backdrop.appendChild(closeButton);
+            }
+          }, 100);
+        } else {
+          // Non-iOS can use normal backdrop click to close
+          backdrop.style.pointerEvents = 'auto';
+          backdrop.onclick = () => {
+            toggleMobileVotePanel();
+          };
         }
-        
-        // Add click handler to backdrop to close panel
-        backdrop.onclick = () => {
-          toggleMobileVotePanel();
-        };
         
         // Show backdrop
         backdrop.style.display = 'block';
@@ -824,14 +857,28 @@ const StreamPage = () => {
             void panel.offsetWidth;
             panel.classList.add('show');
             
+            // CRITICAL: Make panel itself receive pointer events
+            panel.style.pointerEvents = 'auto';
+            panel.style.zIndex = '10000';
+            
             // Schedule button initialization
             setTimeout(() => {
               const buttons = panel.querySelectorAll('button');
               buttons.forEach(button => {
                 // Ensure pointer events is enabled
                 button.style.pointerEvents = 'auto';
+                button.style.zIndex = '10001';
+                button.style.position = 'relative';
                 // Add tap highlight color
                 button.style.webkitTapHighlightColor = 'rgba(0,0,0,0)';
+              });
+              
+              // Also ensure input is clickable
+              const inputs = panel.querySelectorAll('input');
+              inputs.forEach(input => {
+                input.style.pointerEvents = 'auto';
+                input.style.zIndex = '10001';
+                input.style.position = 'relative';
               });
             }, 100);
           }
@@ -842,7 +889,12 @@ const StreamPage = () => {
         if (backdrop) {
           backdrop.style.opacity = '0';
           setTimeout(() => {
-            if (backdrop) backdrop.style.display = 'none';
+            if (backdrop) {
+              backdrop.style.display = 'none';
+              // Remove any close buttons
+              const closeButton = backdrop.querySelector('.backdrop-close-button');
+              if (closeButton) closeButton.remove();
+            }
           }, 300);
         }
         
@@ -1043,6 +1095,82 @@ const StreamPage = () => {
     };
   }, [isIOS, showMobileVotePanel]);
 
+  // Add special touch events for direct handling
+  const handleButtonInteraction = (e, buttonType, amount = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Add visual feedback
+    if (e.currentTarget) {
+      e.currentTarget.style.opacity = '0.7';
+      setTimeout(() => {
+        if (e.currentTarget) e.currentTarget.style.opacity = '1';
+      }, 150);
+    }
+    
+    // Handle based on button type
+    switch (buttonType) {
+      case 'amount':
+        if (amount !== null) {
+          setSelectedAmount(amount);
+          setCustomAmount('');
+          
+          // Clear selected state from all buttons
+          const panel = document.querySelector('.mobile-vote-panel');
+          if (panel) {
+            const amountButtons = panel.querySelectorAll('.panel-amount-button');
+            amountButtons.forEach(btn => btn.classList.remove('selected'));
+            
+            // Add selected to current button
+            e.currentTarget.classList.add('selected');
+          }
+        }
+        break;
+      case 'vote':
+        handleVote();
+        break;
+      case 'earn':
+        showWatchAdModal();
+        break;
+      case 'close':
+        toggleMobileVotePanel();
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Fix viewport on iOS
+  useEffect(() => {
+    if (!isIOS) return;
+    
+    if (showMobileVotePanel) {
+      // When panel is showing on iOS, fix viewport
+      const metaViewport = document.querySelector('meta[name=viewport]');
+      if (metaViewport) {
+        // Save original viewport
+        const originalContent = metaViewport.getAttribute('content');
+        metaViewport._originalContent = originalContent;
+        
+        // Set fixed viewport that prevents scaling/zooming
+        metaViewport.setAttribute('content', 
+          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        
+        // Force redraw
+        document.body.style.display = 'none';
+        setTimeout(() => {
+          document.body.style.display = '';
+        }, 10);
+      }
+    } else {
+      // Restore original viewport when panel is closed
+      const metaViewport = document.querySelector('meta[name=viewport]');
+      if (metaViewport && metaViewport._originalContent) {
+        metaViewport.setAttribute('content', metaViewport._originalContent);
+      }
+    }
+  }, [isIOS, showMobileVotePanel]);
+
   // Add a try-catch wrapper around the render to diagnose issues
   if (!username) {
     return <div className="error-state">Username is required to view the stream</div>;
@@ -1125,22 +1253,28 @@ const StreamPage = () => {
             </button>
             <div 
               className={`mobile-vote-panel ${showMobileVotePanel ? 'show' : ''} ${isIOS ? 'ios' : ''}`}
-              onClick={(e) => {
-                e.preventDefault(); // Prevent default
-                e.stopPropagation(); // Prevent clicks from bubbling up to the backdrop
+              onClick={(e) => e.stopPropagation()} 
+              style={{ 
+                zIndex: 10000,
+                position: 'fixed',
+                pointerEvents: 'auto',
+                touchAction: 'auto'
               }}
-              onTouchStart={(e) => e.stopPropagation()} // Prevent touch from bubbling
-              onTouchMove={(e) => e.stopPropagation()} // Prevent touch move from bubbling
-              onTouchEnd={(e) => e.stopPropagation()} // Prevent touch end from bubbling
             >
               <div className="panel-header">
                 <div className="panel-title">Support {username}</div>
                 <button 
                   className="panel-close" 
-                  onClick={toggleMobileVotePanel}
+                  onClick={(e) => handleButtonInteraction(e, 'close')}
+                  onTouchStart={(e) => handleButtonInteraction(e, 'close')}
                   role="button"
                   tabIndex={0}
                   aria-label="Close vote panel"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10001,
+                    position: 'relative' 
+                  }}
                 >
                   ✕
                 </button>
@@ -1153,10 +1287,16 @@ const StreamPage = () => {
                   <span className="balance-amount">💎 {gemBalance || 0}</span>
                   <button 
                     className="earn-gems-button ios-touch-button" 
-                    onClick={showWatchAdModal}
+                    onClick={(e) => handleButtonInteraction(e, 'earn')}
+                    onTouchStart={(e) => handleButtonInteraction(e, 'earn')}
                     role="button"
                     tabIndex={0}
                     aria-label="Earn gems"
+                    style={{ 
+                      pointerEvents: 'auto',
+                      zIndex: 10001,
+                      position: 'relative' 
+                    }}
                   >
                     <span>+ Earn More</span>
                   </button>
@@ -1166,13 +1306,16 @@ const StreamPage = () => {
                     <button
                       key={amount}
                       className={`panel-amount-button ios-touch-button ${selectedAmount === amount ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedAmount(amount);
-                        setCustomAmount('');
-                      }}
+                      onClick={(e) => handleButtonInteraction(e, 'amount', amount)}
+                      onTouchStart={(e) => handleButtonInteraction(e, 'amount', amount)}
                       role="button"
                       tabIndex={0}
                       aria-label={`Vote ${amount} gems`}
+                      style={{ 
+                        pointerEvents: 'auto',
+                        zIndex: 10001,
+                        position: 'relative' 
+                      }}
                     >
                       {amount}
                     </button>
@@ -1183,21 +1326,39 @@ const StreamPage = () => {
                     type="number"
                     value={customAmount}
                     onChange={(e) => {
+                      e.stopPropagation();
                       setCustomAmount(e.target.value);
-                      setSelectedAmount(0);
+                      if (e.target.value) {
+                        setSelectedAmount(parseInt(e.target.value));
+                      } else {
+                        setSelectedAmount(0);
+                      }
                     }}
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
                     placeholder="Custom amount"
                     min="1"
                     max="1000000"
+                    style={{ 
+                      pointerEvents: 'auto',
+                      zIndex: 10001,
+                      position: 'relative' 
+                    }}
                   />
                 </div>
                 <button 
                   className="panel-submit-button ios-touch-button" 
-                  onClick={handleVote}
+                  onClick={(e) => handleButtonInteraction(e, 'vote')}
+                  onTouchStart={(e) => handleButtonInteraction(e, 'vote')}
                   disabled={!selectedAmount && !customAmount}
                   role="button"
                   tabIndex={0}
                   aria-label="Submit vote"
+                  style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 10001,
+                    position: 'relative' 
+                  }}
                 >
                   Vote
                 </button>

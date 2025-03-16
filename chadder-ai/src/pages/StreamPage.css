@@ -723,15 +723,59 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 9998; /* Just below the panel */
-  opacity: 0;
+  z-index: 9000 !important; /* Important - keep this BELOW the panel z-index of 10000 */
   transition: opacity 0.3s ease;
-  display: none;
 }
 
-/* For iOS, make sure backdrop doesn't block clicks on the panel */
+/* For iOS specifically */
 .ios .mobile-vote-backdrop {
-  z-index: 9998;
+  pointer-events: none !important; /* Critical - let clicks pass through to elements above */
+}
+
+.backdrop-close-button {
+  display: block;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 20px;
+  border: none;
+  z-index: 9999;
+  pointer-events: auto !important; /* Make sure this is clickable */
+  cursor: pointer;
+}
+
+/* Ensure the panel containers are properly positioned and interactive */
+.mobile-vote-panel.show {
+  transform: translateY(0) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 10000 !important;
+}
+
+/* Fix interaction issues with panel content */
+.panel-header, 
+.panel-body,
+.panel-title,
+.panel-description,
+.panel-balance,
+.panel-amounts,
+.panel-custom-amount {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10000 !important;
+}
+
+/* Fix iOS hover state */
+.ios .panel-amount-button:hover,
+.ios .panel-submit-button:hover,
+.ios .earn-gems-button:hover,
+.ios .panel-close:hover {
+  opacity: 1 !important; /* Prevent hover state on touch devices */
 }
 
 /* Panel header styling */
@@ -1638,4 +1682,68 @@
   font-size: 16px;
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* Fix for unclickable buttons in mobile vote panel */
+.mobile-vote-panel button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 10001 !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+  touch-action: manipulation !important;
+}
+
+.mobile-vote-panel input {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10001 !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.mobile-vote-panel.show {
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}
+
+/* Force higher z-index for iOS */
+.ios .mobile-vote-panel.show,
+.ios .mobile-vote-panel {
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  touch-action: auto !important;
+}
+
+.ios .mobile-vote-panel button,
+.ios .panel-amount-button,
+.ios .panel-submit-button, 
+.ios .earn-gems-button,
+.ios .panel-close {
+  z-index: 10001 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.2) !important;
+  cursor: pointer !important;
+}
+
+/* Fix for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .mobile-vote-panel button,
+  .panel-amount-button,
+  .panel-submit-button,
+  .earn-gems-button,
+  .panel-close {
+    opacity: 1 !important;
+    transform: translateZ(0) !important;
+    will-change: opacity, transform !important;
+  }
+  
+  .mobile-vote-panel button:active,
+  .panel-amount-button:active,
+  .panel-submit-button:active,
+  .earn-gems-button:active,
+  .panel-close:active {
+    opacity: 0.8 !important;
+  }
 } 
