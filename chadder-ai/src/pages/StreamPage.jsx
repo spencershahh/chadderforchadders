@@ -39,8 +39,25 @@ const StreamPage = () => {
   const panelVisibleRef = useRef(false);
   const [showMobileVotePanel, setShowMobileVotePanel] = useState(false);
 
+  // Add logging to help troubleshoot
   useEffect(() => {
-    // Detect iOS - more robust detection
+    console.log("StreamPage mounting", { username, isMobile, isIOS });
+    
+    // Add error boundary
+    const originalError = console.error;
+    console.error = function(message, ...args) {
+      console.log("ERROR DETECTED:", message);
+      originalError.apply(console, [message, ...args]);
+    };
+    
+    return () => {
+      console.log("StreamPage unmounting");
+      console.error = originalError;
+    };
+  }, [username, isMobile, isIOS]);
+
+  // Detect iOS - more robust detection
+  useEffect(() => {
     const checkIOS = () => {
       const userAgent = window.navigator.userAgent.toLowerCase();
       
@@ -763,80 +780,84 @@ const StreamPage = () => {
     const newState = !showMobileVotePanel;
     setShowMobileVotePanel(newState);
     
-    // Toggle backdrop
-    if (newState) {
-      // Create backdrop element if it doesn't exist
-      let backdrop = document.querySelector('.mobile-vote-backdrop');
-      if (!backdrop) {
-        backdrop = document.createElement('div');
-        backdrop.className = 'mobile-vote-backdrop';
-        document.body.appendChild(backdrop);
-      }
-      
-      // Special handling for iOS
-      if (isIOS) {
-        // Make sure backdrop is below panel in z-index
-        backdrop.style.zIndex = '9998';
-        backdrop.style.pointerEvents = 'auto';
+    try {
+      // Toggle backdrop
+      if (newState) {
+        // Create backdrop element if it doesn't exist
+        let backdrop = document.querySelector('.mobile-vote-backdrop');
+        if (!backdrop) {
+          backdrop = document.createElement('div');
+          backdrop.className = 'mobile-vote-backdrop';
+          document.body.appendChild(backdrop);
+        }
         
-        // Lock body scrolling on iOS
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${window.scrollY}px`;
-        document.body.style.width = '100%';
-        document.body.style.overflowY = 'hidden';
-      }
-      
-      // Add click handler to backdrop to close panel
-      backdrop.onclick = () => {
-        toggleMobileVotePanel();
-      };
-      
-      // Show backdrop
-      backdrop.style.display = 'block';
-      setTimeout(() => {
-        backdrop.style.opacity = '1';
-      }, 10);
-      
-      // Force layout reflow for iOS
-      if (isIOS) {
-        const panel = document.querySelector('.mobile-vote-panel');
-        if (panel) {
-          panel.style.display = 'block';
-          // Force reflow
-          void panel.offsetWidth;
-          panel.classList.add('show');
+        // Special handling for iOS
+        if (isIOS) {
+          // Make sure backdrop is below panel in z-index
+          backdrop.style.zIndex = '9998';
+          backdrop.style.pointerEvents = 'auto';
           
-          // Schedule button initialization
+          // Lock body scrolling on iOS
+          document.body.style.position = 'fixed';
+          document.body.style.top = `-${window.scrollY}px`;
+          document.body.style.width = '100%';
+          document.body.style.overflowY = 'hidden';
+        }
+        
+        // Add click handler to backdrop to close panel
+        backdrop.onclick = () => {
+          toggleMobileVotePanel();
+        };
+        
+        // Show backdrop
+        backdrop.style.display = 'block';
+        setTimeout(() => {
+          if (backdrop) backdrop.style.opacity = '1';
+        }, 10);
+        
+        // Force layout reflow for iOS
+        if (isIOS) {
+          const panel = document.querySelector('.mobile-vote-panel');
+          if (panel) {
+            panel.style.display = 'block';
+            // Force reflow
+            void panel.offsetWidth;
+            panel.classList.add('show');
+            
+            // Schedule button initialization
+            setTimeout(() => {
+              const buttons = panel.querySelectorAll('button');
+              buttons.forEach(button => {
+                // Ensure pointer events is enabled
+                button.style.pointerEvents = 'auto';
+                // Add tap highlight color
+                button.style.webkitTapHighlightColor = 'rgba(0,0,0,0)';
+              });
+            }, 100);
+          }
+        }
+      } else {
+        // Hide backdrop
+        const backdrop = document.querySelector('.mobile-vote-backdrop');
+        if (backdrop) {
+          backdrop.style.opacity = '0';
           setTimeout(() => {
-            const buttons = panel.querySelectorAll('button');
-            buttons.forEach(button => {
-              // Ensure pointer events is enabled
-              button.style.pointerEvents = 'auto';
-              // Add tap highlight color
-              button.style.webkitTapHighlightColor = 'rgba(0,0,0,0)';
-            });
-          }, 100);
+            if (backdrop) backdrop.style.display = 'none';
+          }, 300);
+        }
+        
+        // Unlock body scrolling on iOS
+        if (isIOS) {
+          const scrollY = document.body.style.top;
+          document.body.style.position = '';
+          document.body.style.top = '';
+          document.body.style.overflowY = '';
+          document.body.style.width = '';
+          window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
       }
-    } else {
-      // Hide backdrop
-      const backdrop = document.querySelector('.mobile-vote-backdrop');
-      if (backdrop) {
-        backdrop.style.opacity = '0';
-        setTimeout(() => {
-          backdrop.style.display = 'none';
-        }, 300);
-      }
-      
-      // Unlock body scrolling on iOS
-      if (isIOS) {
-        const scrollY = document.body.style.top;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.overflowY = '';
-        document.body.style.width = '';
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-      }
+    } catch (error) {
+      console.error("Error in toggleMobileVotePanel:", error);
     }
   };
 
@@ -1022,343 +1043,367 @@ const StreamPage = () => {
     };
   }, [isIOS, showMobileVotePanel]);
 
-  return (
-    <div className={`stream-page ${isIOS ? 'ios' : ''}`}>
-      <h2 className="stream-title">Watching {username}'s Stream</h2>
-      
-      <div className="stream-layout">
-        <div className="stream-video-container">
-          <div id="twitch-embed"></div>
-        </div>
+  // Add a try-catch wrapper around the render to diagnose issues
+  if (!username) {
+    return <div className="error-state">Username is required to view the stream</div>;
+  }
 
-        <div className="stream-right-container">
-          <div className="stream-chat-container" id="twitch-chat">
-            {/* Chat iframe will be injected here */}
-            {isMobile && (
-              <div className="chat-input-container" id="chat-input-container">
-                <input
-                  type="text"
-                  className="chat-input"
-                  placeholder="Send a message"
-                  aria-label="Chat input"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      sendChatMessage(e.target.value);
-                      e.target.value = '';
-                    }
-                  }}
-                />
-                <button 
-                  onClick={(e) => {
-                    const input = e.target.previousSibling;
-                    sendChatMessage(input.value);
-                    input.value = '';
-                  }}
-                  className="chat-send-button"
-                  aria-label="Send message"
-                >
-                  Send
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+  // Return loading state when initializing  
+  if (loading) {
+    return (
+      <div className="loading-state">
+        <h2>Loading stream for {username}...</h2>
       </div>
+    );
+  }
 
-      {/* Mobile Vote Button and Panel */}
-      {isMobile && (
-        <>
-          <button 
-            className="mobile-vote-button" 
-            onClick={(e) => {
-              e.preventDefault(); // Prevent default touch behavior
-              e.stopPropagation(); // Prevent event bubbling
-              toggleMobileVotePanel();
-            }}
-            onTouchStart={(e) => {
-              // For iOS, add touchstart handler
-              if (isIOS) {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleMobileVotePanel();
-              }
-            }}
-            aria-label="Open vote panel"
-          >
-            <span className="vote-button-text">VOTE</span>
-          </button>
-          <div 
-            className={`mobile-vote-panel ${showMobileVotePanel ? 'show' : ''} ${isIOS ? 'ios' : ''}`}
-            onClick={(e) => {
-              e.preventDefault(); // Prevent default
-              e.stopPropagation(); // Prevent clicks from bubbling up to the backdrop
-            }}
-            onTouchStart={(e) => e.stopPropagation()} // Prevent touch from bubbling
-            onTouchMove={(e) => e.stopPropagation()} // Prevent touch move from bubbling
-            onTouchEnd={(e) => e.stopPropagation()} // Prevent touch end from bubbling
-          >
-            <div className="panel-header">
-              <div className="panel-title">Support {activeUser?.username || 'creator'}</div>
-              <button 
-                className="panel-close" 
-                onClick={toggleMobileVotePanel}
-                role="button"
-                tabIndex={0}
-                aria-label="Close vote panel"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="panel-body">
-              <div className="panel-description">
-                Your support helps the creator climb the rankings.
-              </div>
-              <div className="panel-balance">
-                <img src={gemIcon} alt="Gems" className="gem-icon" />
-                <span className="balance-amount">{credits || 0}</span>
-                <button 
-                  className="earn-gems-button ios-touch-button" 
-                  onClick={showWatchAdModal}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Earn gems"
-                >
-                  <span>+</span>
-                </button>
-              </div>
-              <div className="panel-amounts">
-                {[100, 500, 1000, 5000].map((amount) => (
-                  <button
-                    key={amount}
-                    className={`panel-amount-button ios-touch-button ${selectedAmount === amount ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedAmount(amount);
-                      setCustomAmount('');
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Vote ${amount} gems`}
-                  >
-                    {amount}
-                  </button>
-                ))}
-              </div>
-              <div className="panel-custom-amount">
-                <input
-                  type="number"
-                  value={customAmount}
-                  onChange={(e) => {
-                    setCustomAmount(e.target.value);
-                    setSelectedAmount(0);
-                  }}
-                  placeholder="Custom amount"
-                  min="1"
-                  max="1000000"
-                />
-              </div>
-              <button 
-                className="panel-submit-button ios-touch-button" 
-                onClick={handleVote}
-                disabled={!selectedAmount && !customAmount}
-                role="button"
-                tabIndex={0}
-                aria-label="Submit vote"
-              >
-                Vote
-              </button>
-            </div>
+  try {
+    return (
+      <div className={`stream-page ${isIOS ? 'ios' : ''}`}>
+        <h2 className="stream-title">Watching {username}'s Stream</h2>
+        
+        <div className="stream-layout">
+          <div className="stream-video-container">
+            <div id="twitch-embed"></div>
           </div>
-        </>
-      )}
 
-      {/* Supporting Content Section */}
-      <div className="supporting-content">
-        <div className="info-row">
-          {streamerInfo.bio && (
-            <div className="streamer-bio-card">
-              <div className="bio-header">
-                {streamerInfo.profileImageUrl && (
-                  <img 
-                    src={streamerInfo.profileImageUrl} 
-                    alt={`${username}'s profile`} 
-                    className="bio-profile-image"
+          <div className="stream-right-container">
+            <div className="stream-chat-container" id="twitch-chat">
+              {/* Chat iframe will be injected here */}
+              {isMobile && (
+                <div className="chat-input-container" id="chat-input-container">
+                  <input
+                    type="text"
+                    className="chat-input"
+                    placeholder="Send a message"
+                    aria-label="Chat input"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        sendChatMessage(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
                   />
-                )}
-                <h3>About {username}</h3>
-              </div>
-              <p className="bio-text">{streamerInfo.bio}</p>
-            </div>
-          )}
-
-          <div className="top-supporters-card">
-            <h3>💎 Top Supporters</h3>
-            <div className="supporters-list">
-              {topSupporters.length > 0 ? (
-                topSupporters.map((supporter, index) => (
-                  <div 
-                    key={`${supporter.username}-${supporter.amount}-${index}`} 
-                    className="supporter-item animate-update"
+                  <button 
+                    onClick={(e) => {
+                      const input = e.target.previousSibling;
+                      sendChatMessage(input.value);
+                      input.value = '';
+                    }}
+                    className="chat-send-button"
+                    aria-label="Send message"
                   >
-                    <span className="rank">#{index + 1}</span>
-                    <span className="username">{supporter.username}</span>
-                    <span className="amount">{supporter.amount} 💎</span>
-                  </div>
-                ))
-              ) : (
-                <div className="supporter-item empty-state">
-                  <span className="empty-message">Be the first to support!</span>
+                    Send
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="vote-stats-container">
-          <div className="stat-box">
-            <p>Votes Today</p>
-            <h4>{voteStats.today}</h4>
-          </div>
-          <div className="stat-box">
-            <p>Votes This Week</p>
-            <h4>{voteStats.week}</h4>
-          </div>
-          <div className="stat-box">
-            <p>All Time Votes</p>
-            <h4>{voteStats.allTime}</h4>
-          </div>
-        </div>
-
-        <div className="leaderboard-info-card">
-          <h3>🏆 Current Competition</h3>
-          <div className="leaderboard-stats">
-            <div className="stat-item">
-              <p>Time Remaining</p>
-              <h4>{timeRemaining || 'Loading...'}</h4>
-            </div>
-            <div className="stat-item">
-              <p>Prize Pool</p>
-              <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop Voting Panel - Fixing to make sure button is clickable */}
-        {!isMobile && (
-          <div 
-            className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
-            title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
-            onClick={(e) => {
-              if (isVotePaneCollapsed) {
-                e.stopPropagation();
-                setIsVotePaneCollapsed(false);
-              }
-            }}
-          >
-            {isVotePaneCollapsed ? (
-              // When collapsed, make the entire circle clickable
-              <div 
-                className="vote-button-collapsed"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  zIndex: 1030
-                }}
-                onClick={toggleDesktopVotePanel}
-              >
-                VOTE
+        {/* Mobile Vote Button and Panel */}
+        {isMobile && (
+          <>
+            <button 
+              className="mobile-vote-button" 
+              onClick={(e) => {
+                e.preventDefault(); // Prevent default touch behavior
+                e.stopPropagation(); // Prevent event bubbling
+                toggleMobileVotePanel();
+              }}
+              onTouchStart={(e) => {
+                // For iOS, add touchstart handler
+                if (isIOS) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleMobileVotePanel();
+                }
+              }}
+              aria-label="Open vote panel"
+            >
+              <span className="vote-button-text">VOTE</span>
+            </button>
+            <div 
+              className={`mobile-vote-panel ${showMobileVotePanel ? 'show' : ''} ${isIOS ? 'ios' : ''}`}
+              onClick={(e) => {
+                e.preventDefault(); // Prevent default
+                e.stopPropagation(); // Prevent clicks from bubbling up to the backdrop
+              }}
+              onTouchStart={(e) => e.stopPropagation()} // Prevent touch from bubbling
+              onTouchMove={(e) => e.stopPropagation()} // Prevent touch move from bubbling
+              onTouchEnd={(e) => e.stopPropagation()} // Prevent touch end from bubbling
+            >
+              <div className="panel-header">
+                <div className="panel-title">Support {username}</div>
+                <button 
+                  className="panel-close" 
+                  onClick={toggleMobileVotePanel}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Close vote panel"
+                >
+                  ✕
+                </button>
               </div>
-            ) : (
-              <button 
-                className="collapse-toggle"
-                onClick={(e) => {
-                  e.stopPropagation(); // Stop propagation to prevent conflicting toggles
-                  setIsVotePaneCollapsed(!isVotePaneCollapsed);
-                }}
-                aria-label="Collapse voting panel"
-              >
-                ↓
-              </button>
-            )}
-
-            {!isVotePaneCollapsed && (
-              <div className="vote-options" onClick={(e) => e.stopPropagation()}>
-                <h3 className="vote-title">Vote for {username}</h3>
-                <div className="vote-buttons">
-                  {[5, 10, 25, 50, 100].map((amount) => (
+              <div className="panel-body">
+                <div className="panel-description">
+                  Your support helps the creator climb the rankings.
+                </div>
+                <div className="panel-balance">
+                  <span className="balance-amount">💎 {gemBalance || 0}</span>
+                  <button 
+                    className="earn-gems-button ios-touch-button" 
+                    onClick={showWatchAdModal}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Earn gems"
+                  >
+                    <span>+ Earn More</span>
+                  </button>
+                </div>
+                <div className="panel-amounts">
+                  {[100, 500, 1000, 5000].map((amount) => (
                     <button
                       key={amount}
-                      className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                      className={`panel-amount-button ios-touch-button ${selectedAmount === amount ? 'selected' : ''}`}
                       onClick={() => {
                         setSelectedAmount(amount);
                         setCustomAmount('');
                       }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Vote ${amount} gems`}
                     >
-                      {amount} 💎
+                      {amount}
                     </button>
                   ))}
-                  <div className="custom-amount-wrapper">
-                    <input
-                      type="text"
-                      value={customAmount}
-                      onChange={handleCustomAmountChange}
-                      placeholder="Custom"
-                      className="custom-amount-input"
-                    />
-                    <span className="custom-amount-icon">💎</span>
-                  </div>
                 </div>
-
+                <div className="panel-custom-amount">
+                  <input
+                    type="number"
+                    value={customAmount}
+                    onChange={(e) => {
+                      setCustomAmount(e.target.value);
+                      setSelectedAmount(0);
+                    }}
+                    placeholder="Custom amount"
+                    min="1"
+                    max="1000000"
+                  />
+                </div>
                 <button 
-                  className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
-                  onClick={handleVote} 
-                  disabled={isVoting || errorMessage === "Please log in to continue."}
+                  className="panel-submit-button ios-touch-button" 
+                  onClick={handleVote}
+                  disabled={!selectedAmount && !customAmount}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Submit vote"
                 >
-                  {isVoting ? (
-                    `Processing Vote (${selectedAmount} 💎)`
-                  ) : voteSuccess ? (
-                    `Vote Successful! (${selectedAmount} 💎)`
-                  ) : (
-                    `👍 Vote with ${selectedAmount} 💎`
-                  )}
+                  Vote
                 </button>
+              </div>
+            </div>
+          </>
+        )}
 
-                <div className="gems-section">
-                  <p className="credit-balance">
-                    {isVoting ? (
-                      `Processing... Current Balance: ${gemBalance} 💎`
-                    ) : errorMessage ? (
-                      `Error: ${errorMessage}`
-                    ) : (
-                      `Available Gems: ${gemBalance} 💎`
-                    )}
-                  </p>
-                  
-                  <div className="earn-more-gems">
-                    <WatchAdButton onGemsEarned={refreshUserCredits} />
-                  </div>
+        {/* Supporting Content Section */}
+        <div className="supporting-content">
+          <div className="info-row">
+            {streamerInfo.bio && (
+              <div className="streamer-bio-card">
+                <div className="bio-header">
+                  {streamerInfo.profileImageUrl && (
+                    <img 
+                      src={streamerInfo.profileImageUrl} 
+                      alt={`${username}'s profile`} 
+                      className="bio-profile-image"
+                    />
+                  )}
+                  <h3>About {username}</h3>
                 </div>
+                <p className="bio-text">{streamerInfo.bio}</p>
               </div>
             )}
-          </div>
-        )}
-      </div>
 
-      <InsufficientGemsModal
-        isOpen={showGemsModal}
-        onClose={() => setShowGemsModal(false)}
-        requiredAmount={selectedAmount}
-        currentCredits={gemBalance}
-        onPurchase={handlePurchaseGems}
-      />
-    </div>
-  );
+            <div className="top-supporters-card">
+              <h3>💎 Top Supporters</h3>
+              <div className="supporters-list">
+                {topSupporters.length > 0 ? (
+                  topSupporters.map((supporter, index) => (
+                    <div 
+                      key={`${supporter.username}-${supporter.amount}-${index}`} 
+                      className="supporter-item animate-update"
+                    >
+                      <span className="rank">#{index + 1}</span>
+                      <span className="username">{supporter.username}</span>
+                      <span className="amount">{supporter.amount} 💎</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="supporter-item empty-state">
+                    <span className="empty-message">Be the first to support!</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="vote-stats-container">
+            <div className="stat-box">
+              <p>Votes Today</p>
+              <h4>{voteStats.today}</h4>
+            </div>
+            <div className="stat-box">
+              <p>Votes This Week</p>
+              <h4>{voteStats.week}</h4>
+            </div>
+            <div className="stat-box">
+              <p>All Time Votes</p>
+              <h4>{voteStats.allTime}</h4>
+            </div>
+          </div>
+
+          <div className="leaderboard-info-card">
+            <h3>🏆 Current Competition</h3>
+            <div className="leaderboard-stats">
+              <div className="stat-item">
+                <p>Time Remaining</p>
+                <h4>{timeRemaining || 'Loading...'}</h4>
+              </div>
+              <div className="stat-item">
+                <p>Prize Pool</p>
+                <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Voting Panel - Fixing to make sure button is clickable */}
+          {!isMobile && (
+            <div 
+              className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
+              title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
+              onClick={(e) => {
+                if (isVotePaneCollapsed) {
+                  e.stopPropagation();
+                  setIsVotePaneCollapsed(false);
+                }
+              }}
+            >
+              {isVotePaneCollapsed ? (
+                // When collapsed, make the entire circle clickable
+                <div 
+                  className="vote-button-collapsed"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    zIndex: 1030
+                  }}
+                  onClick={toggleDesktopVotePanel}
+                >
+                  VOTE
+                </div>
+              ) : (
+                <button 
+                  className="collapse-toggle"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Stop propagation to prevent conflicting toggles
+                    setIsVotePaneCollapsed(!isVotePaneCollapsed);
+                  }}
+                  aria-label="Collapse voting panel"
+                >
+                  ↓
+                </button>
+              )}
+
+              {!isVotePaneCollapsed && (
+                <div className="vote-options" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="vote-title">Vote for {username}</h3>
+                  <div className="vote-buttons">
+                    {[5, 10, 25, 50, 100].map((amount) => (
+                      <button
+                        key={amount}
+                        className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedAmount(amount);
+                          setCustomAmount('');
+                        }}
+                      >
+                        {amount} 💎
+                      </button>
+                    ))}
+                    <div className="custom-amount-wrapper">
+                      <input
+                        type="text"
+                        value={customAmount}
+                        onChange={handleCustomAmountChange}
+                        placeholder="Custom"
+                        className="custom-amount-input"
+                      />
+                      <span className="custom-amount-icon">💎</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
+                    onClick={handleVote} 
+                    disabled={isVoting || errorMessage === "Please log in to continue."}
+                  >
+                    {isVoting ? (
+                      `Processing Vote (${selectedAmount} 💎)`
+                    ) : voteSuccess ? (
+                      `Vote Successful! (${selectedAmount} 💎)`
+                    ) : (
+                      `👍 Vote with ${selectedAmount} 💎`
+                    )}
+                  </button>
+
+                  <div className="gems-section">
+                    <p className="credit-balance">
+                      {isVoting ? (
+                        `Processing... Current Balance: ${gemBalance} 💎`
+                      ) : errorMessage ? (
+                        `Error: ${errorMessage}`
+                      ) : (
+                        `Available Gems: ${gemBalance} 💎`
+                      )}
+                    </p>
+                    
+                    <div className="earn-more-gems">
+                      <WatchAdButton onGemsEarned={refreshUserCredits} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <InsufficientGemsModal
+          isOpen={showGemsModal}
+          onClose={() => setShowGemsModal(false)}
+          requiredAmount={selectedAmount}
+          currentCredits={gemBalance}
+          onPurchase={handlePurchaseGems}
+        />
+      </div>
+    );
+  } catch (error) {
+    console.error('Render error:', error);
+    return (
+      <div className="error-state">
+        <h2>Something went wrong</h2>
+        <p>There was an error loading the stream. Please try refreshing the page.</p>
+        <p>Error details: {error.message}</p>
+      </div>
+    );
+  }
 };
 
 export default StreamPage;
