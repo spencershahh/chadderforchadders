@@ -626,11 +626,15 @@ const StreamPage = () => {
           backdrop.addEventListener('click', toggleMobileVotePanel);
         }
         
-        // Show panel and backdrop
-        backdrop.classList.add('show');
+        // Show backdrop
+        setTimeout(() => {
+          backdrop.classList.add('show');
+        }, 10); // Small delay to ensure DOM has updated
+        
+        // Show panel
         if (panel) panel.classList.add('show');
       } else {
-        // Hide and remove backdrop
+        // Hide backdrop
         const backdrop = document.querySelector('.mobile-vote-backdrop');
         if (backdrop) {
           backdrop.classList.remove('show');
@@ -639,7 +643,7 @@ const StreamPage = () => {
               backdrop.removeEventListener('click', toggleMobileVotePanel);
               backdrop.parentNode.removeChild(backdrop);
             }
-          }, 300);
+          }, 300); // Match transition duration
         }
         
         // Hide panel
@@ -802,9 +806,7 @@ const StreamPage = () => {
     // Main render - simplify panel balance section, using emoji instead of gemIcon
     return (
       <div className="stream-page">
-        <h2 className="stream-title">Watching {username}'s Stream</h2>
-        
-        {/* Mobile Vote Panel - Moved higher in the DOM */}
+        {/* Mobile Vote Panel - Positioned as direct child of main container */}
         <div 
           className={`mobile-vote-panel ${mobileVotePanelVisible ? 'show' : ''}`}
         >
@@ -883,7 +885,7 @@ const StreamPage = () => {
           </div>
         </div>
         
-        {/* Mobile Vote Button - Moved higher in the DOM */}
+        {/* Mobile Vote Button - Positioned as direct child of main container */}
         <button
           className={`mobile-vote-button ${mobileVotePanelVisible ? 'active' : ''}`}
           onClick={toggleMobileVotePanel}
@@ -891,6 +893,8 @@ const StreamPage = () => {
         >
           VOTE
         </button>
+        
+        <h2 className="stream-title">Watching {username}'s Stream</h2>
         
         <div className="stream-layout">
           <div className="stream-video-container">
