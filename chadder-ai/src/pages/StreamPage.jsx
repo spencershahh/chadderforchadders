@@ -610,6 +610,9 @@ const StreamPage = () => {
       const newVisibleState = !mobileVotePanelVisible;
       setMobileVotePanelVisible(newVisibleState);
       
+      // Get panel element
+      const panel = document.querySelector('.mobile-vote-panel');
+      
       // Handle backdrop
       if (newVisibleState) {
         // Create backdrop if it doesn't exist
@@ -622,7 +625,10 @@ const StreamPage = () => {
           // Add click handler to close panel when backdrop is clicked
           backdrop.addEventListener('click', toggleMobileVotePanel);
         }
+        
+        // Show panel and backdrop
         backdrop.classList.add('show');
+        if (panel) panel.classList.add('show');
       } else {
         // Hide and remove backdrop
         const backdrop = document.querySelector('.mobile-vote-backdrop');
@@ -635,6 +641,9 @@ const StreamPage = () => {
             }
           }, 300);
         }
+        
+        // Hide panel
+        if (panel) panel.classList.remove('show');
       }
 
       // Toggle the active class on the vote button
@@ -650,6 +659,8 @@ const StreamPage = () => {
       console.error('Error toggling mobile vote panel:', error);
       // Emergency cleanup
       setMobileVotePanelVisible(false);
+      const panel = document.querySelector('.mobile-vote-panel');
+      if (panel) panel.classList.remove('show');
       const backdrop = document.querySelector('.mobile-vote-backdrop');
       if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
     }
@@ -760,7 +771,7 @@ const StreamPage = () => {
     };
   }, [username]);
 
-  // Wrap the render with error handling and include more robust error handling
+  // Render component
   try {
     // Show loading state
     if (loading) {
@@ -793,49 +804,9 @@ const StreamPage = () => {
       <div className="stream-page">
         <h2 className="stream-title">Watching {username}'s Stream</h2>
         
-        <div className="stream-layout">
-          <div className="stream-video-container">
-            <div id="twitch-embed"></div>
-          </div>
-
-          <div className="stream-right-container">
-            <div className="stream-chat-container" id="twitch-chat">
-              {/* Chat iframe will be injected here */}
-              {isMobile && (
-                <div className="chat-input-container" id="chat-input-container">
-                  <input
-                    type="text"
-                    className="chat-input"
-                    placeholder="Send a message"
-                    aria-label="Chat input"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        sendChatMessage(e.target.value);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <button 
-                    onClick={(e) => {
-                      const input = e.target.previousSibling;
-                      sendChatMessage(input.value);
-                      input.value = '';
-                    }}
-                    className="chat-send-button"
-                    aria-label="Send message"
-                  >
-                    Send
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Vote Panel */}
+        {/* Mobile Vote Panel - Moved higher in the DOM */}
         <div 
           className={`mobile-vote-panel ${mobileVotePanelVisible ? 'show' : ''}`}
-          style={{ transform: mobileVotePanelVisible ? 'translateY(0)' : 'translateY(100%)' }}
         >
           <div className="panel-header">
             <h3 className="panel-title">Send Gems to {username}</h3>
@@ -912,7 +883,7 @@ const StreamPage = () => {
           </div>
         </div>
         
-        {/* Mobile Vote Button */}
+        {/* Mobile Vote Button - Moved higher in the DOM */}
         <button
           className={`mobile-vote-button ${mobileVotePanelVisible ? 'active' : ''}`}
           onClick={toggleMobileVotePanel}
@@ -920,6 +891,45 @@ const StreamPage = () => {
         >
           VOTE
         </button>
+        
+        <div className="stream-layout">
+          <div className="stream-video-container">
+            <div id="twitch-embed"></div>
+          </div>
+
+          <div className="stream-right-container">
+            <div className="stream-chat-container" id="twitch-chat">
+              {/* Chat iframe will be injected here */}
+              {isMobile && (
+                <div className="chat-input-container" id="chat-input-container">
+                  <input
+                    type="text"
+                    className="chat-input"
+                    placeholder="Send a message"
+                    aria-label="Chat input"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        sendChatMessage(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <button 
+                    onClick={(e) => {
+                      const input = e.target.previousSibling;
+                      sendChatMessage(input.value);
+                      input.value = '';
+                    }}
+                    className="chat-send-button"
+                    aria-label="Send message"
+                  >
+                    Send
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Supporting Content Section */}
         <div className="supporting-content">
