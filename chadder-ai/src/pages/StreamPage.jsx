@@ -348,39 +348,81 @@ const StreamPage = () => {
   }, []);
 
   const setupTwitchEmbed = () => {
-    if (!document.getElementById("twitch-embed-script")) {
-      const script = document.createElement("script");
-      script.setAttribute("src", "https://player.twitch.tv/js/embed/v1.js");
-      script.setAttribute("async", true);
-      script.setAttribute("id", "twitch-embed-script");
-      script.onload = () => createEmbed();
-      document.body.appendChild(script);
-    } else {
-      createEmbed();
+    try {
+      if (!document.getElementById("twitch-embed-script")) {
+        const script = document.createElement("script");
+        script.setAttribute("src", "https://player.twitch.tv/js/embed/v1.js");
+        script.setAttribute("async", true);
+        script.setAttribute("id", "twitch-embed-script");
+        script.onload = () => createEmbed();
+        script.onerror = (error) => {
+          console.error("Error loading Twitch embed script:", error);
+          // Use fallback method if script fails to load
+          const embedContainer = document.getElementById("twitch-embed");
+          if (embedContainer) {
+            embedContainer.innerHTML = "";
+            
+            // Create simple iframe as fallback
+            const fallbackIframe = document.createElement("iframe");
+            fallbackIframe.src = `https://player.twitch.tv/?channel=${normalizedUsername}&parent=${window.location.hostname}`;
+            fallbackIframe.allowFullscreen = true;
+            fallbackIframe.style.width = "100%";
+            fallbackIframe.style.height = "100%";
+            embedContainer.appendChild(fallbackIframe);
+          }
+        };
+        document.body.appendChild(script);
+      } else {
+        createEmbed();
+      }
+    } catch (error) {
+      console.error("Error in setupTwitchEmbed:", error);
     }
   };
 
   const createEmbed = () => {
     const embedContainer = document.getElementById("twitch-embed");
-    if (embedContainer) embedContainer.innerHTML = "";
+    if (!embedContainer) return;
+    
+    embedContainer.innerHTML = "";
 
-    new window.Twitch.Embed("twitch-embed", {
-      width: "100%",
-      height: "100%",
-      channel: normalizedUsername,
-      layout: "video",
-      autoplay: true,
-      parent: ["chadderai.vercel.app", "localhost"],
-      muted: isMobile
-    });
+    try {
+      // Make sure we have the Twitch lib available
+      if (!window.Twitch || !window.Twitch.Embed) {
+        console.error("Twitch embed library not loaded");
+        // Fallback to a simple iframe if the embed library isn't available
+        const fallbackIframe = document.createElement("iframe");
+        fallbackIframe.src = `https://player.twitch.tv/?channel=${normalizedUsername}&parent=${window.location.hostname}`;
+        fallbackIframe.allowFullscreen = true;
+        fallbackIframe.style.width = "100%";
+        fallbackIframe.style.height = "100%";
+        embedContainer.appendChild(fallbackIframe);
+        return;
+      }
 
-    embedContainer.style.width = "100%";
-    embedContainer.style.height = "100%";
+      // Use standard embed otherwise
+      new window.Twitch.Embed("twitch-embed", {
+        width: "100%",
+        height: "100%",
+        channel: normalizedUsername,
+        layout: "video",
+        autoplay: true,
+        parent: ["chadderai.vercel.app", "localhost", window.location.hostname],
+        muted: isMobile // Auto-mute on mobile to avoid autoplay restrictions
+      });
+
+      embedContainer.style.width = "100%";
+      embedContainer.style.height = "100%";
+    } catch (error) {
+      console.error("Error creating Twitch embed:", error);
+    }
   };
 
   const setupTwitchChatEmbed = () => {
     const chatContainer = document.getElementById("twitch-chat");
-    if (chatContainer) {
+    if (!chatContainer) return;
+    
+    try {
       chatContainer.innerHTML = "";
       
       const chatIframe = document.createElement("iframe");
@@ -388,35 +430,42 @@ const StreamPage = () => {
       // Add a unique identifier to force cache refresh
       const cacheBreaker = Date.now();
       
-      // Set correct parent domains - very important for Twitch chat to work
+      // Set correct parent domains
       const parentDomains = [
+        window.location.hostname,
         'localhost', 
         'chadderai.vercel.app', 
         'chadderforchadders-4uv7d1m5i-spencershahhs-projects.vercel.app',
         'chadder.ai'
       ];
-      const parentParams = parentDomains.map(domain => `parent=${domain}`).join('&');
       
-      chatIframe.setAttribute(
-        "src",
-        `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&${parentParams}&t=${cacheBreaker}`
-      );
-      chatIframe.setAttribute("title", `${normalizedUsername} chat`);
+      // Deduplicate domains
+      const uniqueDomains = [...new Set(parentDomains)];
+      const parentParams = uniqueDomains.map(domain => `parent=${domain}`).join('&');
       
-      // Apply classes instead of inline styles
-      chatIframe.classList.add("chat-iframe");
+      // Create the iframe URL
+      let chatUrl = `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&${parentParams}&t=${cacheBreaker}`;
       
       // Add mobile=true parameter for mobile view
       if (isMobile) {
-        const currentSrc = chatIframe.getAttribute("src");
-        chatIframe.setAttribute("src", `${currentSrc}&mobile=true`);
-        chatIframe.classList.add("mobile-iframe");
-        chatIframe.setAttribute("scrolling", "yes");
-        chatIframe.setAttribute("allowfullscreen", "true");
+        chatUrl += "&mobile=true";
       }
       
-      // Append directly to container
+      chatIframe.setAttribute("src", chatUrl);
+      chatIframe.setAttribute("title", `${normalizedUsername} chat`);
+      chatIframe.setAttribute("allowfullscreen", "true");
+      
+      // Apply classes based on device
+      chatIframe.classList.add("chat-iframe");
+      if (isMobile) {
+        chatIframe.classList.add("mobile-iframe");
+      }
+      
+      // Append the iframe and make sure it's visible
       chatContainer.appendChild(chatIframe);
+      chatIframe.style.display = "block"; // Ensure the iframe is visible
+    } catch (error) {
+      console.error("Error setting up Twitch chat:", error);
     }
   };
 
@@ -713,10 +762,12 @@ const StreamPage = () => {
       // Update state
       setMobileVotePanelVisible(newVisibleState);
       
-      // Handle backdrop
+      // Handle backdrop and panel visibility
+      const panel = document.querySelector('.mobile-vote-panel');
       let backdrop = document.querySelector('.mobile-vote-backdrop');
       
       if (newVisibleState) {
+        // Create backdrop if it doesn't exist
         if (!backdrop) {
           backdrop = document.createElement('div');
           backdrop.className = 'mobile-vote-backdrop';
@@ -730,21 +781,36 @@ const StreamPage = () => {
           });
         }
         
-        // Show backdrop with animation
-        setTimeout(() => {
-          backdrop.style.opacity = '1';
-        }, 10);
+        // Show backdrop and panel with animation
+        requestAnimationFrame(() => {
+          if (backdrop) {
+            backdrop.classList.add('show');
+          }
+          if (panel) {
+            panel.classList.add('show');
+          }
+        });
+        
+        // Lock body scroll when panel is open
+        document.body.style.overflow = 'hidden';
         
       } else {
-        // Hide backdrop with animation
+        // Hide backdrop and panel with animation
         if (backdrop) {
-          backdrop.style.opacity = '0';
+          backdrop.classList.remove('show');
           setTimeout(() => {
             if (backdrop && backdrop.parentNode) {
               backdrop.parentNode.removeChild(backdrop);
             }
           }, 300);
         }
+        
+        if (panel) {
+          panel.classList.remove('show');
+        }
+        
+        // Restore body scroll when panel is closed
+        document.body.style.overflow = '';
       }
       
       // Toggle active class on mobile vote button
@@ -761,31 +827,37 @@ const StreamPage = () => {
     }
   };
 
-  // Replace handleSendVote with a simpler version
+  // Replace handleSendVote with an improved version
   const handleSendVote = (e) => {
     e.preventDefault();
     if (sending) return;
     
-    const amount = customAmount || selectedAmount;
+    const amount = parseInt(customAmount) || selectedAmount;
     if (!amount) return;
     
     setSending(true);
     
-    // Call API to send vote
-    setTimeout(() => {
-      console.log(`Vote sent: ${amount} gems`);
-      setSending(false);
-      setSendSuccess(true);
-      
-      // Reset success state after showing confirmation
-      setTimeout(() => {
-        setSendSuccess(false);
-        setSelectedAmount(null);
-        setCustomAmount('');
-        toggleMobileVotePanel();
-      }, 1500);
-    }, 1000);
+    // Actually process the vote instead of using setTimeout
+    handleVote();
   };
+
+  // Add an improved cleanup function when component unmounts
+  useEffect(() => {
+    // ... existing setup code ...
+    
+    return () => {
+      // Clean up any backdrop when component unmounts
+      const backdrop = document.querySelector('.mobile-vote-backdrop');
+      if (backdrop && backdrop.parentNode) {
+        backdrop.parentNode.removeChild(backdrop);
+      }
+      
+      // Restore body scroll
+      document.body.style.overflow = '';
+      
+      // ... existing cleanup code ...
+    };
+  }, [normalizedUsername, isMobile, isPortrait]);
 
   // Add function to show watch ad modal
   const showWatchAdModal = () => {
@@ -921,6 +993,7 @@ const StreamPage = () => {
             <button 
               className="panel-close" 
               onClick={toggleMobileVotePanel}
+              aria-label="Close panel"
             >
               ✕
             </button>
@@ -936,14 +1009,7 @@ const StreamPage = () => {
               <span className="balance-amount">Your gem balance: {gemBalance || 0}</span>
               <button 
                 className="earn-gems-button"
-                onClick={() => {
-                  console.log('Earn gems clicked');
-                  if (typeof showWatchAdModal === 'function') {
-                    showWatchAdModal();
-                  } else {
-                    console.log('showWatchAdModal not available');
-                  }
-                }}
+                onClick={() => navigate('/credits')}
               >
                 Get More
               </button>
@@ -967,15 +1033,19 @@ const StreamPage = () => {
               
               <div className="panel-custom-amount">
                 <input
-                  type="number"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="panel-custom-input"
                   placeholder="Custom amount"
                   value={customAmount}
                   onChange={(e) => {
-                    setCustomAmount(e.target.value);
-                    setSelectedAmount(null);
+                    const value = e.target.value;
+                    if (value === '' || (/^\d+$/.test(value) && parseInt(value) > 0)) {
+                      setCustomAmount(value);
+                      setSelectedAmount(value ? parseInt(value) : null);
+                    }
                   }}
-                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
               
@@ -994,8 +1064,9 @@ const StreamPage = () => {
         <button
           className={`mobile-vote-button ${mobileVotePanelVisible ? 'active' : ''}`}
           onClick={toggleMobileVotePanel}
+          aria-label="Vote for streamer"
         >
-          <span className="vote-button-text">Vote</span>
+          VOTE
         </button>
 
         {/* Supporting Content Section */}

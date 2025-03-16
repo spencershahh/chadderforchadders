@@ -488,165 +488,17 @@
   box-shadow: 0 5px 15px rgba(145, 71, 255, 0.3);
 }
 
-/* Fix mobile vote panel */
-.mobile-vote-panel {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-top-left-radius: 20px !important;
-  border-top-right-radius: 20px !important;
-  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.2) !important;
-  transform: translateY(100%) !important;
-  transition: transform 0.3s ease-out !important;
-  padding: 20px !important;
-  z-index: 10000 !important;
-  pointer-events: auto !important;
-  display: none;
-}
-
-.mobile-vote-panel.show {
-  transform: translateY(0) !important;
-  display: block !important;
-}
-
-/* Make all buttons in the panel clickable */
-.mobile-vote-panel button,
-.panel-amount-button,
-.panel-submit-button,
-.earn-gems-button,
-.panel-close {
-  z-index: 10001 !important;
-  position: relative !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}
-
-/* Make inputs in the panel clickable */
-.mobile-vote-panel input {
-  z-index: 10001 !important;
-  position: relative !important;
-  pointer-events: auto !important;
-}
-
-/* Styling for the backdrop */
-.mobile-vote-backdrop {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  z-index: 9000 !important;
-  opacity: 0 !important;
-  transition: opacity 0.3s ease !important;
-  pointer-events: auto !important;
-  display: block !important;
-}
-
-/* Ensure all container elements in the panel are properly styled */
-.panel-header,
-.panel-body,
-.panel-description,
-.panel-balance,
-.panel-amounts,
-.panel-custom-amount {
-  position: relative !important;
-  z-index: 10000 !important;
-}
-
-/* Panel button styles */
-.panel-amount-button {
-  flex: 1 !important;
-  min-width: 70px !important;
-  height: 50px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  background-color: #f0f0f0 !important;
-  color: #333 !important;
-  border-radius: 12px !important;
-  margin: 5px !important;
-  border: none !important;
-}
-
-.panel-amount-button.selected {
-  background-color: #007aff !important;
-  color: white !important;
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3) !important;
-}
-
-.panel-submit-button {
-  width: 100% !important;
-  height: 50px !important;
-  background-color: #007aff !important;
-  color: white !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  margin-top: 15px !important;
-  border-radius: 12px !important;
-  border: none !important;
-}
-
-/* Tablet and Desktop Media Queries */
-@media (min-width: 768px) {
-  .stream-page {
-    padding: 1.25rem;
-  }
-  
-  .stream-layout {
-    flex-direction: row;
-    height: calc(100vh - 180px);
-  }
-  
-  .stream-video-container {
-    flex: 3;
-    max-width: 75%;
-  }
-  
-  .stream-right-container {
-    width: 340px;
-    margin-bottom: 0;
-  }
-  
-  .info-row {
-    grid-template-columns: 1fr 1fr;
-  }
-  
-  /* Center the top-supporters-card when it's alone in the row */
-  .info-row > .top-supporters-card:only-child {
-    grid-column: 1 / -1;
-    max-width: 600px;
-    justify-self: center;
-  }
-  
-  .supporting-content {
-    margin-top: 0.75rem;
-  }
-  
-  /* Make the vote stats and leaderboard card width consistent */
-  .vote-stats-container,
-  .leaderboard-info-card {
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-}
-
 /* Mobile Portrait Mode - simplified without iOS */
 @media (max-width: 767px) {
   .stream-page {
     padding: 0;
     margin: 0;
     min-height: 100vh;
-    overflow: auto;
+    overflow-x: hidden; /* Prevent horizontal scroll */
   }
   
   .stream-title {
-    position: fixed;
+    position: sticky; /* Changed from fixed to sticky */
     top: 0;
     left: 0;
     right: 0;
@@ -663,9 +515,9 @@
   
   .stream-layout {
     flex-direction: column;
-    height: 100vh;
-    padding-top: 40px;
-    position: fixed;
+    /* Remove fixed positioning to allow normal scroll behavior */
+    position: relative; /* Changed from fixed to relative */
+    padding-top: 0; /* Remove padding that was offsetting the fixed header */
     width: 100%;
     z-index: 90;
   }
@@ -682,7 +534,7 @@
   .stream-right-container {
     flex: 1;
     width: 100%;
-    height: calc(60vh - 40px);
+    height: 60vh; /* Use viewport height but don't subtract header */
     position: relative;
     background: #18181b;
     display: flex;
@@ -706,7 +558,7 @@
   }
   
   .supporting-content {
-    margin-top: 100vh;
+    margin-top: 0; /* Remove the 100vh margin pushing content down */
     padding: 1rem;
     position: relative;
     z-index: 80;
@@ -827,22 +679,23 @@
   z-index: 5;
 }
 
-/* Fix mobile vote panel - unified for all mobile devices */
+/* Mobile Vote Panel */
 .mobile-vote-panel {
   position: fixed !important;
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  background-color: rgba(255, 255, 255, 0.95) !important;
+  background-color: rgba(24, 24, 27, 0.98) !important; /* Changed to match dark theme */
   border-top-left-radius: 20px !important;
   border-top-right-radius: 20px !important;
   box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.2) !important;
   transform: translateY(100%) !important;
   transition: transform 0.3s ease-out !important;
   padding: 20px !important;
-  z-index: 10000 !important;
+  z-index: 10000 !important; /* Keep this very high */
   pointer-events: auto !important;
   display: none;
+  color: white !important; /* Ensure text is visible */
 }
 
 .mobile-vote-panel.show {
@@ -850,29 +703,7 @@
   display: block !important;
 }
 
-/* Make all buttons in the panel clickable - universal */
-.mobile-vote-panel button,
-.panel-amount-button,
-.panel-submit-button,
-.earn-gems-button,
-.panel-close {
-  z-index: 10001 !important;
-  position: relative !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
-  touch-action: manipulation !important;
-}
-
-/* Make inputs in the panel clickable - universal */
-.mobile-vote-panel input {
-  z-index: 10001 !important;
-  position: relative !important;
-  pointer-events: auto !important;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Styling for the backdrop - universal */
+/* Styling for the backdrop */
 .mobile-vote-backdrop {
   position: fixed !important;
   top: 0 !important;
@@ -880,11 +711,57 @@
   right: 0 !important;
   bottom: 0 !important;
   background-color: rgba(0, 0, 0, 0.5) !important;
-  z-index: 9000 !important;
+  z-index: 9990 !important; /* Below the panel but above other content */
   opacity: 0 !important;
   transition: opacity 0.3s ease !important;
   pointer-events: auto !important;
+  display: none !important; /* Changed from block to none by default */
+}
+
+.mobile-vote-backdrop.show {
+  opacity: 1 !important;
   display: block !important;
+}
+
+/* Mobile Vote Button - universal */
+.mobile-vote-button {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 50% !important;
+  background-color: #9147ff !important; /* Match twitch/theme color */
+  color: white !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border: none !important;
+  cursor: pointer !important;
+  z-index: 9999 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.2s ease !important;
+  font-weight: bold !important;
+  -webkit-tap-highlight-color: transparent !important; /* Remove tap highlight */
+}
+
+.mobile-vote-button:active {
+  transform: scale(0.95) !important;
+  background-color: #a970ff !important;
+}
+
+/* Improve panel button styles for better touchability */
+.panel-amount-button, 
+.panel-submit-button,
+.earn-gems-button,
+.panel-close {
+  min-height: 48px !important; /* Minimum touch target size */
+  position: relative !important;
+  z-index: 10001 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+  touch-action: manipulation !important;
 }
 
 /* Ensure all container elements in the panel are properly styled */
@@ -896,41 +773,52 @@
 .panel-custom-amount {
   position: relative !important;
   z-index: 10000 !important;
+  pointer-events: auto !important; /* Add this to ensure click events work */
 }
 
-/* Panel button styles - universal */
-.panel-amount-button {
-  flex: 1 !important;
-  min-width: 70px !important;
-  height: 50px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  background-color: #f0f0f0 !important;
-  color: #333 !important;
-  border-radius: 12px !important;
-  margin: 5px !important;
-  border: none !important;
-}
-
-.panel-amount-button.selected {
-  background-color: #007aff !important;
-  color: white !important;
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3) !important;
-}
-
-.panel-submit-button {
-  width: 100% !important;
-  height: 50px !important;
-  background-color: #007aff !important;
-  color: white !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  margin-top: 15px !important;
-  border-radius: 12px !important;
-  border: none !important;
+/* Tablet and Desktop Media Queries */
+@media (min-width: 768px) {
+  .stream-page {
+    padding: 1.25rem;
+  }
+  
+  .stream-layout {
+    flex-direction: row;
+    height: calc(100vh - 180px);
+  }
+  
+  .stream-video-container {
+    flex: 3;
+    max-width: 75%;
+  }
+  
+  .stream-right-container {
+    width: 340px;
+    margin-bottom: 0;
+  }
+  
+  .info-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  /* Center the top-supporters-card when it's alone in the row */
+  .info-row > .top-supporters-card:only-child {
+    grid-column: 1 / -1;
+    max-width: 600px;
+    justify-self: center;
+  }
+  
+  .supporting-content {
+    margin-top: 0.75rem;
+  }
+  
+  /* Make the vote stats and leaderboard card width consistent */
+  .vote-stats-container,
+  .leaderboard-info-card {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 /* Mobile Vote Button - universal */
@@ -1057,4 +945,130 @@
   max-width: 100% !important;
   overflow-wrap: break-word !important;
   word-break: break-all !important;
+}
+
+/* Panel button styles - universal */
+.panel-amount-button {
+  flex: 1 !important;
+  min-width: 70px !important;
+  height: 50px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  background-color: rgba(145, 71, 255, 0.2) !important; /* Match theme */
+  color: white !important;
+  border-radius: 12px !important;
+  margin: 5px !important;
+  border: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.panel-amount-button.selected {
+  background-color: #9147ff !important; /* Twitch purple */
+  color: white !important;
+  box-shadow: 0 0 0 2px rgba(145, 71, 255, 0.3) !important;
+  transform: scale(1.05) !important;
+}
+
+.panel-amount-button:active {
+  transform: scale(0.95) !important;
+  opacity: 0.8 !important;
+}
+
+.panel-submit-button {
+  width: 100% !important;
+  height: 50px !important;
+  background-color: #9147ff !important; /* Twitch purple */
+  color: white !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  margin-top: 15px !important;
+  border-radius: 12px !important;
+  border: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.panel-submit-button:disabled {
+  background-color: rgba(145, 71, 255, 0.5) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.panel-submit-button:active {
+  transform: scale(0.98) !important;
+}
+
+.panel-custom-input {
+  width: 100% !important;
+  height: 50px !important;
+  padding: 12px !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+  margin-bottom: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.panel-custom-input:focus {
+  outline: none !important;
+  border-color: #9147ff !important;
+  box-shadow: 0 0 0 2px rgba(145, 71, 255, 0.3) !important;
+}
+
+.panel-title {
+  font-size: 20px !important;
+  color: white !important;
+  margin-bottom: 15px !important;
+  padding-right: 25px !important; /* Make room for close button */
+}
+
+.panel-close {
+  position: absolute !important;
+  top: 15px !important;
+  right: 15px !important;
+  width: 30px !important;
+  height: 30px !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  color: white !important;
+  font-size: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+}
+
+.panel-description {
+  color: rgba(255, 255, 255, 0.8) !important;
+  margin-bottom: 15px !important;
+}
+
+.panel-balance {
+  display: flex !important;
+  align-items: center !important;
+  background-color: rgba(0, 0, 0, 0.2) !important;
+  padding: 10px 15px !important;
+  border-radius: 10px !important;
+  margin-bottom: 20px !important;
+}
+
+.balance-amount {
+  flex: 1 !important;
+  margin-left: 10px !important;
+  color: white !important;
+}
+
+.earn-gems-button {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border: none !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
 } 
