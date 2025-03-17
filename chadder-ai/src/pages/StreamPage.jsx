@@ -70,6 +70,7 @@ const StreamPage = () => {
     let mounted = true;
     let subscriptionSubscription = null;
     let votesSubscription = null;
+    let cleanupTwitchEmbed = null;
 
     const initializePage = async () => {
       if (!mounted) return;
@@ -90,7 +91,8 @@ const StreamPage = () => {
         ]);
         
         if (mounted) {
-          setupTwitchEmbed();
+          // Store cleanup function from setupTwitchEmbed
+          cleanupTwitchEmbed = setupTwitchEmbed();
           setupTwitchChatEmbed();
           setLoading(false);
         }
@@ -151,6 +153,10 @@ const StreamPage = () => {
       }
       if (votesSubscription) {
         supabase.removeChannel(votesSubscription);
+      }
+      // Run cleanup function if available
+      if (typeof cleanupTwitchEmbed === 'function') {
+        cleanupTwitchEmbed();
       }
       // Clean up Twitch embed
       const embedContainer = document.getElementById("twitch-embed");
@@ -285,8 +291,37 @@ const StreamPage = () => {
       iframe.width = "100%";
       iframe.height = "100%";
       iframe.allowFullscreen = true;
+      iframe.style.display = "block"; // Ensure block display
+      iframe.style.minHeight = isMobile ? "200px" : "500px"; // Min height based on device
       
       embedContainer.appendChild(iframe);
+      
+      // Ensure container is properly sized
+      embedContainer.style.width = "100%";
+      embedContainer.style.height = isMobile ? "auto" : "100%";
+      embedContainer.style.minHeight = isMobile ? "200px" : "500px";
+      
+      // Force iframe to maintain aspect ratio with CSS
+      const forceAspectRatio = () => {
+        if (!isMobile && embedContainer.offsetWidth > 0) {
+          // Calculate 16:9 aspect ratio height
+          const aspectHeight = Math.floor(embedContainer.offsetWidth * (9/16));
+          // Use the larger of calculated height or min height
+          const targetHeight = Math.max(aspectHeight, 500);
+          embedContainer.style.height = `${targetHeight}px`;
+        }
+      };
+      
+      // Set initial size
+      forceAspectRatio();
+      
+      // Add resize listener to maintain aspect ratio
+      window.addEventListener('resize', forceAspectRatio);
+      
+      // Clean up on component unmount
+      return () => {
+        window.removeEventListener('resize', forceAspectRatio);
+      };
     } catch (error) {
       console.error("Error in setupTwitchEmbed:", error);
     }

@@ -34,6 +34,7 @@
     position: relative;
     height: 100%;
     max-height: 100%;
+    width: 100%; /* Ensure full width of its container */
   }
   
   .stream-right-container {
@@ -62,7 +63,7 @@
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
-  max-width: 1600px;
+  max-width: 100%; /* Changed from 1600px to allow full width */
   margin: 0 auto;
   height: auto;
 }
@@ -75,8 +76,24 @@
   overflow: hidden;
   position: relative;
   aspect-ratio: 16 / 9;
-  min-height: 200px;
+  min-height: 300px; /* Increased from 200px */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Style for the Twitch iframe to ensure proper sizing */
+.stream-video-container iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 300px;
+  border: none;
+  display: block;
+}
+
+/* Force proper iframe sizing on desktop */
+@media (min-width: 768px) {
+  .stream-video-container iframe {
+    min-height: 500px;
+  }
 }
 
 /* Right container (chat) */
@@ -555,16 +572,19 @@
   .stream-layout {
     flex-direction: row;
     height: calc(100vh - 180px);
+    max-width: 100%; /* Changed from no specification to allow full width */
   }
   
   .stream-video-container {
-    flex: 3;
-    max-width: 75%;
+    flex: 4; /* Increased from 3 to give more space to video */
+    max-width: 80%; /* Increased from 75% */
+    min-height: 500px; /* Set minimum height for desktop */
   }
   
   .stream-right-container {
     width: 340px;
     margin-bottom: 0;
+    flex: 1; /* Changed from no specification to ensure proper flex sizing */
   }
   
   .info-row {
