@@ -5,7 +5,8 @@
       "destination": "/index.html"
     }
   ],
-  "buildCommand": "npm run build",
+  "buildCommand": "./.vercel/build.sh",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "nodeVersion": "18.x"
 } 

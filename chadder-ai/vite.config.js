@@ -6,7 +6,7 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['recharts']
+    include: ['recharts', 'framer-motion']
   },
   resolve: {
     alias: {
@@ -16,6 +16,14 @@ export default defineConfig({
   build: {
     rollupOptions: {
       external: [],
-    }
+    },
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: false,
+    minify: 'terser',
+    cssCodeSplit: true
+  },
+  esbuild: {
+    target: 'es2020'
   }
 })
