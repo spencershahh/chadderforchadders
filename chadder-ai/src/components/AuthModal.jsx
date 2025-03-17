@@ -1,9 +1,12 @@
 import { Dialog } from '@headlessui/react';
 import styles from './AuthModal.module.css';
 
-const AuthModal = ({ isOpen, onClose, onLogin, onSignup }) => {
+const AuthModal = ({ show, isOpen, onClose, onLogin, onSignup }) => {
+  // Use show prop or fallback to isOpen for backward compatibility
+  const dialogOpen = show !== undefined ? show : isOpen;
+  
   return (
-    <Dialog open={isOpen} onClose={onClose} className={styles.modalOverlay}>
+    <Dialog open={dialogOpen} onClose={onClose} className={styles.modalOverlay}>
       <div className={styles.modalContainer}>
         <Dialog.Panel className={styles.modalContent}>
           <Dialog.Title className={styles.modalTitle}>

@@ -232,7 +232,10 @@ const DigDeeperPage = () => {
     <div className={styles.container}>
       <AuthModal 
         show={showAuthModal} 
+        isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)} 
+        onLogin={() => window.location.href = '/login'}
+        onSignup={() => window.location.href = '/signup'}
       />
       
       <div className={styles.header}>
