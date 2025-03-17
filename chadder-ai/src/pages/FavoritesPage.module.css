@@ -1,0 +1,232 @@
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  color: white;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(to right, #ff7070, #a970ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.backButton {
+  padding: 0.6rem 1.5rem;
+  background-color: rgba(169, 112, 255, 0.2);
+  color: #a970ff;
+  border: 1px solid #a970ff;
+  border-radius: 2rem;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background-color: rgba(169, 112, 255, 0.3);
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(169, 112, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #a970ff;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.emptyContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 400px;
+  padding: 2rem;
+  background-color: rgba(42, 42, 42, 0.3);
+  border-radius: 16px;
+}
+
+.emptyIcon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.emptyContainer h3 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.emptyContainer p {
+  max-width: 500px;
+  margin-bottom: 2rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.digDeeperButton {
+  padding: 0.8rem 2rem;
+  background-color: #9147ff;
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.digDeeperButton:hover {
+  background-color: #772ce8;
+}
+
+.favoritesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.favoriteCard {
+  background-color: #2a2a2a;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.favoriteCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.favoriteImage {
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.liveIndicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 1rem;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.favoriteContent {
+  padding: 1rem;
+}
+
+.favoriteContent h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.description {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 2.7em;
+}
+
+.statsRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.actionsRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.watchButton, .removeButton {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.watchButton {
+  background-color: #9147ff;
+  color: white;
+  border: none;
+  text-decoration: none;
+}
+
+.watchButton:hover {
+  background-color: #772ce8;
+}
+
+.removeButton {
+  background-color: transparent;
+  color: #ff5c5c;
+  border: 1px solid #ff5c5c;
+}
+
+.removeButton:hover {
+  background-color: rgba(255, 92, 92, 0.1);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .favoritesGrid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .favoritesGrid {
+    grid-template-columns: 1fr;
+  }
+}

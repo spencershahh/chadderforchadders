@@ -61,6 +61,7 @@ const Navbar = ({ user }) => {
   const navLinks = (
     <>
       <Link to="/" onClick={() => setIsOpen(false)}>Discover</Link>
+      <Link to="/dig-deeper" onClick={() => setIsOpen(false)}>Dig Deeper</Link>
       <Link to="/leaderboard" onClick={() => setIsOpen(false)}>Leaderboard</Link>
       <Link to="/credits" onClick={() => setIsOpen(false)}>Credits</Link>
       <Link to="/settings" onClick={() => setIsOpen(false)}>Settings</Link>

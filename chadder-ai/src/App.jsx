@@ -24,6 +24,8 @@ import Login from "./pages/Login";
 import GemsPage from './pages/GemsPage';
 import CreditsPage from './pages/CreditsPage';
 import AdminDashboard from './pages/AdminDashboard';
+import DigDeeperPage from './pages/DigDeeperPage';
+import FavoritesPage from './pages/FavoritesPage';
 
 import "./App.css";
 
@@ -145,6 +147,8 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/gems" element={<GemsPage />} />
             <Route path="/credits" element={<CreditsPage />} />
+            <Route path="/dig-deeper" element={<DigDeeperPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/auth/twitch/callback" element={<TwitchCallback />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/profile" element={<Profile />} />

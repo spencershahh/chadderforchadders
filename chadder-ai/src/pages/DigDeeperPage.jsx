@@ -1,0 +1,273 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import { toast } from 'react-hot-toast';
+import { motion, useAnimation } from 'framer-motion';
+import { useAuth } from '../hooks/useAuth';
+import styles from './DigDeeperPage.module.css';
+import AuthModal from '../components/AuthModal';
+
+const DigDeeperPage = () => {
+  const { user } = useAuth();
+  const [streamers, setStreamers] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const controls = useAnimation();
+
+  useEffect(() => {
+    fetchStreamers();
+  }, []);
+
+  const fetchStreamers = async () => {
+    try {
+      setLoading(true);
+      
+      // For now, just fetch from the DB directly
+      // In a real implementation, you would call your API that implements getStreamersForDigDeeper
+      const { data, error } = await supabase
+        .from('twitch_streamers')
+        .select('*')
+        .order('votes', { ascending: false })
+        .limit(20);
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setStreamers(data);
+        setCurrentIndex(0);
+      } else {
+        // If no data, you might want to show a message
+        toast.error('No streamers found. Try again later.');
+      }
+    } catch (error) {
+      console.error('Error fetching streamers:', error);
+      toast.error('Failed to load streamers. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSwipeRight = async () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    try {
+      if (streamers[currentIndex]) {
+        const currentStreamer = streamers[currentIndex];
+        
+        // Save to favorites
+        await supabase
+          .from('user_favorites')
+          .upsert({ 
+            user_id: user.id, 
+            streamer_id: currentStreamer.id 
+          });
+          
+        // Increment vote count
+        const updatedVotes = (currentStreamer.votes || 0) + 1;
+        await supabase
+          .from('twitch_streamers')
+          .update({ votes: updatedVotes })
+          .eq('id', currentStreamer.id);
+        
+        toast.success('Added to favorites!');
+        
+        // Update local state
+        const updatedStreamers = [...streamers];
+        updatedStreamers[currentIndex].votes = updatedVotes;
+        setStreamers(updatedStreamers);
+      }
+    } catch (error) {
+      console.error('Error saving favorite:', error);
+      toast.error('Failed to save favorite. Please try again.');
+    } finally {
+      // Move to next card
+      nextCard();
+    }
+  };
+
+  const handleSwipeLeft = () => {
+    // Simply move to the next card
+    nextCard();
+  };
+
+  const nextCard = () => {
+    // Reset animation
+    controls.start({ x: 0, rotateZ: 0 });
+    
+    // Go to next card
+    setCurrentIndex(prevIndex => prevIndex + 1);
+  };
+
+  const handleDragStart = (_, info) => {
+    setDragStart({ x: info.point.x, y: info.point.y });
+  };
+
+  const handleDragEnd = (_, info) => {
+    const dragEndX = info.point.x;
+    const deltaX = dragEndX - dragStart.x;
+    
+    if (deltaX > 100) {
+      // Swiped right
+      controls.start({ x: window.innerWidth, rotateZ: 10 }).then(handleSwipeRight);
+    } else if (deltaX < -100) {
+      // Swiped left
+      controls.start({ x: -window.innerWidth, rotateZ: -10 }).then(handleSwipeLeft);
+    } else {
+      // Reset if the swipe wasn't far enough
+      controls.start({ x: 0, rotateZ: 0 });
+    }
+  };
+
+  const renderNoMoreCards = () => {
+    return (
+      <div className={styles.noMoreCardsContainer}>
+        <h2>No more streamers!</h2>
+        <p>You've gone through all the available streamers.</p>
+        <button 
+          className={styles.refreshButton}
+          onClick={fetchStreamers}
+        >
+          Refresh Streamers
+        </button>
+      </div>
+    );
+  };
+
+  const renderCards = () => {
+    if (loading) {
+      return (
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner}></div>
+          <p>Loading streamers...</p>
+        </div>
+      );
+    }
+
+    if (currentIndex >= streamers.length) {
+      return renderNoMoreCards();
+    }
+
+    const streamer = streamers[currentIndex];
+    
+    return (
+      <motion.div 
+        className={styles.card}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        animate={controls}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div 
+          className={styles.cardImageContainer}
+          style={{ backgroundImage: `url(${streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
+        >
+          {streamer.is_live && <div className={styles.liveIndicator}>LIVE</div>}
+          
+          <div className={styles.swipeOverlay}>
+            <motion.div 
+              className={styles.likeOverlay} 
+              animate={{ opacity: controls.x > 50 ? 1 : 0 }}
+            >
+              FAVORITE
+            </motion.div>
+            <motion.div 
+              className={styles.dislikeOverlay} 
+              animate={{ opacity: controls.x < -50 ? 1 : 0 }}
+            >
+              PASS
+            </motion.div>
+          </div>
+        </div>
+        <div className={styles.cardContent}>
+          <h2>{streamer.display_name || streamer.username}</h2>
+          <p className={styles.description}>{streamer.description || 'No description available'}</p>
+          
+          <div className={styles.statsContainer}>
+            <span className={styles.viewCount}>👁️ {streamer.view_count || 0} viewers</span>
+            <span className={styles.voteCount}>❤️ {streamer.votes || 0} votes</span>
+          </div>
+          
+          {streamer.is_live && (
+            <Link 
+              to={`/stream/${streamer.username}`} 
+              className={styles.watchButton}
+            >
+              🔴 Watch Live
+            </Link>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderButtons = () => {
+    if (currentIndex >= streamers.length) return null;
+    
+    return (
+      <div className={styles.actionButtons}>
+        <button 
+          className={`${styles.actionButton} ${styles.dislikeButton}`}
+          onClick={() => controls.start({ x: -window.innerWidth, rotateZ: -10 }).then(handleSwipeLeft)}
+        >
+          👎
+        </button>
+        <button 
+          className={`${styles.actionButton} ${styles.likeButton}`}
+          onClick={() => controls.start({ x: window.innerWidth, rotateZ: 10 }).then(handleSwipeRight)}
+        >
+          ❤️
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className={styles.container}>
+      <AuthModal 
+        show={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+      
+      <div className={styles.header}>
+        <h1>Dig Deeper</h1>
+        <p>Discover and vote for your favorite Twitch streamers</p>
+        
+        <Link to="/leaderboard" className={styles.leaderboardLink}>
+          View Leaderboard
+        </Link>
+        
+        {user && (
+          <Link to="/favorites" className={styles.favoritesLink}>
+            My Favorites
+          </Link>
+        )}
+      </div>
+      
+      <div className={styles.instructionsContainer}>
+        <div className={styles.instruction}>
+          <span>👈</span>
+          <p>Swipe left to pass</p>
+        </div>
+        <div className={styles.instruction}>
+          <span>👉</span>
+          <p>Swipe right to favorite</p>
+        </div>
+      </div>
+      
+      <div className={styles.cardsContainer}>
+        {renderCards()}
+      </div>
+      
+      {renderButtons()}
+    </div>
+  );
+};
+
+export default DigDeeperPage;
