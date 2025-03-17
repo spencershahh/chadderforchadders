@@ -24,8 +24,30 @@ const DigDeeperPage = () => {
     try {
       setLoading(true);
       
-      // For now, just fetch from the DB directly
-      // In a real implementation, you would call your API that implements getStreamersForDigDeeper
+      // Use our API to get real-time Twitch data
+      try {
+        const response = await fetch('/api/twitch/getStreamers');
+        
+        if (response.ok) {
+          const result = await response.json();
+          
+          if (result.success && result.streamers && result.streamers.length > 0) {
+            console.log('Loaded streamers with real-time Twitch data:', result.streamers.length);
+            setStreamers(result.streamers);
+            setCurrentIndex(0);
+            return; // Exit early if API call is successful
+          } else {
+            console.warn('API returned no streamers, falling back to database');
+          }
+        } else {
+          console.warn('API call failed, falling back to database');
+        }
+      } catch (apiError) {
+        console.error('Error calling Twitch API:', apiError);
+        console.warn('Falling back to database query');
+      }
+      
+      // Fallback to direct database query
       const { data, error } = await supabase
         .from('twitch_streamers')
         .select('*')
@@ -35,6 +57,7 @@ const DigDeeperPage = () => {
       if (error) throw error;
       
       if (data && data.length > 0) {
+        console.log('Loaded streamers from database:', data.length);
         setStreamers(data);
         setCurrentIndex(0);
       } else {
@@ -126,8 +149,9 @@ const DigDeeperPage = () => {
   const renderNoMoreCards = () => {
     return (
       <div className={styles.noMoreCardsContainer}>
-        <h2>No more streamers!</h2>
-        <p>You've gone through all the available streamers.</p>
+        <h2>All done!</h2>
+        <p>Come back later for more streamers.</p>
+        <div className={styles.noMoreCardsEmoji}>✨</div>
         <button 
           className={styles.refreshButton}
           onClick={fetchStreamers}
@@ -168,7 +192,12 @@ const DigDeeperPage = () => {
           className={styles.cardImageContainer}
           style={{ backgroundImage: `url(${streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
         >
-          {streamer.is_live && <div className={styles.liveIndicator}>LIVE</div>}
+          {streamer.is_live && (
+            <div className={styles.liveIndicator}>
+              LIVE
+              <div className={styles.viewerCount}>{streamer.view_count.toLocaleString()} viewers</div>
+            </div>
+          )}
           
           <div className={styles.swipeOverlay}>
             <motion.div 
@@ -187,10 +216,13 @@ const DigDeeperPage = () => {
         </div>
         <div className={styles.cardContent}>
           <h2>{streamer.display_name || streamer.username}</h2>
-          <p className={styles.description}>{streamer.description || 'No description available'}</p>
+          <p className={styles.description}>
+            {streamer.stream_title || streamer.description || 'No description available'}
+            {streamer.game_name && <div className={styles.gameTag}>Playing: {streamer.game_name}</div>}
+          </p>
           
           <div className={styles.statsContainer}>
-            <span className={styles.viewCount}>👁️ {streamer.view_count || 0} viewers</span>
+            <span className={styles.viewCount}>👁️ {streamer.view_count ? streamer.view_count.toLocaleString() : 0} viewers</span>
             <span className={styles.voteCount}>❤️ {streamer.votes || 0} votes</span>
           </div>
           

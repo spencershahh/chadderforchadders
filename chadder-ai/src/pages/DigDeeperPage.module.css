@@ -122,6 +122,27 @@
   border-radius: 1rem;
   font-size: 0.8rem;
   font-weight: bold;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.viewerCount {
+  font-size: 0.7rem;
+  margin-top: 0.1rem;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.gameTag {
+  font-size: 0.8rem;
+  color: #a970ff;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  background-color: rgba(169, 112, 255, 0.1);
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 0.5rem;
 }
 
 .swipeOverlay {
@@ -309,6 +330,19 @@
 
 .refreshButton:hover {
   background-color: #772ce8;
+}
+
+.noMoreCardsEmoji {
+  font-size: 4rem;
+  margin: 1rem 0;
+  text-align: center;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 /* Responsive styles */
