@@ -9,6 +9,8 @@
 .header {
   text-align: center;
   margin-bottom: 2rem;
+  padding-top: 2rem;
+  margin-top: 1rem;
 }
 
 .header h1 {
@@ -46,13 +48,16 @@
 }
 
 .favoritesLink {
-  background-color: rgba(255, 112, 112, 0.2);
-  color: #ff7070;
-  border: 1px solid #ff7070;
+  background: linear-gradient(to right, #a970ff, #ff70a9);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease, transform 0.2s ease;
 }
 
 .favoritesLink:hover {
-  background-color: rgba(255, 112, 112, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
 }
 
 .instructionsContainer {
