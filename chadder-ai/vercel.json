@@ -7,6 +7,5 @@
   ],
   "buildCommand": "./.vercel/build.sh",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "nodeVersion": "18.x"
+  "framework": "vite"
 } 
