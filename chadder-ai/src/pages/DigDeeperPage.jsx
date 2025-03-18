@@ -897,8 +897,12 @@ const DigDeeperPage = () => {
       >
         <div 
           className={styles.cardImageContainer}
-          style={{ backgroundImage: `url(${streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
+          style={{ backgroundImage: `url(${streamer.thumbnail_url || streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
         >
+          <div className={styles.streamerOverlay}>
+            <span className={styles.streamerNameOverlay}>{streamer.display_name || streamer.username}</span>
+          </div>
+          
           {streamer.is_live === true && (
             <div className={styles.liveIndicator}>
               LIVE
