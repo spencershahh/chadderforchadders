@@ -407,9 +407,18 @@
   font-size: 0.9rem;
 }
 
-.refreshButton:hover {
+.refreshButton:hover:not(:disabled) {
   background-color: rgba(255, 0, 0, 0.3);
   transform: scale(1.05);
+}
+
+.refreshButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.refreshing .refreshIcon {
+  animation: spin 1.5s linear infinite;
 }
 
 .refreshIcon {
@@ -417,6 +426,11 @@
   margin-right: 0.4rem;
   display: inline-block;
   animation: pulse 2s infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @keyframes pulse {

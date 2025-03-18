@@ -5,6 +5,8 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import styles from './FavoritesPage.module.css';
 
+const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+
 const FavoritesPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState([]);
@@ -59,39 +61,87 @@ const FavoritesPage = () => {
         ...item.twitch_streamers
       }));
       
-      // If we have favorites, refresh their data from Twitch API
+      // If we have favorites, refresh their data from Twitch API directly
       if (transformedData.length > 0) {
         try {
-          // Add timestamp to prevent caching
-          const timestamp = new Date().getTime();
-          const response = await fetch(`/api/twitch/getStreamers?_t=${timestamp}`);
+          // Get Twitch credentials
+          const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+          const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
           
-          if (response.ok) {
-            const result = await response.json();
+          if (!twitchClientId || !twitchClientSecret) {
+            let errorMsg = 'Twitch API credentials are missing.';
+            if (isDevelopment) {
+              errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
+              console.error('Missing Twitch API credentials. Check your .env file for:');
+              console.error('VITE_TWITCH_CLIENT_ID=your_client_id');
+              console.error('VITE_TWITCH_CLIENT_SECRET=your_client_secret');
+            } else {
+              errorMsg += ' Please contact the site administrator.';
+            }
+            throw new Error(errorMsg);
+          }
+          
+          console.log('Attempting to fetch Twitch data for favorites with client ID:', twitchClientId);
+          
+          // Get Twitch OAuth token
+          const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `client_id=${twitchClientId}&client_secret=${twitchClientSecret}&grant_type=client_credentials`
+          });
+          
+          if (!tokenResponse.ok) {
+            console.error(`Twitch token request failed with status ${tokenResponse.status}:`, await tokenResponse.text());
+            throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+          }
+          
+          const tokenData = await tokenResponse.json();
+          const accessToken = tokenData.access_token;
+          
+          // Extract Twitch IDs
+          const twitchIds = transformedData.map(streamer => streamer.twitch_id);
+          
+          // Get live streams data
+          let allStreams = [];
+          // Only make the request if we have IDs
+          if (twitchIds.length > 0) {
+            const queryString = twitchIds.map(id => `user_id=${id}`).join('&');
+            const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryString}`, {
+              headers: {
+                'Client-ID': twitchClientId,
+                'Authorization': `Bearer ${accessToken}`
+              }
+            });
             
-            if (result.success && result.streamers && result.streamers.length > 0) {
-              // Create a map of streamer IDs to their current Twitch data
-              const streamerMap = {};
-              result.streamers.forEach(streamer => {
-                streamerMap[streamer.id] = streamer;
-              });
-              
-              // Update our favorites with the latest Twitch data
-              transformedData.forEach(favorite => {
-                if (streamerMap[favorite.id]) {
-                  const latestData = streamerMap[favorite.id];
-                  favorite.is_live = latestData.is_live;
-                  favorite.view_count = latestData.view_count;
-                  favorite.game_name = latestData.game_name;
-                  favorite.stream_title = latestData.stream_title;
-                }
-              });
-              
-              console.log('Updated favorites with real-time Twitch data');
+            if (streamsResponse.ok) {
+              const streamsData = await streamsResponse.json();
+              allStreams = streamsData.data || [];
             }
           }
-        } catch (refreshError) {
-          console.error('Error refreshing Twitch data for favorites:', refreshError);
+          
+          // Create a map of user_id to stream data
+          const streamMap = {};
+          allStreams.forEach(stream => {
+            streamMap[stream.user_id] = {
+              is_live: true,
+              view_count: stream.viewer_count,
+              game_name: stream.game_name,
+              stream_title: stream.title
+            };
+          });
+          
+          // Update streamer data with live status
+          transformedData.forEach(streamer => {
+            const streamData = streamMap[streamer.twitch_id];
+            streamer.is_live = !!streamData;
+            streamer.view_count = streamer.is_live ? streamData.view_count : 0;
+            streamer.game_name = streamer.is_live ? streamData.game_name : null;
+            streamer.stream_title = streamer.is_live ? streamData.stream_title : null;
+          });
+          
+          console.log('Updated favorites with real-time Twitch data');
+        } catch (twitchError) {
+          console.error('Error fetching Twitch data for favorites:', twitchError);
           // Continue with stored data if refresh fails
         }
       }

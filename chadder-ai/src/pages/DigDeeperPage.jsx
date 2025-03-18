@@ -7,6 +7,8 @@ import { useAuth } from '../hooks/useAuth';
 import styles from './DigDeeperPage.module.css';
 import AuthModal from '../components/AuthModal';
 
+const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+
 const DigDeeperPage = () => {
   const { user } = useAuth();
   const [streamers, setStreamers] = useState([]);
@@ -16,89 +18,169 @@ const DigDeeperPage = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const controls = useAnimation();
   const [expandedBios, setExpandedBios] = useState(new Set());
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    // Add a timestamp parameter to force a fresh API request rather than using a cached response
-    const fetchWithCache = async () => {
-      const timestamp = new Date().getTime();
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/twitch/getStreamers?_t=${timestamp}`);
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.streamers && result.streamers.length > 0) {
-            console.log('Loaded streamers with real-time Twitch data:', result.streamers.length);
-            setStreamers(result.streamers);
-            setCurrentIndex(0);
-          } else {
-            console.warn('API returned no streamers, falling back to database');
-            await fetchStreamersFromDatabase();
-          }
-        } else {
-          console.warn('API call failed, falling back to database');
-          await fetchStreamersFromDatabase();
-        }
-      } catch (error) {
-        console.error('Error fetching streamers:', error);
-        await fetchStreamersFromDatabase();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchStreamersFromDatabase = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('twitch_streamers')
-          .select('*')
-          .order('votes', { ascending: false })
-          .limit(20);
-          
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          console.log('Loaded streamers from database:', data.length);
-          setStreamers(data);
-          setCurrentIndex(0);
-        } else {
-          toast.error('No streamers found. Try again later.');
-        }
-      } catch (error) {
-        console.error('Error fetching streamers from database:', error);
-        toast.error('Failed to load streamers. Please try again.');
-      }
-    };
-
-    fetchWithCache();
+    fetchTwitchDataDirectly();
   }, []);
 
+  const fetchTwitchDataDirectly = async () => {
+    try {
+      setLoading(true);
+      toast.loading('Loading streamers...', { id: 'loading' });
+      
+      // Get streamers from database
+      const { data: streamers, error } = await supabase
+        .from('twitch_streamers')
+        .select('*')
+        .order('votes', { ascending: false })
+        .limit(20);
+        
+      if (error) throw error;
+      
+      if (!streamers || streamers.length === 0) {
+        toast.error('No streamers found.', { id: 'loading' });
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        // Get Twitch credentials from environment variables
+        const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+        const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+        
+        if (!twitchClientId || !twitchClientSecret) {
+          let errorMsg = 'Twitch API credentials are missing.';
+          if (isDevelopment) {
+            errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
+            console.error('Missing Twitch API credentials. Check your .env file for:');
+            console.error('VITE_TWITCH_CLIENT_ID=your_client_id');
+            console.error('VITE_TWITCH_CLIENT_SECRET=your_client_secret');
+          } else {
+            errorMsg += ' Please contact the site administrator.';
+          }
+          throw new Error(errorMsg);
+        }
+        
+        console.log('Attempting to fetch Twitch data with client ID:', twitchClientId);
+        
+        // Get Twitch OAuth token
+        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `client_id=${twitchClientId}&client_secret=${twitchClientSecret}&grant_type=client_credentials`
+        });
+        
+        if (!tokenResponse.ok) {
+          console.error(`Twitch token request failed with status ${tokenResponse.status}:`, await tokenResponse.text());
+          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+        }
+        
+        const tokenData = await tokenResponse.json();
+        const accessToken = tokenData.access_token;
+        
+        // Extract Twitch IDs
+        const twitchIds = streamers.map(streamer => streamer.twitch_id);
+        
+        // Split into chunks of 100 (Twitch API limit)
+        const chunks = [];
+        for (let i = 0; i < twitchIds.length; i += 100) {
+          chunks.push(twitchIds.slice(i, i + 100));
+        }
+        
+        // Get live streams data
+        let allStreams = [];
+        for (const chunk of chunks) {
+          const queryString = chunk.map(id => `user_id=${id}`).join('&');
+          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryString}`, {
+            headers: {
+              'Client-ID': twitchClientId,
+              'Authorization': `Bearer ${accessToken}`
+            }
+          });
+          
+          if (!streamsResponse.ok) {
+            throw new Error(`Error fetching streams: ${streamsResponse.status}`);
+          }
+          
+          const streamsData = await streamsResponse.json();
+          allStreams.push(...streamsData.data);
+        }
+        
+        // Create a map of user_id to stream data
+        const streamMap = {};
+        allStreams.forEach(stream => {
+          streamMap[stream.user_id] = {
+            is_live: true,
+            view_count: stream.viewer_count,
+            game_name: stream.game_name,
+            stream_title: stream.title
+          };
+        });
+        
+        // Update streamer data with live status
+        const updatedStreamers = streamers.map(streamer => {
+          const streamData = streamMap[streamer.twitch_id];
+          const isLive = !!streamData;
+          
+          return {
+            ...streamer,
+            is_live: isLive,
+            view_count: isLive ? streamData.view_count : 0,
+            game_name: isLive ? streamData.game_name : null,
+            stream_title: isLive ? streamData.stream_title : null
+          };
+        });
+        
+        // Update the database with the new information
+        const updates = updatedStreamers.map(async (streamer) => {
+          return supabase
+            .from('twitch_streamers')
+            .update({
+              is_live: streamer.is_live,
+              view_count: streamer.is_live ? streamer.view_count : 0,
+              game_name: streamer.game_name,
+              stream_title: streamer.stream_title,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', streamer.id);
+        });
+        
+        await Promise.all(updates);
+        
+        // Set state with updated streamers
+        setStreamers(updatedStreamers);
+        setCurrentIndex(0);
+        toast.success('Streamers loaded with live data!', { id: 'loading' });
+      } catch (twitchError) {
+        console.error('Error fetching Twitch data:', twitchError);
+        // Fall back to database only if Twitch API fails
+        setStreamers(streamers);
+        setCurrentIndex(0);
+        toast.error('Using offline data - Twitch API error', { id: 'loading' });
+      }
+    } catch (error) {
+      console.error('Error in fetchTwitchDataDirectly:', error);
+      toast.error('Failed to load streamers', { id: 'loading' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchStreamers = async () => {
-    const timestamp = new Date().getTime();
+    if (refreshing) return; // Prevent multiple clicks
+    
+    setRefreshing(true);
     toast.loading('Refreshing streamer data...', { id: 'refresh' });
     
     try {
-      setLoading(true);
-      const response = await fetch(`/api/twitch/getStreamers?_t=${timestamp}`);
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.streamers && result.streamers.length > 0) {
-          console.log('Refreshed streamers with real-time Twitch data:', result.streamers.length);
-          setStreamers(result.streamers);
-          setCurrentIndex(0);
-          toast.success('Streamer data refreshed!', { id: 'refresh' });
-          return;
-        }
-      }
-      
-      toast.error('Failed to refresh streamer data', { id: 'refresh' });
-      // Don't fall back to database on manual refresh - show error instead
+      await fetchTwitchDataDirectly();
+      toast.success('Streamer data refreshed!', { id: 'refresh' });
     } catch (error) {
-      console.error('Error refreshing streamers:', error);
+      console.error('Error refreshing streamer data:', error);
       toast.error('Failed to refresh streamer data', { id: 'refresh' });
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -397,10 +479,12 @@ const DigDeeperPage = () => {
           
           <button
             onClick={fetchStreamers}
-            className={styles.refreshButton}
+            className={`${styles.refreshButton} ${refreshing ? styles.refreshing : ''}`}
             title="Refresh real-time data from Twitch"
+            disabled={refreshing}
           >
-            <span className={styles.refreshIcon}>🔄</span> Refresh Data
+            <span className={styles.refreshIcon}>🔄</span> 
+            {refreshing ? 'Refreshing...' : 'Refresh Data'}
           </button>
         </div>
       </div>
