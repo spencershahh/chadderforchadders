@@ -85,61 +85,45 @@ const DigDeeperPage = () => {
       }
       
       let allStreamers = [];
-      let cursor = null;
-      const maxStreamsToFetch = 100; // Adjust as needed
       
-      // We'll need to make multiple requests to find enough low-viewer streams
-      // Since Twitch doesn't have a direct "less than X viewers" filter
-      while (allStreamers.length < 20 && (cursor !== undefined || allStreamers.length === 0)) {
-        // Get streams sorted by viewer count (lowest first)
-        const queryParams = new URLSearchParams({
-          first: 100 // Max allowed per request
-        });
-        
-        if (cursor) {
-          queryParams.append('after', cursor);
+      // More efficient approach - directly get streams sorted by viewer count (ascending)
+      // This way we get the smallest streams first
+      const queryParams = new URLSearchParams({
+        first: 100, // Max allowed per request
+        sort: 'viewers_asc' // Sort by viewers ascending 
+      });
+      
+      // Fetch streams from Twitch
+      const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${accessToken}`
         }
-        
-        // Fetch streams from Twitch
-        const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-          headers: {
-            'Client-ID': clientId,
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        
-        if (!streamsResponse.ok) {
-          throw new Error(`Error fetching streams: ${streamsResponse.status}`);
-        }
-        
-        const streamsData = await streamsResponse.json();
-        
-        // Filter for streams with less than 10 viewers
-        const lowViewerStreams = streamsData.data
-          .filter(stream => stream.viewer_count < 10)
-          .map(stream => ({
-            id: stream.user_id, // Use Twitch user ID as our ID
-            twitch_id: stream.user_id,
-            username: stream.user_login,
-            display_name: stream.user_name,
-            is_live: true,
-            view_count: stream.viewer_count,
-            game_name: stream.game_name,
-            stream_title: stream.title,
-            thumbnail_url: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null,
-            votes: 0 // Initialize with zero votes since these aren't from our database
-          }));
-        
-        allStreamers = [...allStreamers, ...lowViewerStreams];
-        
-        // Update cursor for pagination
-        cursor = streamsData.pagination?.cursor;
-        
-        // Break if we've fetched enough or if we've made too many requests
-        if (allStreamers.length >= 20 || !cursor) {
-          break;
-        }
+      });
+      
+      if (!streamsResponse.ok) {
+        throw new Error(`Error fetching streams: ${streamsResponse.status}`);
       }
+      
+      const streamsData = await streamsResponse.json();
+      
+      // Filter for streams with less than 10 viewers
+      const lowViewerStreams = (streamsData.data || [])
+        .filter(stream => stream && stream.viewer_count < 10)
+        .map(stream => ({
+          id: stream.user_id, // Use Twitch user ID as our ID
+          twitch_id: stream.user_id,
+          username: stream.user_login,
+          display_name: stream.user_name,
+          is_live: true,
+          view_count: stream.viewer_count,
+          game_name: stream.game_name,
+          stream_title: stream.title,
+          thumbnail_url: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null,
+          votes: 0 // Initialize with zero votes since these aren't from our database
+        }));
+      
+      allStreamers = lowViewerStreams;
       
       // If we have streamers, get their profile data
       if (allStreamers.length > 0) {
@@ -151,38 +135,49 @@ const DigDeeperPage = () => {
           const idBatch = userIds.slice(i, i + 100);
           const userQueryString = idBatch.map(id => `id=${id}`).join('&');
           
-          const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
-            headers: {
-              'Client-ID': clientId,
-              'Authorization': `Bearer ${accessToken}`
+          try {
+            const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
+              headers: {
+                'Client-ID': clientId,
+                'Authorization': `Bearer ${accessToken}`
+              }
+            });
+            
+            if (!usersResponse.ok) {
+              console.error(`Error fetching user data: ${usersResponse.status}`);
+              continue;
             }
-          });
-          
-          if (!usersResponse.ok) {
-            console.error(`Error fetching user data: ${usersResponse.status}`);
-            continue;
+            
+            const userData = await usersResponse.json();
+            
+            // Create a lookup map for easier access
+            const userDataMap = {};
+            if (userData.data && Array.isArray(userData.data)) {
+              userData.data.forEach(user => {
+                if (user && user.id) {
+                  userDataMap[user.id] = user;
+                }
+              });
+            }
+            
+            // Enhance streamer data with profile information
+            allStreamers = allStreamers.map(streamer => {
+              if (!streamer.twitch_id) return streamer;
+              
+              const profile = userDataMap[streamer.twitch_id];
+              if (profile) {
+                return {
+                  ...streamer,
+                  profile_image_url: profile.profile_image_url,
+                  description: profile.description
+                };
+              }
+              return streamer;
+            });
+          } catch (profileError) {
+            console.error('Error fetching user profiles:', profileError);
+            // Continue with what we have
           }
-          
-          const userData = await usersResponse.json();
-          
-          // Create a lookup map for easier access
-          const userDataMap = {};
-          userData.data.forEach(user => {
-            userDataMap[user.id] = user;
-          });
-          
-          // Enhance streamer data with profile information
-          allStreamers = allStreamers.map(streamer => {
-            const profile = userDataMap[streamer.twitch_id];
-            if (profile) {
-              return {
-                ...streamer,
-                profile_image_url: profile.profile_image_url,
-                description: profile.description
-              };
-            }
-            return streamer;
-          });
         }
       }
       
@@ -405,17 +400,129 @@ const DigDeeperPage = () => {
   const renderNoMoreCards = () => {
     return (
       <div className={styles.noMoreCardsContainer}>
-        <h2>All done!</h2>
-        <p>Come back later for more streamers.</p>
-        <div className={styles.noMoreCardsEmoji}>✨</div>
-        <button 
-          className={styles.refreshButton}
-          onClick={fetchStreamers}
-        >
-          Refresh Streamers
-        </button>
+        <h2>Loading more streamers...</h2>
+        <div className={styles.spinner}></div>
+        <p>Finding more small streamers for you...</p>
       </div>
     );
+  };
+
+  // Auto-load more streamers when user reaches the end
+  useEffect(() => {
+    if (currentIndex >= streamers.length && streamers.length > 0 && !loading) {
+      // We've reached the end of the current batch, load more
+      fetchMoreStreamers();
+    }
+  }, [currentIndex, streamers.length]);
+
+  const fetchMoreStreamers = async () => {
+    if (loading || !twitchAccessToken) return;
+    
+    try {
+      setLoading(true);
+      
+      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+      
+      // This time we'll start from a random page offset to get different streamers
+      const randomOffset = Math.floor(Math.random() * 500);
+      
+      const queryParams = new URLSearchParams({
+        first: 100,
+        sort: 'viewers_asc',
+        after: randomOffset.toString()
+      });
+      
+      // Fetch streams from Twitch
+      const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${twitchAccessToken}`
+        }
+      });
+      
+      if (!streamsResponse.ok) {
+        throw new Error(`Error fetching streams: ${streamsResponse.status}`);
+      }
+      
+      const streamsData = await streamsResponse.json();
+      
+      // Filter for streams with less than 10 viewers
+      const newLowViewerStreams = (streamsData.data || [])
+        .filter(stream => stream && stream.viewer_count < 10)
+        .map(stream => ({
+          id: stream.user_id,
+          twitch_id: stream.user_id,
+          username: stream.user_login,
+          display_name: stream.user_name,
+          is_live: true,
+          view_count: stream.viewer_count,
+          game_name: stream.game_name,
+          stream_title: stream.title,
+          thumbnail_url: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null,
+          votes: 0
+        }));
+      
+      if (newLowViewerStreams.length > 0) {
+        // Get profile data for new streamers
+        const userIds = [...new Set(newLowViewerStreams.map(s => s.twitch_id))];
+        
+        try {
+          const userQueryString = userIds.map(id => `id=${id}`).join('&');
+          
+          const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
+            headers: {
+              'Client-ID': clientId,
+              'Authorization': `Bearer ${twitchAccessToken}`
+            }
+          });
+          
+          if (usersResponse.ok) {
+            const userData = await usersResponse.json();
+            
+            // Create a lookup map
+            const userDataMap = {};
+            if (userData.data && Array.isArray(userData.data)) {
+              userData.data.forEach(user => {
+                if (user && user.id) {
+                  userDataMap[user.id] = user;
+                }
+              });
+            }
+            
+            // Add profile data
+            for (let i = 0; i < newLowViewerStreams.length; i++) {
+              const streamer = newLowViewerStreams[i];
+              const profile = userDataMap[streamer.twitch_id];
+              
+              if (profile) {
+                newLowViewerStreams[i] = {
+                  ...streamer,
+                  profile_image_url: profile.profile_image_url,
+                  description: profile.description
+                };
+              }
+            }
+          }
+        } catch (profileError) {
+          console.error('Error fetching profiles for new batch:', profileError);
+          // Continue with what we have
+        }
+        
+        // Append new streamers to the existing list
+        setStreamers(prev => [...prev, ...newLowViewerStreams]);
+        
+        // Don't advance the currentIndex, just add to the list
+        toast.success(`Found ${newLowViewerStreams.length} more streamers!`, { duration: 2000 });
+      } else {
+        // If no new streamers found, try again with different params
+        setTimeout(() => fetchMoreStreamers(), 1000);
+      }
+    } catch (error) {
+      console.error('Error fetching more streamers:', error);
+      toast.error('Error loading more streamers. Try refreshing.', { duration: 3000 });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderCards = () => {
