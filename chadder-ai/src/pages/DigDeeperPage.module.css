@@ -394,18 +394,33 @@
 }
 
 .refreshButton {
-  padding: 0.8rem 1.5rem;
-  background-color: #9147ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.1);
   color: white;
-  border: none;
-  border-radius: 2rem;
+  padding: 0.5rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .refreshButton:hover {
-  background-color: #772ce8;
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: rotate(180deg);
+}
+
+.refreshIcon {
+  font-size: 1.1rem;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .noMoreCardsEmoji {

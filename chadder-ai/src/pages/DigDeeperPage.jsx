@@ -439,6 +439,21 @@ const DigDeeperPage = () => {
               <span className={styles.heartIcon}>❤️</span> My Favorites
             </button>
           )}
+
+          <button
+            onClick={() => {
+              toast.loading('Refreshing streamer data...', { id: 'refresh' });
+              fetchStreamers().then(() => {
+                toast.success('Streamer data refreshed!', { id: 'refresh' });
+              }).catch(() => {
+                toast.error('Failed to refresh streamer data', { id: 'refresh' });
+              });
+            }}
+            className={styles.refreshButton}
+            title="Refresh streamer data from Twitch"
+          >
+            <span className={styles.refreshIcon}>🔄</span>
+          </button>
         </div>
       </div>
       

@@ -6,21 +6,26 @@ import { useAuth } from '../hooks/useAuth';
 import styles from './FavoritesPage.module.css';
 
 const FavoritesPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Wait for auth to finish loading before deciding to redirect
+    if (authLoading) {
+      return; // Don't do anything while still loading auth
+    }
+    
     if (!user) {
       // Redirect to login if not authenticated
       toast.error('Please sign in to view your favorites');
-      navigate('/login');
+      navigate('/login', { state: { returnTo: '/favorites' } });
       return;
     }
     
     fetchFavorites();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const fetchFavorites = async () => {
     try {

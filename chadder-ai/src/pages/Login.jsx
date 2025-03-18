@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast, Toaster } from 'react-hot-toast';
 import "../App.css";
 
@@ -9,6 +9,10 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we have a return path in the location state
+  const returnTo = location.state?.returnTo || "/";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -41,16 +45,22 @@ const Login = () => {
           duration: 3000,
         });
         
-        // Redirect admin users to the admin dashboard, regular users to the home page
+        // Redirect admin users to the admin dashboard
         if (!adminError && adminData) {
           navigate("/admin");
-        } else {
+        } 
+        // If we have a returnTo path, use that
+        else if (returnTo && returnTo !== "/") {
+          navigate(returnTo);
+        }
+        // Otherwise go to home
+        else {
           navigate("/");
         }
       }
     } catch (error) {
-      toast.error(`Unexpected error: ${error.message}`);
-    } finally {
+      console.error("Error during login:", error);
+      toast.error("An unexpected error occurred. Please try again.");
       setLoading(false);
     }
   };

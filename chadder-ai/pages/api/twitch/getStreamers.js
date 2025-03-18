@@ -202,24 +202,31 @@ export default async function handler(req, res) {
       const streamData = streamMap[streamer.twitch_id];
       const userData = userMap[streamer.twitch_id];
       
+      // Check if streamer is actually live
+      const isLive = !!streamData;
+      
       return {
         ...streamer,
         ...userData, // Add user data (bio, profile image, etc.)
-        is_live: !!streamData,
-        view_count: streamData?.view_count || 0,
-        game_name: streamData?.game_name,
-        stream_title: streamData?.stream_title
+        is_live: isLive,
+        // Only use view_count from streamData if streamer is live, otherwise set to 0
+        view_count: isLive ? streamData?.view_count || 0 : 0,
+        game_name: isLive ? streamData?.game_name : null,
+        stream_title: isLive ? streamData?.stream_title : null
       };
     });
 
-    // Update the database with the new information
+    // Update the database with the new information - crucial for accurate live status
     const updates = updatedStreamers.map(async (streamer) => {
       return supabase
         .from('twitch_streamers')
         .update({
           is_live: streamer.is_live,
-          view_count: streamer.view_count || 0,
-          description: streamer.description // Add bio to database
+          view_count: streamer.is_live ? (streamer.view_count || 0) : 0, // Reset view count to 0 when not live
+          description: streamer.description, // Add bio to database
+          game_name: streamer.game_name,
+          stream_title: streamer.stream_title,
+          updated_at: new Date().toISOString() // Add timestamp to track when we last updated
         })
         .eq('id', streamer.id);
     });
