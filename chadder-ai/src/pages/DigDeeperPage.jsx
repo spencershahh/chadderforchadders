@@ -21,72 +21,25 @@ const DigDeeperPage = () => {
   const controls = useAnimation();
   const [expandedBios, setExpandedBios] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
-  const [twitchConfig, setTwitchConfig] = useState({
-    clientId: '',
-    clientSecret: '',
-    keysAvailable: false
-  });
+  const [twitchAccessToken, setTwitchAccessToken] = useState(null);
 
+  // Load Twitch credentials once on component mount
   useEffect(() => {
-    fetchTwitchDataDirectly();
-  }, []);
-
-  useEffect(() => {
-    // This runs only in the browser, not during build
-    try {
-      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID || '';
-      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
-      
-      setTwitchConfig({
-        clientId,
-        clientSecret,
-        keysAvailable: !!(clientId && clientSecret)
-      });
-      
-    } catch (error) {
-      console.error('Error accessing environment variables:', error);
-    }
-  }, []);
-
-  const fetchTwitchDataDirectly = async () => {
-    try {
-      setLoading(true);
-      toast.loading('Loading streamers...', { id: 'loading' });
-      
-      // Get streamers from database
-      const { data: streamersFromDB, error } = await supabase
-        .from('twitch_streamers')
-        .select('*')
-        .order('votes', { ascending: false })
-        .limit(20);
-        
-      if (error) throw error;
-      
-      if (!streamersFromDB || streamersFromDB.length === 0) {
-        toast.error('No streamers found.', { id: 'loading' });
-        setLoading(false);
-        return;
-      }
-      
-      // Use the state variables instead of accessing import.meta directly
-      const { clientId: twitchClientId, clientSecret: twitchClientSecret, keysAvailable } = twitchConfig;
-      
-      if (!keysAvailable) {
-        let errorMsg = 'Twitch API credentials are missing.';
-        if (isDevelopment) {
-          errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
-        } else {
-          errorMsg += ' Please make sure these are properly set in your Vercel environment variables.';
-        }
-        throw new Error(errorMsg);
-      }
-      
+    const loadTwitchAuth = async () => {
       try {
-        // Get Twitch OAuth token
+        const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+        const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+        
+        if (!clientId || !clientSecret) {
+          console.error('Twitch API credentials missing');
+          toast.error('Twitch API credentials are missing in environment variables');
+          return null;
+        }
+        
         const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `client_id=${twitchClientId}&client_secret=${twitchClientSecret}&grant_type=client_credentials`
+          body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
         });
         
         if (!tokenResponse.ok) {
@@ -100,73 +53,111 @@ const DigDeeperPage = () => {
           throw new Error('No access token received from Twitch');
         }
         
-        // Extract Twitch login names for API call
-        const twitchLogins = streamersFromDB
-          .map(streamer => streamer.username?.toLowerCase())
-          .filter(Boolean);
+        setTwitchAccessToken(accessToken);
         
-        if (twitchLogins.length === 0) {
-          throw new Error('No valid Twitch usernames found in database');
+        // Once we have the token, fetch streamers
+        await fetchStreamersWithTwitchData(accessToken);
+      } catch (error) {
+        console.error('Error initializing Twitch auth:', error);
+        toast.error(`Error connecting to Twitch: ${error.message}`);
+      }
+    };
+    
+    loadTwitchAuth();
+  }, []);
+
+  const fetchStreamersWithTwitchData = async (accessToken) => {
+    try {
+      setLoading(true);
+      toast.loading('Loading streamers...', { id: 'loading' });
+      
+      // Get only basic streamer info from database - just usernames and votes
+      const { data: baseStreamers, error } = await supabase
+        .from('twitch_streamers')
+        .select('id, username, twitch_id, votes')
+        .order('votes', { ascending: false })
+        .limit(20);
+        
+      if (error) throw error;
+      
+      if (!baseStreamers || baseStreamers.length === 0) {
+        toast.error('No streamers found in database.', { id: 'loading' });
+        setLoading(false);
+        return;
+      }
+      
+      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+      
+      if (!clientId || !accessToken) {
+        throw new Error('Twitch API credentials or token missing');
+      }
+      
+      // Extract Twitch login names for API call
+      const twitchLogins = baseStreamers
+        .map(streamer => streamer.username?.toLowerCase())
+        .filter(Boolean);
+        
+      if (twitchLogins.length === 0) {
+        throw new Error('No valid Twitch usernames found in database');
+      }
+      
+      // Initialize streamers with database values (id, votes) but nothing else
+      let streamersWithInfo = baseStreamers.map(streamer => ({
+        ...streamer,
+        is_live: false,
+        view_count: 0,
+        game_name: null,
+        stream_title: null,
+        thumbnail_url: null,
+        display_name: streamer.username, // Default fallback
+        profile_image_url: null,
+        description: null
+      }));
+      
+      // Create lookup maps
+      const streamersByLogin = {};
+      streamersWithInfo.forEach(streamer => {
+        if (streamer.username) {
+          streamersByLogin[streamer.username.toLowerCase()] = streamer;
         }
-        
-        // First, assume all streamers are offline (this is our base state)
-        let baseStreamers = streamersFromDB.map(streamer => ({
-          ...streamer,
-          is_live: false,
-          view_count: 0,
-          game_name: null,
-          stream_title: null,
-          thumbnail_url: null
-        }));
-        
-        // Chunk the logins (Twitch API has a limit of 100 per request)
-        const chunks = [];
-        const chunkSize = 100;
-        for (let i = 0; i < twitchLogins.length; i += chunkSize) {
-          chunks.push(twitchLogins.slice(i, i + chunkSize));
+      });
+      
+      const streamersByTwitchId = {};
+      streamersWithInfo.forEach(streamer => {
+        if (streamer.twitch_id) {
+          streamersByTwitchId[streamer.twitch_id] = streamer;
         }
-        
-        // Create maps to store streamer data by different identifiers
-        const streamersByLogin = {};
-        baseStreamers.forEach(streamer => {
-          if (streamer.username) {
-            streamersByLogin[streamer.username.toLowerCase()] = streamer;
-          }
-        });
-        
-        const streamersByTwitchId = {};
-        baseStreamers.forEach(streamer => {
-          if (streamer.twitch_id) {
-            streamersByTwitchId[streamer.twitch_id] = streamer;
-          }
-        });
-        
-        // First get user data for all streamers
-        for (const loginChunk of chunks) {
-          const queryString = loginChunk.map(login => `login=${login}`).join('&');
+      });
+      
+      // Get user profile info from Twitch
+      try {
+        // First get user data for all streamers directly from Twitch
+        for (let i = 0; i < twitchLogins.length; i += 100) { // Twitch API limit
+          const chunk = twitchLogins.slice(i, i + 100);
+          const queryString = chunk.map(login => `login=${login}`).join('&');
           
           const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${queryString}`, {
             headers: {
-              'Client-ID': twitchClientId,
+              'Client-ID': clientId,
               'Authorization': `Bearer ${accessToken}`
             }
           });
           
           if (!usersResponse.ok) {
             console.error(`Error fetching user data: ${usersResponse.status}`);
-            continue; // Try other chunks
+            continue; // Try next chunk
           }
           
           const userData = await usersResponse.json();
           
-          // Update base streamers with user data
+          // Update streamers with user data from Twitch
           if (userData.data && Array.isArray(userData.data)) {
             userData.data.forEach(user => {
               const login = user.login?.toLowerCase();
               if (login && streamersByLogin[login]) {
                 const streamer = streamersByLogin[login];
                 
-                // Update base info
+                // Update with Twitch data only
                 streamer.twitch_id = user.id;
                 streamer.display_name = user.display_name;
                 streamer.profile_image_url = user.profile_image_url;
@@ -179,97 +170,91 @@ const DigDeeperPage = () => {
           }
         }
         
-        // Now that we have user IDs, get stream data for all streamers
+        // Now get live stream data for all streamers from Twitch
         const twitchIds = Object.keys(streamersByTwitchId);
-        const idChunks = [];
-        for (let i = 0; i < twitchIds.length; i += chunkSize) {
-          idChunks.push(twitchIds.slice(i, i + chunkSize));
-        }
         
-        let allStreamData = [];
-        
-        for (const idChunk of idChunks) {
-          const queryString = idChunk.map(id => `user_id=${id}`).join('&');
-          
-          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryString}`, {
-            headers: {
-              'Client-ID': twitchClientId,
-              'Authorization': `Bearer ${accessToken}`
-            }
-          });
-          
-          if (!streamsResponse.ok) {
-            console.error(`Error fetching stream data: ${streamsResponse.status}`);
-            continue; // Try other chunks
-          }
-          
-          const streamsData = await streamsResponse.json();
-          
-          if (streamsData.data && Array.isArray(streamsData.data)) {
-            allStreamData.push(...streamsData.data);
-          }
-        }
-        
-        // Process live stream data
-        allStreamData.forEach(stream => {
-          const userID = stream.user_id;
-          if (userID && streamersByTwitchId[userID]) {
-            const streamer = streamersByTwitchId[userID];
+        if (twitchIds.length > 0) {
+          for (let i = 0; i < twitchIds.length; i += 100) { // Twitch API limit
+            const chunk = twitchIds.slice(i, i + 100);
+            const queryString = chunk.map(id => `user_id=${id}`).join('&');
             
-            // Only if actually live
-            if (stream.type === 'live') {
-              streamer.is_live = true;
-              streamer.view_count = stream.viewer_count || 0;
-              streamer.game_name = stream.game_name || null;
-              streamer.stream_title = stream.title || null;
-              streamer.thumbnail_url = stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null;
+            const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryString}`, {
+              headers: {
+                'Client-ID': clientId,
+                'Authorization': `Bearer ${accessToken}`
+              }
+            });
+            
+            if (!streamsResponse.ok) {
+              console.error(`Error fetching stream data: ${streamsResponse.status}`);
+              continue; // Try next chunk
+            }
+            
+            const streamsData = await streamsResponse.json();
+            
+            // Update streamers with real-time stream data from Twitch
+            if (streamsData.data && Array.isArray(streamsData.data)) {
+              streamsData.data.forEach(stream => {
+                const userID = stream.user_id;
+                if (userID && streamersByTwitchId[userID]) {
+                  const streamer = streamersByTwitchId[userID];
+                  
+                  // Only if actually live - this data comes exclusively from Twitch
+                  if (stream.type === 'live') {
+                    streamer.is_live = true;
+                    streamer.view_count = stream.viewer_count || 0;
+                    streamer.game_name = stream.game_name || null;
+                    streamer.stream_title = stream.title || null;
+                    streamer.thumbnail_url = stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null;
+                  }
+                }
+              });
             }
           }
-        });
-        
-        // Rebuild array of streamers from our updated maps
-        const updatedStreamers = baseStreamers;
-        
-        // Update database with current information
-        const updates = updatedStreamers.map(async (streamer) => {
-          try {
-            return supabase
-              .from('twitch_streamers')
-              .update({
-                is_live: streamer.is_live,
-                view_count: streamer.view_count,
-                game_name: streamer.game_name,
-                stream_title: streamer.stream_title,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', streamer.id);
-          } catch (error) {
-            console.error(`Error updating streamer ${streamer.username}:`, error);
-            return null;
-          }
-        });
-        
-        await Promise.allSettled(updates);
+        }
         
         // Count actual live streamers
-        const liveCount = updatedStreamers.filter(s => s.is_live).length;
+        const liveCount = streamersWithInfo.filter(s => s.is_live).length;
         
-        // Update state
-        setStreamers(updatedStreamers);
+        // Update state with fully populated streamers from Twitch
+        setStreamers(streamersWithInfo);
         setCurrentIndex(0);
         
-        toast.success(`Loaded ${updatedStreamers.length} streamers with live data!`, { id: 'loading' });
+        toast.success(`Loaded ${streamersWithInfo.length} streamers with ${liveCount} live!`, { id: 'loading' });
       } catch (twitchApiError) {
         console.error('Twitch API error:', twitchApiError);
-        
-        // Fall back to database streamers if Twitch API fails
-        toast.error(`Error: ${twitchApiError.message}. Using cached data.`, { id: 'loading' });
-        setStreamers(streamersFromDB);
-        setCurrentIndex(0);
+        toast.error(`Error: ${twitchApiError.message}. Unable to load streamer data.`, { id: 'loading' });
+        throw twitchApiError; // Re-throw to trigger fallback handling
       }
     } catch (error) {
       console.error('Error loading streamers:', error);
       toast.error(error.message || 'Failed to load streamers', { id: 'loading' });
+      
+      // Only attempt this as a last resort
+      try {
+        const { data: fallbackStreamers } = await supabase
+          .from('twitch_streamers')
+          .select('id, username, votes')
+          .order('votes', { ascending: false })
+          .limit(20);
+          
+        if (fallbackStreamers && fallbackStreamers.length > 0) {
+          const minimalStreamers = fallbackStreamers.map(s => ({
+            ...s, 
+            is_live: false, // Don't trust stored data
+            view_count: 0,  // Don't trust stored data
+            display_name: s.username,
+            game_name: null,
+            stream_title: null
+          }));
+          
+          setStreamers(minimalStreamers);
+          setCurrentIndex(0);
+          toast.warning('Limited data mode: Live status unavailable', { id: 'loading' });
+        }
+      } catch (fallbackError) {
+        console.error('Complete failure:', fallbackError);
+      }
     } finally {
       setLoading(false);
     }
@@ -282,50 +267,46 @@ const DigDeeperPage = () => {
     toast.loading('Refreshing streamer data...', { id: 'refresh' });
     
     try {
-      // First, clear existing streamer data to avoid showing stale data
+      // Clear existing streamer data to avoid showing stale data
       setStreamers([]);
       
-      // Then fetch fresh data from Twitch API
-      await fetchTwitchDataDirectly();
+      if (twitchAccessToken) {
+        // Use the existing token to refresh data from Twitch
+        await fetchStreamersWithTwitchData(twitchAccessToken);
+      } else {
+        // Re-authenticate if token is missing
+        const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+        const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+        
+        if (!clientId || !clientSecret) {
+          throw new Error('Twitch API credentials missing');
+        }
+        
+        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+        });
+        
+        if (!tokenResponse.ok) {
+          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+        }
+        
+        const tokenData = await tokenResponse.json();
+        const accessToken = tokenData.access_token;
+        
+        if (!accessToken) {
+          throw new Error('No access token received from Twitch');
+        }
+        
+        setTwitchAccessToken(accessToken);
+        await fetchStreamersWithTwitchData(accessToken);
+      }
       
       toast.success('Streamer data refreshed!', { id: 'refresh' });
     } catch (error) {
       console.error('Error refreshing streamer data:', error);
       toast.error(`Failed to refresh data: ${error.message}`, { id: 'refresh' });
-      
-      // Fallback to database query if API fails
-      try {
-        console.warn('Falling back to database query for streamer data');
-        const { data, error } = await supabase
-          .from('twitch_streamers')
-          .select('*')
-          .order('votes', { ascending: false })
-          .limit(20);
-          
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          console.log('Loaded streamers from database:', data.length);
-          
-          // Explicitly mark all as offline since we couldn't verify with Twitch API
-          const offlineStreamers = data.map(s => ({
-            ...s,
-            is_live: false,
-            view_count: 0,
-            game_name: s.game_name || null,
-            stream_title: s.stream_title || null
-          }));
-          
-          setStreamers(offlineStreamers);
-          setCurrentIndex(0);
-          toast.warning('Showing cached data. Streamers are marked as offline.', { id: 'refresh' });
-        } else {
-          toast.error('No streamers found in database. Try again later.', { id: 'refresh' });
-        }
-      } catch (fallbackError) {
-        console.error('Fallback error:', fallbackError);
-        toast.error('Could not load any streamer data.', { id: 'refresh' });
-      }
     } finally {
       setRefreshing(false);
     }
