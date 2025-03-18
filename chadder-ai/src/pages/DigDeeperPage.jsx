@@ -86,13 +86,12 @@ const DigDeeperPage = () => {
       
       let allStreamers = [];
       
-      // Only get English-speaking streamers
+      // Use a simple query to get English-speaking streamers
       const queryParams = new URLSearchParams({
-        first: 100, // Max allowed per request
-        language: 'en'  // English only
+        first: 100,
+        language: 'en'
       });
       
-      // Fetch streams from Twitch
       const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
         headers: {
           'Client-ID': clientId,
@@ -107,32 +106,55 @@ const DigDeeperPage = () => {
       const streamsData = await streamsResponse.json();
       
       // Filter for streams with less than 10 viewers
-      const lowViewerStreams = (streamsData.data || [])
-        .filter(stream => stream && stream.viewer_count < 10)
-        .map(stream => ({
-          id: stream.user_id, // Use Twitch user ID as our ID
-          twitch_id: stream.user_id,
-          username: stream.user_login,
-          display_name: stream.user_name,
-          is_live: true,
-          view_count: stream.viewer_count,
-          game_name: stream.game_name,
-          stream_title: stream.title,
-          thumbnail_url: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null,
-          votes: 0 // Initialize with zero votes since these aren't from our database
-        }));
+      const lowViewerStreams = [];
+      
+      if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
+        for (let i = 0; i < streamsData.data.length; i++) {
+          const stream = streamsData.data[i];
+          if (stream && typeof stream.viewer_count === 'number' && stream.viewer_count < 10) {
+            lowViewerStreams.push({
+              id: stream.user_id,
+              twitch_id: stream.user_id,
+              username: stream.user_login,
+              display_name: stream.user_name,
+              is_live: true,
+              view_count: stream.viewer_count,
+              game_name: stream.game_name || "",
+              stream_title: stream.title || "",
+              thumbnail_url: stream.thumbnail_url ? 
+                stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                null,
+              votes: 0
+            });
+          }
+        }
+      }
       
       allStreamers = lowViewerStreams;
       
       // If we have streamers, get their profile data
       if (allStreamers.length > 0) {
         // Extract unique user IDs for profile lookup
-        const userIds = [...new Set(allStreamers.map(s => s.twitch_id))];
+        const userIds = [];
+        for (let i = 0; i < allStreamers.length; i++) {
+          if (allStreamers[i].twitch_id) {
+            userIds.push(allStreamers[i].twitch_id);
+          }
+        }
+        
+        // Remove duplicates
+        const uniqueUserIds = [...new Set(userIds)];
         
         // Fetch user profiles in batches of 100
-        for (let i = 0; i < userIds.length; i += 100) {
-          const idBatch = userIds.slice(i, i + 100);
-          const userQueryString = idBatch.map(id => `id=${id}`).join('&');
+        for (let i = 0; i < uniqueUserIds.length; i += 100) {
+          const idBatch = uniqueUserIds.slice(i, i + 100);
+          const userQueryParams = [];
+          
+          for (let j = 0; j < idBatch.length; j++) {
+            userQueryParams.push(`id=${idBatch[j]}`);
+          }
+          
+          const userQueryString = userQueryParams.join('&');
           
           try {
             const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
@@ -151,24 +173,25 @@ const DigDeeperPage = () => {
             
             // Create a lookup map for easier access
             const userDataMap = {};
-            if (userData.data && Array.isArray(userData.data)) {
-              userData.data.forEach(user => {
+            if (userData && userData.data && Array.isArray(userData.data)) {
+              for (let j = 0; j < userData.data.length; j++) {
+                const user = userData.data[j];
                 if (user && user.id) {
                   userDataMap[user.id] = user;
                 }
-              });
+              }
             }
             
             // Enhance streamer data with profile information
             allStreamers = allStreamers.map(streamer => {
-              if (!streamer.twitch_id) return streamer;
+              if (!streamer || !streamer.twitch_id) return streamer;
               
               const profile = userDataMap[streamer.twitch_id];
               if (profile) {
                 return {
                   ...streamer,
-                  profile_image_url: profile.profile_image_url,
-                  description: profile.description
+                  profile_image_url: profile.profile_image_url || null,
+                  description: profile.description || null
                 };
               }
               return streamer;
@@ -181,10 +204,7 @@ const DigDeeperPage = () => {
       }
       
       if (allStreamers.length === 0) {
-        toast('No small streamers found right now. Try again later.', { 
-          id: 'loading',
-          icon: '⚠️'
-        });
+        toast.error('No small streamers found right now. Try again later.', { id: 'loading' });
       } else {
         setStreamers(allStreamers);
         setCurrentIndex(0);
@@ -425,13 +445,12 @@ const DigDeeperPage = () => {
       
       const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
       
-      // Only get English-speaking streamers
+      // Use a simple query to get more English-speaking streamers
       const queryParams = new URLSearchParams({
         first: 100,
-        language: 'en'  // English only
+        language: 'en'
       });
       
-      // Fetch streams from Twitch
       const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
         headers: {
           'Client-ID': clientId,
@@ -446,65 +465,89 @@ const DigDeeperPage = () => {
       const streamsData = await streamsResponse.json();
       
       // Filter for streams with less than 10 viewers
-      const newLowViewerStreams = (streamsData.data || [])
-        .filter(stream => stream && stream.viewer_count < 10)
-        .map(stream => ({
-          id: stream.user_id,
-          twitch_id: stream.user_id,
-          username: stream.user_login,
-          display_name: stream.user_name,
-          is_live: true,
-          view_count: stream.viewer_count,
-          game_name: stream.game_name,
-          stream_title: stream.title,
-          thumbnail_url: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null,
-          votes: 0
-        }));
+      const newLowViewerStreams = [];
+      
+      if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
+        for (let i = 0; i < streamsData.data.length; i++) {
+          const stream = streamsData.data[i];
+          if (stream && typeof stream.viewer_count === 'number' && stream.viewer_count < 10) {
+            newLowViewerStreams.push({
+              id: stream.user_id,
+              twitch_id: stream.user_id,
+              username: stream.user_login,
+              display_name: stream.user_name,
+              is_live: true,
+              view_count: stream.viewer_count,
+              game_name: stream.game_name || "",
+              stream_title: stream.title || "",
+              thumbnail_url: stream.thumbnail_url ? 
+                stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                null,
+              votes: 0
+            });
+          }
+        }
+      }
       
       if (newLowViewerStreams.length > 0) {
         // Get profile data for new streamers
-        const userIds = [...new Set(newLowViewerStreams.map(s => s.twitch_id))];
+        const userIds = [];
+        for (let i = 0; i < newLowViewerStreams.length; i++) {
+          if (newLowViewerStreams[i].twitch_id) {
+            userIds.push(newLowViewerStreams[i].twitch_id);
+          }
+        }
         
-        try {
-          const userQueryString = userIds.map(id => `id=${id}`).join('&');
-          
-          const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
-            headers: {
-              'Client-ID': clientId,
-              'Authorization': `Bearer ${twitchAccessToken}`
-            }
-          });
-          
-          if (usersResponse.ok) {
-            const userData = await usersResponse.json();
-            
-            // Create a lookup map
-            const userDataMap = {};
-            if (userData.data && Array.isArray(userData.data)) {
-              userData.data.forEach(user => {
-                if (user && user.id) {
-                  userDataMap[user.id] = user;
-                }
-              });
+        // Remove duplicates
+        const uniqueUserIds = [...new Set(userIds)];
+        
+        if (uniqueUserIds.length > 0) {
+          try {
+            const userQueryParams = [];
+            for (let i = 0; i < uniqueUserIds.length; i++) {
+              userQueryParams.push(`id=${uniqueUserIds[i]}`);
             }
             
-            // Add profile data
-            for (let i = 0; i < newLowViewerStreams.length; i++) {
-              const streamer = newLowViewerStreams[i];
-              const profile = userDataMap[streamer.twitch_id];
+            const userQueryString = userQueryParams.join('&');
+            
+            const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
+              headers: {
+                'Client-ID': clientId,
+                'Authorization': `Bearer ${twitchAccessToken}`
+              }
+            });
+            
+            if (usersResponse.ok) {
+              const userData = await usersResponse.json();
               
-              if (profile) {
-                newLowViewerStreams[i] = {
-                  ...streamer,
-                  profile_image_url: profile.profile_image_url,
-                  description: profile.description
-                };
+              // Create a lookup map
+              const userDataMap = {};
+              if (userData && userData.data && Array.isArray(userData.data)) {
+                for (let i = 0; i < userData.data.length; i++) {
+                  const user = userData.data[i];
+                  if (user && user.id) {
+                    userDataMap[user.id] = user;
+                  }
+                }
+              }
+              
+              // Add profile data
+              for (let i = 0; i < newLowViewerStreams.length; i++) {
+                const streamer = newLowViewerStreams[i];
+                if (streamer && streamer.twitch_id && userDataMap[streamer.twitch_id]) {
+                  const profile = userDataMap[streamer.twitch_id];
+                  newLowViewerStreams[i] = {
+                    ...streamer,
+                    profile_image_url: profile.profile_image_url || null,
+                    description: profile.description || null
+                  };
+                }
               }
             }
+          } catch (profileError) {
+            console.error('Error fetching profiles for new batch:', profileError);
+            // Continue with what we have
           }
-        } catch (profileError) {
-          console.error('Error fetching profiles for new batch:', profileError);
-          // Continue with what we have
         }
         
         // Append new streamers to the existing list
@@ -513,15 +556,12 @@ const DigDeeperPage = () => {
         // Don't advance the currentIndex, just add to the list
         toast.success(`Found ${newLowViewerStreams.length} more streamers!`, { duration: 2000 });
       } else {
-        // If no new streamers found, try again with different params
+        // If no new streamers found, try again with different params later
         setTimeout(() => fetchMoreStreamers(), 1000);
       }
     } catch (error) {
       console.error('Error fetching more streamers:', error);
-      toast('Error loading more streamers. Try refreshing.', { 
-        duration: 3000,
-        icon: '❌' 
-      });
+      toast.error('Error loading more streamers', { duration: 3000 });
     } finally {
       setLoading(false);
     }
