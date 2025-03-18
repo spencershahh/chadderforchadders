@@ -116,6 +116,54 @@ async function getLiveStreams(userIds, accessToken) {
 }
 
 /**
+ * Get user information for a list of user IDs
+ */
+async function getUserInfo(userIds, accessToken) {
+  try {
+    // Split into chunks of 100 (Twitch API limit)
+    const chunks = [];
+    for (let i = 0; i < userIds.length; i += 100) {
+      chunks.push(userIds.slice(i, i + 100));
+    }
+
+    // Make requests for each chunk
+    const allUsers = [];
+    for (const chunk of chunks) {
+      const queryString = chunk.map(id => `id=${id}`).join('&');
+      const response = await fetch(`https://api.twitch.tv/helix/users?${queryString}`, {
+        headers: {
+          'Client-ID': TWITCH_CLIENT_ID,
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error getting user info: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      allUsers.push(...data.data);
+    }
+
+    // Create a map of user_id to user data for quick lookup
+    const userMap = {};
+    allUsers.forEach(user => {
+      userMap[user.id] = {
+        description: user.description,
+        profile_image_url: user.profile_image_url,
+        view_count: user.view_count,
+        broadcaster_type: user.broadcaster_type
+      };
+    });
+
+    return userMap;
+  } catch (error) {
+    console.error('Error getting user info:', error);
+    throw error;
+  }
+}
+
+/**
  * API endpoint to get streamers with real-time Twitch data
  */
 export default async function handler(req, res) {
@@ -143,28 +191,24 @@ export default async function handler(req, res) {
     // Extract user IDs
     const userIds = streamers.map(streamer => streamer.twitch_id);
 
-    // Get live stream data
-    const streamMap = await getLiveStreams(userIds, accessToken);
+    // Get live stream data and user info in parallel
+    const [streamMap, userMap] = await Promise.all([
+      getLiveStreams(userIds, accessToken),
+      getUserInfo(userIds, accessToken)
+    ]);
 
-    // Update streamer data with live status and view count
+    // Update streamer data with live status, view count, and user info
     const updatedStreamers = streamers.map(streamer => {
       const streamData = streamMap[streamer.twitch_id];
+      const userData = userMap[streamer.twitch_id];
       
-      // If streamer is live, update with live data
-      if (streamData) {
-        return {
-          ...streamer,
-          is_live: true,
-          view_count: streamData.view_count,
-          game_name: streamData.game_name,
-          stream_title: streamData.stream_title
-        };
-      }
-      
-      // Otherwise, mark as not live
       return {
         ...streamer,
-        is_live: false
+        ...userData, // Add user data (bio, profile image, etc.)
+        is_live: !!streamData,
+        view_count: streamData?.view_count || 0,
+        game_name: streamData?.game_name,
+        stream_title: streamData?.stream_title
       };
     });
 
@@ -174,7 +218,8 @@ export default async function handler(req, res) {
         .from('twitch_streamers')
         .update({
           is_live: streamer.is_live,
-          view_count: streamer.view_count || 0
+          view_count: streamer.view_count || 0,
+          description: streamer.description // Add bio to database
         })
         .eq('id', streamer.id);
     });

@@ -15,6 +15,7 @@ const DigDeeperPage = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const controls = useAnimation();
+  const [expandedBios, setExpandedBios] = useState(new Set());
 
   useEffect(() => {
     fetchStreamers();
@@ -146,6 +147,18 @@ const DigDeeperPage = () => {
     }
   };
 
+  const toggleBio = (streamerId) => {
+    setExpandedBios(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(streamerId)) {
+        newSet.delete(streamerId);
+      } else {
+        newSet.add(streamerId);
+      }
+      return newSet;
+    });
+  };
+
   const renderNoMoreCards = () => {
     return (
       <div className={styles.noMoreCardsContainer}>
@@ -216,10 +229,35 @@ const DigDeeperPage = () => {
         </div>
         <div className={styles.cardContent}>
           <h2>{streamer.display_name || streamer.username}</h2>
-          <p className={styles.description}>
-            {streamer.stream_title || streamer.description || 'No description available'}
-            {streamer.game_name && <div className={styles.gameTag}>Playing: {streamer.game_name}</div>}
-          </p>
+          
+          <div className={styles.contentScroll}>
+            {streamer.stream_title && (
+              <p className={styles.streamTitle}>
+                {streamer.stream_title}
+              </p>
+            )}
+            
+            {streamer.game_name && (
+              <div className={styles.gameTag}>Playing: {streamer.game_name}</div>
+            )}
+            
+            {streamer.description && (
+              <div className={styles.bioSection}>
+                <button 
+                  className={styles.bioToggle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleBio(streamer.id);
+                  }}
+                >
+                  {expandedBios.has(streamer.id) ? '▼ Hide Bio' : '▶ Show Bio'}
+                </button>
+                {expandedBios.has(streamer.id) && (
+                  <p className={styles.bio}>{streamer.description}</p>
+                )}
+              </div>
+            )}
+          </div>
           
           <div className={styles.statsContainer}>
             <span className={styles.viewCount}>👁️ {streamer.view_count ? streamer.view_count.toLocaleString() : 0} viewers</span>

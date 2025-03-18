@@ -1,158 +1,191 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  FlatList, 
-  TextInput, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  Linking,
   Platform,
-  Image,
-  ActivityIndicator
+  Alert
 } from 'react-native';
-import { supabase } from '../utils/supabaseClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
+import { supabase } from '../utils/supabaseClient';
+import { fetchStreamerById } from '../utils/twitchService';
+
+const { width } = Dimensions.get('window');
+const ASPECT_RATIO = 9 / 16;
 
 const StreamScreen = ({ route, navigation }) => {
-  const { streamId, username } = route.params;
-  const [stream, setStream] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+  const { streamerId } = route.params || {};
   const [loading, setLoading] = useState(true);
-  const [sendingMessage, setSendingMessage] = useState(false);
+  const [streamer, setStreamer] = useState(null);
+  const [embedHeight, setEmbedHeight] = useState(width * ASPECT_RATIO);
 
   useEffect(() => {
-    fetchStreamDetails();
-    fetchMessages();
-    
-    const messagesSubscription = setupMessagesSubscription();
-    
-    return () => {
-      messagesSubscription?.unsubscribe();
-    };
-  }, [streamId]);
+    if (streamerId) {
+      fetchStreamerData();
+    } else {
+      Alert.alert('Error', 'Streamer information not provided');
+      navigation.goBack();
+    }
+  }, [streamerId]);
 
-  const fetchStreamDetails = async () => {
+  const fetchStreamerData = async () => {
     try {
       setLoading(true);
       
-      // Fetch stream details
-      const { data, error } = await supabase
-        .from('streams')
+      // First get streamer from our database
+      const { data: dbStreamer, error } = await supabase
+        .from('twitch_streamers')
         .select('*')
-        .eq('id', streamId)
+        .eq('id', streamerId)
         .single();
-      
+        
       if (error) throw error;
       
-      setStream(data);
+      if (!dbStreamer || !dbStreamer.twitch_id) {
+        throw new Error('Streamer not found');
+      }
+      
+      // Get fresh data from Twitch API
+      const twitchData = await fetchStreamerById(dbStreamer.twitch_id);
+      
+      if (!twitchData.is_live) {
+        Alert.alert(
+          'Streamer Offline',
+          `${twitchData.display_name || twitchData.username} is not currently live.`,
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
+      
+      // Combine database and Twitch data
+      setStreamer({
+        ...dbStreamer,
+        ...twitchData
+      });
     } catch (error) {
-      console.error('Error fetching stream details:', error.message);
+      console.error('Error fetching streamer:', error);
+      Alert.alert('Error', 'Failed to load streamer information');
+      navigation.goBack();
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async () => {
-    try {
-      // Fetch messages
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*, profiles(username, avatar_url)')
-        .eq('stream_id', streamId)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      
-      if (data) setMessages(data);
-    } catch (error) {
-      console.error('Error fetching messages:', error.message);
-    }
-  };
-
-  const setupMessagesSubscription = () => {
-    return supabase
-      .channel('public:chat_messages')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'chat_messages',
-        filter: `stream_id=eq.${streamId}` 
-      }, (payload) => {
-        // Fetch the user info separately since the subscription doesn't include joins
-        fetchUserForMessage(payload.new);
-      })
-      .subscribe();
-  };
-
-  const fetchUserForMessage = async (message) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username, avatar_url')
-        .eq('id', message.user_id)
-        .single();
-      
-      if (error) throw error;
-      
-      const messageWithUser = {
-        ...message,
-        profiles: data
-      };
-      
-      setMessages(prevMessages => [...prevMessages, messageWithUser]);
-    } catch (error) {
-      console.error('Error fetching user for message:', error.message);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+  const openInTwitchApp = () => {
+    if (!streamer) return;
     
-    try {
-      setSendingMessage(true);
-      
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
-      
-      if (!user) throw new Error('You must be logged in to send a message');
-      
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          content: newMessage.trim(),
-          user_id: user.id,
-          stream_id: streamId
+    const twitchAppUrl = `twitch://stream/${streamer.username}`;
+    const twitchWebUrl = `https://twitch.tv/${streamer.username}`;
+    
+    // Try to open in Twitch app first
+    Linking.canOpenURL(twitchAppUrl)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(twitchAppUrl);
+        } else {
+          // Fall back to browser
+          return Linking.openURL(twitchWebUrl);
+        }
+      })
+      .catch(error => {
+        console.error('Error opening Twitch:', error);
+        // If that fails, just open in browser
+        Linking.openURL(twitchWebUrl).catch(() => {
+          Alert.alert('Error', 'Unable to open Twitch');
         });
-      
-      if (error) throw error;
-      
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error.message);
-    } finally {
-      setSendingMessage(false);
-    }
+      });
   };
 
-  const renderMessage = ({ item }) => (
-    <View style={styles.messageContainer}>
-      <Image 
-        source={{ uri: item.profiles?.avatar_url || 'https://via.placeholder.com/40' }}
-        style={styles.avatar}
-      />
-      <View style={styles.messageContent}>
-        <Text style={styles.username}>{item.profiles?.username || 'User'}</Text>
-        <Text style={styles.messageText}>{item.content}</Text>
-      </View>
-    </View>
-  );
+  // Ensure we have the proper parent query param for embedding
+  const getEmbedUrl = () => {
+    if (!streamer) return '';
+    
+    const baseUrl = `https://player.twitch.tv/?channel=${streamer.username}&parent=${Platform.OS === 'ios' ? 'ios' : 'android'}.example.com`;
+    return baseUrl;
+  };
+
+  // HTML to inject into WebView for custom styling
+  const twitchPlayerHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+          }
+          .video-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+          }
+          iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="video-container">
+          <iframe
+            src="${getEmbedUrl()}"
+            frameborder="0"
+            allowfullscreen="true"
+            scrolling="no"
+          ></iframe>
+        </div>
+      </body>
+    </html>
+  `;
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4263eb" />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Loading Stream...</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4263eb" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!streamer) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Stream not available</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -164,54 +197,70 @@ const StreamScreen = ({ route, navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{stream?.title || username}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {streamer.display_name || streamer.username}
+        </Text>
       </View>
       
-      <View style={styles.streamContainer}>
-        {/* Placeholder for video player */}
-        <View style={styles.videoPlaceholder}>
-          <Text style={styles.placeholderText}>Stream Video</Text>
+      <ScrollView style={styles.scrollContainer}>
+        {/* Stream Embed */}
+        <View style={[styles.videoContainer, { height: embedHeight }]}>
+          <WebView
+            source={{ html: twitchPlayerHtml }}
+            style={styles.webview}
+            javaScriptEnabled
+            domStorageEnabled
+            startInLoadingState
+            renderLoading={() => (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color="#4263eb" />
+              </View>
+            )}
+            onError={() => Alert.alert('Error', 'Failed to load stream')}
+          />
         </View>
         
-        <View style={styles.streamInfo}>
-          <Text style={styles.streamTitle}>{stream?.title || 'Stream'}</Text>
-          <Text style={styles.viewerCount}>{stream?.viewer_count || 0} viewers</Text>
-        </View>
-      </View>
-      
-      <View style={styles.chatContainer}>
-        <Text style={styles.chatTitle}>Chat</Text>
-        
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderMessage}
-          style={styles.messagesList}
-        />
-        
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              placeholder="Type a message..."
-              placeholderTextColor="#999"
-            />
+        <View style={styles.contentContainer}>
+          {/* Stream Info */}
+          <View style={styles.streamInfoContainer}>
+            <Text style={styles.streamTitle}>
+              {streamer.stream_info?.title || streamer.title || 'Live Stream'}
+            </Text>
+            
+            <Text style={styles.viewerCount}>
+              👁️ {streamer.view_count || streamer.stream_info?.viewer_count || 0} viewers
+            </Text>
+            
+            {streamer.stream_info?.game_name && (
+              <Text style={styles.gameText}>
+                Playing: {streamer.stream_info.game_name}
+              </Text>
+            )}
+          </View>
+          
+          {/* Streamer Info */}
+          <View style={styles.streamerInfoContainer}>
+            <Text style={styles.sectionTitle}>About {streamer.display_name || streamer.username}</Text>
+            <Text style={styles.descriptionText}>
+              {streamer.description || 'No description available.'}
+            </Text>
+          </View>
+          
+          {/* Actions */}
+          <View style={styles.actionsContainer}>
             <TouchableOpacity 
-              style={styles.sendButton} 
-              onPress={sendMessage}
-              disabled={sendingMessage || !newMessage.trim()}
+              style={styles.openTwitchButton}
+              onPress={openInTwitchApp}
             >
-              <Text style={styles.sendButtonText}>Send</Text>
+              <Text style={styles.openTwitchButtonText}>
+                Open in Twitch
+              </Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -219,126 +268,110 @@ const StreamScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#0e0e10', // Twitch dark theme
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 12,
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
-  },
-  backButton: {
-    padding: 5,
-    marginRight: 10,
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: '#4263eb',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  streamContainer: {
-    padding: 15,
-  },
-  videoPlaceholder: {
-    height: 220,
-    backgroundColor: '#333',
-    borderRadius: 10,
+  errorContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
   },
-  placeholderText: {
+  errorText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
   },
-  streamInfo: {
-    marginBottom: 15,
+  scrollContainer: {
+    flex: 1,
+  },
+  videoContainer: {
+    width: '100%',
+    backgroundColor: '#000',
+  },
+  webview: {
+    flex: 1,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contentContainer: {
+    padding: 16,
+  },
+  streamInfoContainer: {
+    marginBottom: 20,
   },
   streamTitle: {
+    color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   viewerCount: {
+    color: '#eb4c4c',
     fontSize: 14,
-    color: '#666',
+    marginBottom: 8,
   },
-  chatContainer: {
-    flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff',
+  gameText: {
+    color: '#a970ff', // Twitch purple
+    fontSize: 14,
   },
-  chatTitle: {
-    padding: 15,
-    fontSize: 16,
+  streamerInfoContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginBottom: 8,
   },
-  messagesList: {
-    flex: 1,
-    padding: 15,
+  descriptionText: {
+    color: '#adadb8',
+    fontSize: 14,
+    lineHeight: 20,
   },
-  messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: '#ddd',
-  },
-  messageContent: {
-    flex: 1,
-  },
-  username: {
-    fontWeight: 'bold',
-    marginBottom: 3,
-    color: '#333',
-  },
-  messageText: {
-    color: '#555',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
-  },
-  sendButton: {
-    backgroundColor: '#4263eb',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
+  actionsContainer: {
+    marginVertical: 20,
     alignItems: 'center',
   },
-  sendButtonText: {
+  openTwitchButton: {
+    backgroundColor: '#9147ff', // Twitch purple
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 4,
+  },
+  openTwitchButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

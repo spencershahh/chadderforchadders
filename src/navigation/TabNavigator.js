@@ -6,6 +6,8 @@ import { Text, View, StyleSheet } from 'react-native';
 import DiscoverScreen from '../screens/DiscoverScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import DigDeeperScreen from '../screens/DigDeeperScreen';
+import FavoritesScreen from '../screens/FavoritesScreen';
 
 // We'll use simple text for icons now, but you could use react-native-vector-icons
 const TabIcon = ({ name, focused }) => (
@@ -36,6 +38,13 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen 
+        name="Dig Deeper" 
+        component={DigDeeperScreen} 
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon name="💎" focused={focused} />,
+        }}
+      />
+      <Tab.Screen 
         name="Leaderboard" 
         component={LeaderboardScreen} 
         options={{
@@ -47,6 +56,16 @@ const TabNavigator = () => {
         component={ProfileScreen} 
         options={{
           tabBarIcon: ({ focused }) => <TabIcon name="👤" focused={focused} />,
+        }}
+      />
+      
+      {/* Hide the Favorites screen from the tab bar - it will be accessed from DigDeeperScreen */}
+      <Tab.Screen 
+        name="Favorites" 
+        component={FavoritesScreen} 
+        options={{
+          tabBarButton: () => null,
+          tabBarVisible: false,
         }}
       />
     </Tab.Navigator>
