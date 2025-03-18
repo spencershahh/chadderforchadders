@@ -44,25 +44,36 @@ const DigDeeperPage = () => {
         return;
       }
       
-      try {
-        // Get Twitch credentials from environment variables
-        const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-        const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
-        
-        if (!twitchClientId || !twitchClientSecret) {
-          let errorMsg = 'Twitch API credentials are missing.';
-          if (isDevelopment) {
-            errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
-            console.error('Missing Twitch API credentials. Check your .env file for:');
-            console.error('VITE_TWITCH_CLIENT_ID=your_client_id');
-            console.error('VITE_TWITCH_CLIENT_SECRET=your_client_secret');
-          } else {
-            errorMsg += ' Please contact the site administrator.';
-          }
-          throw new Error(errorMsg);
+      // Debug environment variables
+      console.log('Environment check:');
+      console.log('isDevelopment:', isDevelopment);
+      console.log('import.meta.env.VITE_TWITCH_CLIENT_ID exists:', !!import.meta.env.VITE_TWITCH_CLIENT_ID);
+      console.log('import.meta.env.VITE_TWITCH_CLIENT_SECRET exists:', !!import.meta.env.VITE_TWITCH_CLIENT_SECRET);
+      console.log('First few chars of Client ID:', import.meta.env.VITE_TWITCH_CLIENT_ID ? import.meta.env.VITE_TWITCH_CLIENT_ID.substring(0, 3) + '...' : 'undefined');
+      
+      // Try accessing environment variables (without hardcoded fallbacks)
+      const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+      const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+
+      console.log('Using client ID:', twitchClientId ? twitchClientId.substring(0, 3) + '...' : 'undefined');
+
+      if (!twitchClientId || !twitchClientSecret) {
+        let errorMsg = 'Twitch API credentials are missing.';
+        if (isDevelopment) {
+          errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
+          console.error('Missing Twitch API credentials. Check your .env file for:');
+          console.error('VITE_TWITCH_CLIENT_ID=your_client_id');
+          console.error('VITE_TWITCH_CLIENT_SECRET=your_client_secret');
+        } else {
+          errorMsg += ' Please make sure these are properly set in your Vercel environment variables.';
         }
-        
-        console.log('Attempting to fetch Twitch data with client ID:', twitchClientId);
+        throw new Error(errorMsg);
+      }
+      
+      console.log('Attempting to fetch Twitch data with client ID:', twitchClientId);
+      
+      try {
+        console.log('Attempting to fetch Twitch token...');
         
         // Get Twitch OAuth token
         const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
@@ -71,13 +82,36 @@ const DigDeeperPage = () => {
           body: `client_id=${twitchClientId}&client_secret=${twitchClientSecret}&grant_type=client_credentials`
         });
         
+        // Handle non-OK responses
         if (!tokenResponse.ok) {
-          console.error(`Twitch token request failed with status ${tokenResponse.status}:`, await tokenResponse.text());
-          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+          // Try to get the error body
+          let errorText = 'Unknown error';
+          try {
+            errorText = await tokenResponse.text();
+          } catch (e) {
+            console.error('Could not get error details:', e);
+          }
+          
+          console.error(`Twitch token request failed with status ${tokenResponse.status}:`, errorText);
+          
+          // Provide specific error message based on status code
+          if (tokenResponse.status === 401 || tokenResponse.status === 403) {
+            throw new Error(`Invalid Twitch API credentials. Status: ${tokenResponse.status}. This likely means your Client ID or Secret is incorrect.`);
+          } else {
+            throw new Error(`Error getting Twitch token: ${tokenResponse.status}. Details: ${errorText}`);
+          }
         }
         
+        // Process successful response
+        console.log('Twitch token request successful!');
         const tokenData = await tokenResponse.json();
         const accessToken = tokenData.access_token;
+        
+        if (!accessToken) {
+          throw new Error('Received token response but no access_token found in the response.');
+        }
+        
+        console.log('Successfully obtained Twitch access token!');
         
         // Extract Twitch IDs
         const twitchIds = streamers.map(streamer => streamer.twitch_id);
@@ -152,16 +186,16 @@ const DigDeeperPage = () => {
         setStreamers(updatedStreamers);
         setCurrentIndex(0);
         toast.success('Streamers loaded with live data!', { id: 'loading' });
-      } catch (twitchError) {
-        console.error('Error fetching Twitch data:', twitchError);
+      } catch (twitchApiError) {
+        console.error('Error with Twitch API:', twitchApiError);
         // Fall back to database only if Twitch API fails
         setStreamers(streamers);
         setCurrentIndex(0);
-        toast.error('Using offline data - Twitch API error', { id: 'loading' });
+        toast.error(`Twitch API error: ${twitchApiError.message}`, { id: 'loading' });
       }
     } catch (error) {
       console.error('Error in fetchTwitchDataDirectly:', error);
-      toast.error('Failed to load streamers', { id: 'loading' });
+      toast.error(`Failed to load streamers: ${error.message}`, { id: 'loading' });
     } finally {
       setLoading(false);
     }

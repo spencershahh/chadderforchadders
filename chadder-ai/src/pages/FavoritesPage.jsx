@@ -5,8 +5,6 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import styles from './FavoritesPage.module.css';
 
-const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
-
 const FavoritesPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState([]);
@@ -64,10 +62,12 @@ const FavoritesPage = () => {
       // If we have favorites, refresh their data from Twitch API directly
       if (transformedData.length > 0) {
         try {
-          // Get Twitch credentials
+          // Get Twitch credentials from environment variables only
           const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
           const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
-          
+
+          console.log('Using client ID in FavoritesPage:', twitchClientId ? twitchClientId.substring(0, 3) + '...' : 'undefined');
+
           if (!twitchClientId || !twitchClientSecret) {
             let errorMsg = 'Twitch API credentials are missing.';
             if (isDevelopment) {
@@ -76,7 +76,7 @@ const FavoritesPage = () => {
               console.error('VITE_TWITCH_CLIENT_ID=your_client_id');
               console.error('VITE_TWITCH_CLIENT_SECRET=your_client_secret');
             } else {
-              errorMsg += ' Please contact the site administrator.';
+              errorMsg += ' Please make sure these are properly set in your Vercel environment variables.';
             }
             throw new Error(errorMsg);
           }
