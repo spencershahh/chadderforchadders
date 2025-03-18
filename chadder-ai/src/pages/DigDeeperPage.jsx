@@ -25,6 +25,25 @@ const DigDeeperPage = () => {
     try {
       setLoading(true);
       
+      // Get user's history if logged in to exclude streamers they've already seen
+      let excludeIds = [];
+      if (user) {
+        try {
+          const { data: historyData, error: historyError } = await supabase
+            .from('user_history')
+            .select('streamer_id')
+            .eq('user_id', user.id);
+          
+          if (!historyError && historyData && historyData.length > 0) {
+            excludeIds = historyData.map(item => item.streamer_id);
+            console.log(`Excluding ${excludeIds.length} already seen streamers`);
+          }
+        } catch (historyErr) {
+          console.error('Error fetching history:', historyErr);
+          // Continue even if history fetch fails
+        }
+      }
+      
       // Use our API to get real-time Twitch data
       try {
         const response = await fetch('/api/twitch/getStreamers');
@@ -34,9 +53,38 @@ const DigDeeperPage = () => {
           
           if (result.success && result.streamers && result.streamers.length > 0) {
             console.log('Loaded streamers with real-time Twitch data:', result.streamers.length);
-            setStreamers(result.streamers);
-            setCurrentIndex(0);
-            return; // Exit early if API call is successful
+            
+            // Filter out streamers the user has already seen
+            let filteredStreamers = result.streamers;
+            if (excludeIds.length > 0) {
+              filteredStreamers = result.streamers.filter(
+                streamer => !excludeIds.includes(streamer.id)
+              );
+              console.log(`Filtered to ${filteredStreamers.length} unseen streamers`);
+            }
+            
+            // If we have less than 5 streamers after filtering, include some already seen ones
+            if (filteredStreamers.length < 5 && result.streamers.length > filteredStreamers.length) {
+              console.log('Not enough new streamers, including some already seen ones');
+              const neededCount = Math.min(5, result.streamers.length) - filteredStreamers.length;
+              const alreadySeen = result.streamers.filter(
+                streamer => excludeIds.includes(streamer.id)
+              );
+              
+              // Add some previously seen streamers to ensure we have enough content
+              filteredStreamers = [
+                ...filteredStreamers,
+                ...alreadySeen.slice(0, neededCount)
+              ];
+            }
+            
+            if (filteredStreamers.length > 0) {
+              setStreamers(filteredStreamers);
+              setCurrentIndex(0);
+              return; // Exit early if API call is successful
+            } else {
+              console.warn('No unseen streamers available after filtering');
+            }
           } else {
             console.warn('API returned no streamers, falling back to database');
           }
@@ -49,16 +97,42 @@ const DigDeeperPage = () => {
       }
       
       // Fallback to direct database query
-      const { data, error } = await supabase
+      let query = supabase
         .from('twitch_streamers')
         .select('*')
-        .order('votes', { ascending: false })
-        .limit(20);
+        .order('votes', { ascending: false });
         
+      // Apply filter to exclude already seen streamers if user is logged in
+      if (user && excludeIds.length > 0) {
+        query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+      }
+      
+      // Limit to 20 streamers
+      query = query.limit(20);
+      
+      const { data, error } = await query;
+      
       if (error) throw error;
       
       if (data && data.length > 0) {
         console.log('Loaded streamers from database:', data.length);
+        
+        // If we have less than 5 streamers after filtering, run another query without filter
+        if (data.length < 5 && user && excludeIds.length > 0) {
+          const { data: allData, error: allError } = await supabase
+            .from('twitch_streamers')
+            .select('*')
+            .order('votes', { ascending: false })
+            .limit(20);
+            
+          if (!allError && allData && allData.length > data.length) {
+            console.log('Not enough new streamers, including some already seen ones');
+            setStreamers(allData);
+            setCurrentIndex(0);
+            return;
+          }
+        }
+        
         setStreamers(data);
         setCurrentIndex(0);
       } else {
@@ -74,21 +148,32 @@ const DigDeeperPage = () => {
   };
 
   const handleSwipeRight = async () => {
+    // Keep track of the streamer before showing auth modal
+    const currentStreamer = streamers[currentIndex];
+    
     if (!user) {
+      toast.info('Sign in to save favorites & view them later!');
       setShowAuthModal(true);
       return;
     }
 
     try {
-      if (streamers[currentIndex]) {
-        const currentStreamer = streamers[currentIndex];
-        
+      if (currentStreamer) {
         // Save to favorites
         await supabase
           .from('user_favorites')
           .upsert({ 
             user_id: user.id, 
             streamer_id: currentStreamer.id 
+          });
+          
+        // Record in history that user swiped right
+        await supabase
+          .from('user_history')
+          .upsert({
+            user_id: user.id,
+            streamer_id: currentStreamer.id,
+            interaction_type: 'swiped_right'
           });
           
         // Increment vote count
@@ -114,7 +199,25 @@ const DigDeeperPage = () => {
     }
   };
 
-  const handleSwipeLeft = () => {
+  const handleSwipeLeft = async () => {
+    // Record in history that user swiped left if they're logged in
+    const currentStreamer = streamers[currentIndex];
+    
+    if (user && currentStreamer) {
+      try {
+        await supabase
+          .from('user_history')
+          .upsert({
+            user_id: user.id,
+            streamer_id: currentStreamer.id,
+            interaction_type: 'swiped_left'
+          });
+      } catch (error) {
+        console.error('Error recording swipe left:', error);
+        // Don't show error to user, just log it
+      }
+    }
+    
     // Simply move to the next card
     nextCard();
   };
@@ -260,8 +363,12 @@ const DigDeeperPage = () => {
           </div>
           
           <div className={styles.statsContainer}>
-            <span className={styles.viewCount}>👁️ {streamer.view_count ? streamer.view_count.toLocaleString() : 0} viewers</span>
-            <span className={styles.voteCount}>❤️ {streamer.votes || 0} votes</span>
+            {streamer.view_count > 0 && (
+              <span className={styles.viewCount}>👁️ {streamer.view_count.toLocaleString()} viewers</span>
+            )}
+            {streamer.votes > 0 && (
+              <span className={styles.voteCount}>❤️ {streamer.votes} votes</span>
+            )}
           </div>
           
           {streamer.is_live && (
@@ -312,15 +419,27 @@ const DigDeeperPage = () => {
         <h1>Dig Deeper</h1>
         <p>Discover and vote for your favorite Twitch streamers</p>
         
-        <Link to="/leaderboard" className={styles.leaderboardLink}>
-          View Leaderboard
-        </Link>
-        
-        {user && (
-          <Link to="/favorites" className={styles.favoritesLink}>
-            My Favorites
+        <div className={styles.headerButtons}>
+          <Link to="/leaderboard" className={styles.leaderboardLink}>
+            View Leaderboard
           </Link>
-        )}
+          
+          {user ? (
+            <Link to="/favorites" className={styles.favoritesLink}>
+              <span className={styles.heartIcon}>❤️</span> My Favorites
+            </Link>
+          ) : (
+            <button 
+              onClick={() => {
+                toast.info('Sign in to access your saved favorites!');
+                setShowAuthModal(true);
+              }}
+              className={styles.favoritesLink}
+            >
+              <span className={styles.heartIcon}>❤️</span> My Favorites
+            </button>
+          )}
+        </div>
       </div>
       
       <div className={styles.instructionsContainer}>
