@@ -5,11 +5,20 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import styles from './FavoritesPage.module.css';
 
+const isDevelopment = typeof import.meta !== 'undefined' && 
+  import.meta.env && 
+  (import.meta.env.DEV || window.location.hostname === 'localhost');
+
 const FavoritesPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [twitchConfig, setTwitchConfig] = useState({
+    clientId: '',
+    clientSecret: '',
+    keysAvailable: false
+  });
 
   useEffect(() => {
     // Wait for auth to finish loading before deciding to redirect
@@ -26,6 +35,30 @@ const FavoritesPage = () => {
     
     fetchFavorites();
   }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    // This runs only in the browser, not during build
+    try {
+      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID || '';
+      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
+      
+      console.log('FavoritesPage - Environment check (client-side):');
+      console.log('VITE_TWITCH_CLIENT_ID exists:', !!clientId);
+      
+      if (clientId) {
+        console.log('First few chars of Client ID:', clientId.substring(0, 3) + '...');
+      }
+      
+      setTwitchConfig({
+        clientId,
+        clientSecret,
+        keysAvailable: !!(clientId && clientSecret)
+      });
+      
+    } catch (error) {
+      console.error('Error accessing environment variables in FavoritesPage:', error);
+    }
+  }, []);
 
   const fetchFavorites = async () => {
     try {
@@ -62,13 +95,10 @@ const FavoritesPage = () => {
       // If we have favorites, refresh their data from Twitch API directly
       if (transformedData.length > 0) {
         try {
-          // Get Twitch credentials from environment variables only
-          const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-          const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+          // Use the state variables
+          const { clientId: twitchClientId, clientSecret: twitchClientSecret, keysAvailable } = twitchConfig;
 
-          console.log('Using client ID in FavoritesPage:', twitchClientId ? twitchClientId.substring(0, 3) + '...' : 'undefined');
-
-          if (!twitchClientId || !twitchClientSecret) {
+          if (!keysAvailable) {
             let errorMsg = 'Twitch API credentials are missing.';
             if (isDevelopment) {
               errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';

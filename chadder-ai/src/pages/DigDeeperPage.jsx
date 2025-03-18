@@ -6,8 +6,11 @@ import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import styles from './DigDeeperPage.module.css';
 import AuthModal from '../components/AuthModal';
+import TwitchConfigTest from '../TwitchConfigTest';
 
-const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+const isDevelopment = typeof import.meta !== 'undefined' && 
+  import.meta.env && 
+  (import.meta.env.DEV || window.location.hostname === 'localhost');
 
 const DigDeeperPage = () => {
   const { user } = useAuth();
@@ -19,9 +22,39 @@ const DigDeeperPage = () => {
   const controls = useAnimation();
   const [expandedBios, setExpandedBios] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [twitchConfig, setTwitchConfig] = useState({
+    clientId: '',
+    clientSecret: '',
+    keysAvailable: false
+  });
 
   useEffect(() => {
     fetchTwitchDataDirectly();
+  }, []);
+
+  useEffect(() => {
+    // This runs only in the browser, not during build
+    try {
+      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID || '';
+      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET || '';
+      
+      console.log('Environment check (client-side):');
+      console.log('VITE_TWITCH_CLIENT_ID exists:', !!clientId);
+      console.log('VITE_TWITCH_CLIENT_SECRET exists:', !!clientSecret);
+      
+      if (clientId) {
+        console.log('First few chars of Client ID:', clientId.substring(0, 3) + '...');
+      }
+      
+      setTwitchConfig({
+        clientId,
+        clientSecret,
+        keysAvailable: !!(clientId && clientSecret)
+      });
+      
+    } catch (error) {
+      console.error('Error accessing environment variables:', error);
+    }
   }, []);
 
   const fetchTwitchDataDirectly = async () => {
@@ -47,17 +80,11 @@ const DigDeeperPage = () => {
       // Debug environment variables
       console.log('Environment check:');
       console.log('isDevelopment:', isDevelopment);
-      console.log('import.meta.env.VITE_TWITCH_CLIENT_ID exists:', !!import.meta.env.VITE_TWITCH_CLIENT_ID);
-      console.log('import.meta.env.VITE_TWITCH_CLIENT_SECRET exists:', !!import.meta.env.VITE_TWITCH_CLIENT_SECRET);
-      console.log('First few chars of Client ID:', import.meta.env.VITE_TWITCH_CLIENT_ID ? import.meta.env.VITE_TWITCH_CLIENT_ID.substring(0, 3) + '...' : 'undefined');
       
-      // Try accessing environment variables (without hardcoded fallbacks)
-      const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-      const twitchClientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
-
-      console.log('Using client ID:', twitchClientId ? twitchClientId.substring(0, 3) + '...' : 'undefined');
-
-      if (!twitchClientId || !twitchClientSecret) {
+      // Use the state variables instead of accessing import.meta directly
+      const { clientId: twitchClientId, clientSecret: twitchClientSecret, keysAvailable } = twitchConfig;
+      
+      if (!keysAvailable) {
         let errorMsg = 'Twitch API credentials are missing.';
         if (isDevelopment) {
           errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
@@ -521,6 +548,8 @@ const DigDeeperPage = () => {
             {refreshing ? 'Refreshing...' : 'Refresh Data'}
           </button>
         </div>
+        
+        <TwitchConfigTest />
       </div>
       
       <div className={styles.instructionsContainer}>
