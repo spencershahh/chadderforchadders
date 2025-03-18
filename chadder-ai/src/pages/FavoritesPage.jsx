@@ -86,97 +86,63 @@ const FavoritesPage = () => {
       
       if (error) throw error;
       
-      // Transform data to extract streamer info
-      const transformedData = data.map(item => ({
-        favoriteId: item.id,
-        ...item.twitch_streamers
-      }));
+      // Transform data to extract streamer info and filter out any missing streamer data
+      const transformedData = data
+        .filter(item => item.twitch_streamers) // Filter out any null streamers
+        .map(item => ({
+          favoriteId: item.id,
+          ...item.twitch_streamers,
+          // Ensure these fields always have a default value
+          profile_image_url: item.twitch_streamers.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png',
+          display_name: item.twitch_streamers.display_name || item.twitch_streamers.username || 'Unknown Streamer',
+          view_count: item.twitch_streamers.view_count || 0,
+          votes: item.twitch_streamers.votes || 0,
+          is_live: item.twitch_streamers.is_live || false
+        }));
       
       // If we have favorites, refresh their data from Twitch API directly
-      if (transformedData.length > 0) {
+      if (transformedData.length > 0 && twitchConfig.keysAvailable) {
         try {
-          // Use the state variables
-          const { clientId: twitchClientId, clientSecret: twitchClientSecret, keysAvailable } = twitchConfig;
-
-          if (!keysAvailable) {
-            let errorMsg = 'Twitch API credentials are missing.';
-            if (isDevelopment) {
-              errorMsg += ' Make sure VITE_TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_SECRET are set in your .env file.';
-              console.error('Missing Twitch API credentials. Check your .env file for:');
-              console.error('VITE_TWITCH_CLIENT_ID=your_client_id');
-              console.error('VITE_TWITCH_CLIENT_SECRET=your_client_secret');
-            } else {
-              errorMsg += ' Please make sure these are properly set in your Vercel environment variables.';
-            }
-            throw new Error(errorMsg);
-          }
+          // For live data, we need to get the current status from Twitch
+          console.log('Refreshing live streamer data from Twitch API');
           
-          console.log('Attempting to fetch Twitch data for favorites with client ID:', twitchClientId);
-          
-          // Get Twitch OAuth token
-          const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `client_id=${twitchClientId}&client_secret=${twitchClientSecret}&grant_type=client_credentials`
-          });
-          
-          if (!tokenResponse.ok) {
-            console.error(`Twitch token request failed with status ${tokenResponse.status}:`, await tokenResponse.text());
-            throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
-          }
-          
-          const tokenData = await tokenResponse.json();
-          const accessToken = tokenData.access_token;
-          
-          // Extract Twitch IDs
-          const twitchIds = transformedData.map(streamer => streamer.twitch_id);
-          
-          // Get live streams data
-          let allStreams = [];
-          // Only make the request if we have IDs
-          if (twitchIds.length > 0) {
-            const queryString = twitchIds.map(id => `user_id=${id}`).join('&');
-            const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryString}`, {
-              headers: {
-                'Client-ID': twitchClientId,
-                'Authorization': `Bearer ${accessToken}`
+          const streamerPromises = transformedData.map(async (streamer) => {
+            try {
+              if (!streamer.twitch_id) return streamer; // Skip if no twitch ID
+              
+              const freshData = await twitchApi.fetchStreamerById(streamer.twitch_id);
+              
+              if (freshData) {
+                return {
+                  ...streamer,
+                  is_live: freshData.is_live || false,
+                  view_count: freshData.view_count || streamer.view_count || 0,
+                  stream_title: freshData.stream_info?.title || '',
+                  game_name: freshData.stream_info?.game_name || '',
+                  // Keep original profile image if new one is missing
+                  profile_image_url: freshData.profile_image_url || streamer.profile_image_url
+                };
               }
-            });
-            
-            if (streamsResponse.ok) {
-              const streamsData = await streamsResponse.json();
-              allStreams = streamsData.data || [];
+              
+              return streamer;
+            } catch (error) {
+              console.error(`Error refreshing data for streamer ${streamer.username}:`, error);
+              // Return original streamer data on error
+              return streamer;
             }
-          }
-          
-          // Create a map of user_id to stream data
-          const streamMap = {};
-          allStreams.forEach(stream => {
-            streamMap[stream.user_id] = {
-              is_live: true,
-              view_count: stream.viewer_count,
-              game_name: stream.game_name,
-              stream_title: stream.title
-            };
           });
           
-          // Update streamer data with live status
-          transformedData.forEach(streamer => {
-            const streamData = streamMap[streamer.twitch_id];
-            streamer.is_live = !!streamData;
-            streamer.view_count = streamer.is_live ? streamData.view_count : 0;
-            streamer.game_name = streamer.is_live ? streamData.game_name : null;
-            streamer.stream_title = streamer.is_live ? streamData.stream_title : null;
-          });
-          
-          console.log('Updated favorites with real-time Twitch data');
-        } catch (twitchError) {
-          console.error('Error fetching Twitch data for favorites:', twitchError);
-          // Continue with stored data if refresh fails
+          const updatedStreamers = await Promise.all(streamerPromises);
+          setFavorites(updatedStreamers);
+        } catch (error) {
+          console.error('Error refreshing Twitch data:', error);
+          // Use the transformed data from database if Twitch API fails
+          setFavorites(transformedData);
         }
+      } else {
+        // Use just the database data
+        setFavorites(transformedData);
       }
-      
-      setFavorites(transformedData);
     } catch (error) {
       console.error('Error fetching favorites:', error);
       toast.error('Failed to load favorites. Please try again.');
@@ -242,18 +208,18 @@ const FavoritesPage = () => {
             <div key={streamer.favoriteId} className={styles.favoriteCard}>
               <div 
                 className={styles.favoriteImage}
-                style={{ backgroundImage: `url(${streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
+                style={{ backgroundImage: `url(${streamer.profile_image_url})` }}
               >
                 {streamer.is_live && (
                   <div className={styles.liveIndicator}>
                     LIVE
-                    <div className={styles.viewerCount}>{streamer.view_count.toLocaleString()} viewers</div>
+                    <div className={styles.viewerCount}>{(streamer.view_count || 0).toLocaleString()} viewers</div>
                   </div>
                 )}
               </div>
               
               <div className={styles.favoriteContent}>
-                <h3>{streamer.display_name || streamer.username}</h3>
+                <h3>{streamer.display_name}</h3>
                 
                 {streamer.is_live && streamer.stream_title && (
                   <p className={styles.streamTitle}>{streamer.stream_title}</p>
