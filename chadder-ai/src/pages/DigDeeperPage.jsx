@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { motion, useAnimation } from 'framer-motion';
@@ -13,6 +13,7 @@ const isDevelopment = typeof import.meta !== 'undefined' &&
 
 const DigDeeperPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [streamers, setStreamers] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -23,48 +24,54 @@ const DigDeeperPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [twitchAccessToken, setTwitchAccessToken] = useState(null);
 
-  // Load Twitch credentials once on component mount
+  // Only fetch streamers when user is authenticated
   useEffect(() => {
-    const loadTwitchAuth = async () => {
-      try {
-        const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-        const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
-        
-        if (!clientId || !clientSecret) {
-          console.error('Twitch API credentials missing');
-          toast.error('Twitch API credentials are missing in environment variables');
-          return null;
+    if (user) {
+      const loadTwitchAuth = async () => {
+        try {
+          const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+          const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+          
+          if (!clientId || !clientSecret) {
+            console.error('Twitch API credentials missing');
+            toast.error('Twitch API credentials are missing in environment variables');
+            return null;
+          }
+          
+          const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+          });
+          
+          if (!tokenResponse.ok) {
+            throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+          }
+          
+          const tokenData = await tokenResponse.json();
+          const accessToken = tokenData.access_token;
+          
+          if (!accessToken) {
+            throw new Error('No access token received from Twitch');
+          }
+          
+          setTwitchAccessToken(accessToken);
+          
+          // Once we have the token, fetch streamers
+          await fetchStreamersWithTwitchData(accessToken);
+        } catch (error) {
+          console.error('Error initializing Twitch auth:', error);
+          toast.error(`Error connecting to Twitch: ${error.message}`);
         }
-        
-        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
-        });
-        
-        if (!tokenResponse.ok) {
-          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
-        }
-        
-        const tokenData = await tokenResponse.json();
-        const accessToken = tokenData.access_token;
-        
-        if (!accessToken) {
-          throw new Error('No access token received from Twitch');
-        }
-        
-        setTwitchAccessToken(accessToken);
-        
-        // Once we have the token, fetch streamers
-        await fetchStreamersWithTwitchData(accessToken);
-      } catch (error) {
-        console.error('Error initializing Twitch auth:', error);
-        toast.error(`Error connecting to Twitch: ${error.message}`);
-      }
-    };
-    
-    loadTwitchAuth();
-  }, []);
+      };
+      
+      loadTwitchAuth();
+    } else {
+      // Reset state if user logs out
+      setStreamers([]);
+      setLoading(false);
+    }
+  }, [user]);
 
   const fetchStreamersWithTwitchData = async (accessToken) => {
     try {
@@ -610,6 +617,57 @@ const DigDeeperPage = () => {
       </div>
     );
   };
+
+  const renderAuthSplash = () => {
+    return (
+      <div className={styles.authSplashContainer}>
+        <div className={styles.authSplashContent}>
+          <h1>Discover New Streamers</h1>
+          <div className={styles.splashImageContainer}>
+            <img 
+              src="/dig-deeper-preview.png" 
+              alt="Dig Deeper Preview"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://via.placeholder.com/500x300?text=Dig+Deeper";
+              }}
+              className={styles.splashImage}
+            />
+          </div>
+          <div className={styles.splashDescription}>
+            <h2>Find Your Next Favorite Streamer</h2>
+            <p>Browse through trending and up-and-coming streamers on Twitch.</p>
+            <ul className={styles.featureList}>
+              <li>See who's currently live</li>
+              <li>Discover streamers based on popularity</li>
+              <li>Save your favorites to watch later</li>
+              <li>Support streamers with your votes</li>
+            </ul>
+          </div>
+          
+          <div className={styles.authButtons}>
+            <button 
+              onClick={() => navigate('/login')}
+              className={styles.authButton}
+            >
+              Login to Continue
+            </button>
+            <button 
+              onClick={() => navigate('/signup')}
+              className={styles.authButtonSecondary}
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Check if user is authenticated, if not show splash screen
+  if (!user) {
+    return renderAuthSplash();
+  }
 
   return (
     <div className={styles.container}>

@@ -482,3 +482,135 @@
     height: 3.5rem;
   }
 }
+
+/* Add styles for the authentication splash screen */
+.authSplashContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  min-height: 80vh;
+  text-align: center;
+}
+
+.authSplashContent {
+  max-width: 800px;
+  background-color: var(--card-bg, #1e1e24);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  padding: 2rem;
+  animation: fadeIn 0.6s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.authSplashContent h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(90deg, #ff6b6b, #b847ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.splashImageContainer {
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.splashImage {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.splashImage:hover {
+  transform: scale(1.02);
+}
+
+.splashDescription {
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.splashDescription h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #f4f4f4;
+}
+
+.splashDescription p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #b8b8b8;
+  margin-bottom: 1.5rem;
+}
+
+.featureList {
+  text-align: left;
+  padding-left: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.featureList li {
+  margin-bottom: 0.8rem;
+  font-size: 1.1rem;
+  color: #d0d0d0;
+}
+
+.authButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.authButton {
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(90deg, #5e3aff, #b847ff);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.authButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(90deg, #6b4aff, #c050ff);
+}
+
+.authButtonSecondary {
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.authButtonSecondary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.2);
+  border-color: #b847ff;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
