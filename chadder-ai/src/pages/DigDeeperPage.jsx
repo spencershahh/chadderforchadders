@@ -86,11 +86,10 @@ const DigDeeperPage = () => {
       
       let allStreamers = [];
       
-      // More efficient approach - directly get streams sorted by viewer count (ascending)
-      // This way we get the smallest streams first
+      // Only get English-speaking streamers
       const queryParams = new URLSearchParams({
         first: 100, // Max allowed per request
-        sort: 'viewers_asc' // Sort by viewers ascending 
+        language: 'en'  // English only
       });
       
       // Fetch streams from Twitch
@@ -182,7 +181,10 @@ const DigDeeperPage = () => {
       }
       
       if (allStreamers.length === 0) {
-        toast.warning('No small streamers found right now. Try again later.', { id: 'loading' });
+        toast('No small streamers found right now. Try again later.', { 
+          id: 'loading',
+          icon: '⚠️'
+        });
       } else {
         setStreamers(allStreamers);
         setCurrentIndex(0);
@@ -423,13 +425,10 @@ const DigDeeperPage = () => {
       
       const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
       
-      // This time we'll start from a random page offset to get different streamers
-      const randomOffset = Math.floor(Math.random() * 500);
-      
+      // Only get English-speaking streamers
       const queryParams = new URLSearchParams({
         first: 100,
-        sort: 'viewers_asc',
-        after: randomOffset.toString()
+        language: 'en'  // English only
       });
       
       // Fetch streams from Twitch
@@ -519,7 +518,10 @@ const DigDeeperPage = () => {
       }
     } catch (error) {
       console.error('Error fetching more streamers:', error);
-      toast.error('Error loading more streamers. Try refreshing.', { duration: 3000 });
+      toast('Error loading more streamers. Try refreshing.', { 
+        duration: 3000,
+        icon: '❌' 
+      });
     } finally {
       setLoading(false);
     }
