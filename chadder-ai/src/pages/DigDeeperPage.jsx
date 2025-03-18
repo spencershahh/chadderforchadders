@@ -23,6 +23,44 @@ const DigDeeperPage = () => {
   const [expandedBios, setExpandedBios] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [twitchAccessToken, setTwitchAccessToken] = useState(null);
+  
+  // Preference selector state
+  const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
+  const [selectedPreferences, setSelectedPreferences] = useState([]);
+  const [hasSetPreferences, setHasSetPreferences] = useState(false);
+  
+  // Category definitions with icons
+  const streamCategories = [
+    { id: '509658', name: 'Just Chatting', icon: '💬' },
+    { id: '26936', name: 'Music', icon: '🎵' },
+    { id: '509659', name: 'Art', icon: '🎨' },
+    { id: '4169765677', name: 'Retro', icon: '🕹️' },
+    { id: '417752', name: 'Talk Shows', icon: '🎙️' },
+    { id: '518203', name: 'Software Development', icon: '💻' },
+    { id: '116747788', name: 'Pools & Hot Tubs', icon: '🌊' },
+    { id: '518248', name: 'Indie Games', icon: '🎮' }
+  ];
+  
+  // Check if this is the first visit
+  useEffect(() => {
+    if (user) {
+      // Check localStorage for previously saved preferences
+      const savedPreferences = localStorage.getItem(`digdeeper_preferences_${user.id}`);
+      if (savedPreferences) {
+        try {
+          const parsedPreferences = JSON.parse(savedPreferences);
+          setSelectedPreferences(parsedPreferences);
+          setHasSetPreferences(true);
+        } catch (e) {
+          console.error('Error parsing saved preferences', e);
+          setShowPreferenceSelector(true);
+        }
+      } else {
+        // First time, show selector
+        setShowPreferenceSelector(true);
+      }
+    }
+  }, [user]);
 
   // Only fetch streamers when user is authenticated
   useEffect(() => {
@@ -90,25 +128,34 @@ const DigDeeperPage = () => {
         hasToken: !!accessToken 
       });
       
-      // Different approach: get several game categories with potentially low-viewership streams
-      // Games that typically have smaller streamers
-      const smallStreamerGames = [
-        '509658', // Just Chatting
-        '26936',  // Music
-        '509659', // Art
-        '4169765677', // Retro
-        '417752',  // Talk Shows
-        '518203',  // Software Development
-        '116747788', // Pools, Hot Tubs & Beaches
-        '518248'   // Indie Games
-      ];
+      // Determine which categories to use based on preferences
+      let categoriesToSearch = [];
+      
+      if (selectedPreferences.length > 0) {
+        // User has preferences, prioritize those
+        categoriesToSearch = selectedPreferences;
+        console.log(`Using user's ${selectedPreferences.length} preferred categories`);
+      } else {
+        // No preferences - use a randomized selection of categories to provide variety
+        const shuffledCategories = [...streamCategories].sort(() => Math.random() - 0.5);
+        // Use a subset of categories to provide a diverse mix
+        categoriesToSearch = shuffledCategories.slice(0, 4).map(cat => cat.id);
+        console.log('No preferences set - using randomized categories for diversity');
+      }
       
       let allStreamers = [];
       let apiCallsMade = 0;
       
+      // Track how many streamers we've found per category to ensure diversity
+      const streamersPerCategory = {};
+      const MAX_PER_CATEGORY = selectedPreferences.length > 0 ? 10 : 5; // Allow more from preferred categories
+      
       // Try different game categories to find small streamers
-      for (const gameId of smallStreamerGames) {
+      for (const gameId of categoriesToSearch) {
         if (allStreamers.length >= 20) break; // Stop if we have enough
+        
+        // Skip if we already have enough from this category
+        if (streamersPerCategory[gameId] >= MAX_PER_CATEGORY) continue;
         
         try {
           apiCallsMade++;
@@ -148,21 +195,28 @@ const DigDeeperPage = () => {
             
             console.log(`Found ${smallStreams.length} streams with <=20 viewers for game ${gameId}`);
             
-            // Map to our format
-            const formattedStreams = smallStreams.map(stream => ({
-              id: stream.user_id,
-              twitch_id: stream.user_id,
-              username: stream.user_login,
-              display_name: stream.user_name,
-              is_live: true,
-              view_count: stream.viewer_count,
-              game_name: stream.game_name || "",
-              stream_title: stream.title || "",
-              thumbnail_url: stream.thumbnail_url ? 
-                stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                null,
-              votes: 0
-            }));
+            // Track how many we're taking from this category
+            streamersPerCategory[gameId] = (streamersPerCategory[gameId] || 0) + 
+              Math.min(smallStreams.length, MAX_PER_CATEGORY);
+            
+            // Map to our format, but limit how many we take from each category
+            const formattedStreams = smallStreams
+              .slice(0, MAX_PER_CATEGORY)
+              .map(stream => ({
+                id: stream.user_id,
+                twitch_id: stream.user_id,
+                username: stream.user_login,
+                display_name: stream.user_name,
+                is_live: true,
+                view_count: stream.viewer_count,
+                game_name: stream.game_name || "",
+                stream_title: stream.title || "",
+                thumbnail_url: stream.thumbnail_url ? 
+                  stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                  null,
+                votes: 0,
+                category_id: gameId
+              }));
             
             // Add new streamers to our list
             allStreamers = [...allStreamers, ...formattedStreams];
@@ -175,63 +229,72 @@ const DigDeeperPage = () => {
       
       console.log(`Made ${apiCallsMade} API calls, found ${allStreamers.length} total small streamers`);
       
-      // If we have no streamers yet, try a direct approach with random pagination offset
-      if (allStreamers.length === 0) {
-        try {
-          console.log("Trying direct streams endpoint with random pagination");
-          // Random offset to get different results each time
-          const randomOffset = Math.floor(Math.random() * 900) + 100;
+      // If we're using preferences but still don't have enough streamers, try some random categories
+      if (selectedPreferences.length > 0 && allStreamers.length < 10) {
+        console.log("Not enough streamers from preferred categories, adding some variety");
+        
+        // Get categories that aren't in user preferences
+        const otherCategories = streamCategories
+          .filter(cat => !selectedPreferences.includes(cat.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3)
+          .map(cat => cat.id);
           
-          const queryParams = new URLSearchParams({
-            first: 100,
-            language: 'en'
-          });
+        for (const gameId of otherCategories) {
+          if (allStreamers.length >= 20) break;
           
-          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-            headers: {
-              'Client-ID': clientId,
-              'Authorization': `Bearer ${accessToken}`
-            }
-          });
-          
-          if (streamsResponse.ok) {
-            const streamsData = await streamsResponse.json();
+          try {
+            apiCallsMade++;
+            // Get streams for this game
+            const queryParams = new URLSearchParams({
+              first: 100,
+              game_id: gameId,
+              language: 'en'
+            });
             
-            if (streamsData?.data && Array.isArray(streamsData.data)) {
-              // Sort by viewer count (lowest first)
-              const sortedStreams = [...streamsData.data].sort((a, b) => {
-                return (a.viewer_count || 999) - (b.viewer_count || 999);
-              });
+            const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+              headers: {
+                'Client-ID': clientId,
+                'Authorization': `Bearer ${accessToken}`
+              }
+            });
+            
+            if (streamsResponse.ok) {
+              const streamsData = await streamsResponse.json();
               
-              // Take the smallest viewer streams
-              const smallStreams = sortedStreams.filter(stream => 
-                stream && typeof stream.viewer_count === 'number' && stream.viewer_count <= 30
-              );
-              
-              console.log(`Found ${smallStreams.length} streams with <=30 viewers from direct endpoint`);
-              
-              // Map to our format (with broader viewer threshold)
-              const formattedStreams = smallStreams.map(stream => ({
-                id: stream.user_id,
-                twitch_id: stream.user_id,
-                username: stream.user_login,
-                display_name: stream.user_name,
-                is_live: true,
-                view_count: stream.viewer_count,
-                game_name: stream.game_name || "",
-                stream_title: stream.title || "",
-                thumbnail_url: stream.thumbnail_url ? 
-                  stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                  null,
-                votes: 0
-              }));
-              
-              // Add new streamers to our list
-              allStreamers = [...allStreamers, ...formattedStreams];
+              if (streamsData?.data && Array.isArray(streamsData.data)) {
+                // Sort by viewer count
+                const sortedStreams = [...streamsData.data].sort((a, b) => {
+                  return (a.viewer_count || 999) - (b.viewer_count || 999);
+                });
+                
+                // Take the smallest viewer streams
+                const smallStreams = sortedStreams
+                  .filter(stream => stream && typeof stream.viewer_count === 'number' && stream.viewer_count <= 20)
+                  .slice(0, 3); // Just take a few for diversity
+                  
+                const formattedStreams = smallStreams.map(stream => ({
+                  id: stream.user_id,
+                  twitch_id: stream.user_id,
+                  username: stream.user_login,
+                  display_name: stream.user_name,
+                  is_live: true,
+                  view_count: stream.viewer_count,
+                  game_name: stream.game_name || "",
+                  stream_title: stream.title || "",
+                  thumbnail_url: stream.thumbnail_url ? 
+                    stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                    null,
+                  votes: 0,
+                  category_id: gameId
+                }));
+                
+                allStreamers = [...allStreamers, ...formattedStreams];
+              }
             }
+          } catch (error) {
+            console.error(`Error processing additional category ${gameId}:`, error);
           }
-        } catch (directError) {
-          console.error("Error with direct streams approach:", directError);
         }
       }
       
@@ -452,6 +515,11 @@ const DigDeeperPage = () => {
       return;
     }
 
+    // Learn from user preference - they liked this streamer's category
+    if (currentStreamer?.category_id && hasSetPreferences) {
+      learnFromInteraction(currentStreamer.category_id, true);
+    }
+
     // Move to next card first to prevent UI freeze
     nextCard();
 
@@ -520,6 +588,11 @@ const DigDeeperPage = () => {
   const handleSwipeLeft = async () => {
     // Record in history that user swiped left if they're logged in
     const currentStreamer = streamers[currentIndex];
+    
+    // Learn from user preference - they didn't like this streamer's category
+    if (currentStreamer?.category_id && hasSetPreferences) {
+      learnFromInteraction(currentStreamer.category_id, false);
+    }
     
     // Move to next card immediately to prevent UI freeze
     nextCard();
@@ -851,7 +924,7 @@ const DigDeeperPage = () => {
           </div>
         </div>
         <div className={styles.cardContent}>
-          <h2>{streamer.display_name || streamer.username}</h2>
+          <h2 className={styles.streamerName}>{streamer.display_name || streamer.username}</h2>
           
           <div className={styles.contentScroll}>
             {streamer.stream_title && (
@@ -882,23 +955,25 @@ const DigDeeperPage = () => {
             )}
           </div>
           
-          <div className={styles.statsContainer}>
-            {streamer.is_live && streamer.view_count > 0 && (
-              <span className={styles.viewCount}>👁️ {streamer.view_count.toLocaleString()} viewers</span>
-            )}
-            {streamer.votes > 0 && (
-              <span className={styles.voteCount}>❤️ {streamer.votes} votes</span>
+          <div className={styles.cardFooter}>
+            <div className={styles.statsContainer}>
+              {streamer.is_live && streamer.view_count > 0 && (
+                <span className={styles.viewCount}>👁️ {streamer.view_count.toLocaleString()} viewers</span>
+              )}
+              {streamer.votes > 0 && (
+                <span className={styles.voteCount}>❤️ {streamer.votes} votes</span>
+              )}
+            </div>
+            
+            {streamer.is_live && (
+              <Link 
+                to={`/stream/${streamer.username}`} 
+                className={styles.watchButton}
+              >
+                🔴 Watch Live
+              </Link>
             )}
           </div>
-          
-          {streamer.is_live && (
-            <Link 
-              to={`/stream/${streamer.username}`} 
-              className={styles.watchButton}
-            >
-              🔴 Watch Live
-            </Link>
-          )}
         </div>
       </motion.div>
     );
@@ -976,6 +1051,182 @@ const DigDeeperPage = () => {
     return renderAuthSplash();
   }
 
+  // Preference handling functions
+  const togglePreference = (categoryId) => {
+    setSelectedPreferences(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        // Limit to 3 selections
+        if (prev.length >= 3) {
+          return [...prev.slice(1), categoryId]; // Remove oldest, add new
+        }
+        return [...prev, categoryId];
+      }
+    });
+  };
+  
+  const savePreferences = () => {
+    if (user) {
+      localStorage.setItem(`digdeeper_preferences_${user.id}`, JSON.stringify(selectedPreferences));
+    }
+    setHasSetPreferences(true);
+    setShowPreferenceSelector(false);
+    // Now fetch streamers with new preferences
+    if (twitchAccessToken) {
+      fetchLowViewerStreams(twitchAccessToken);
+    }
+  };
+  
+  const skipPreferences = () => {
+    setSelectedPreferences([]); // Empty preferences = show all
+    setHasSetPreferences(true);
+    setShowPreferenceSelector(false);
+    // Fetch streamers with default settings
+    if (twitchAccessToken) {
+      fetchLowViewerStreams(twitchAccessToken);
+    }
+  };
+  
+  // Render the preference selector
+  const renderPreferenceSelector = () => {
+    return (
+      <div className={styles.preferenceSelectorOverlay}>
+        <div className={styles.preferenceSelector}>
+          <h2>What kind of streams do you enjoy?</h2>
+          <p>Select up to 3 categories to personalize your recommendations</p>
+          
+          <div className={styles.categoryGrid}>
+            {streamCategories.map(category => (
+              <div 
+                key={category.id}
+                className={`${styles.categoryCard} ${selectedPreferences.includes(category.id) ? styles.selected : ''}`}
+                onClick={() => togglePreference(category.id)}
+              >
+                <div className={styles.categoryIcon}>{category.icon}</div>
+                <div className={styles.categoryName}>{category.name}</div>
+                {selectedPreferences.includes(category.id) && (
+                  <div className={styles.selectedIndicator}>✓</div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <div className={styles.preferencesButtons}>
+            <button 
+              className={styles.skipButton}
+              onClick={skipPreferences}
+            >
+              Skip / Show Everything
+            </button>
+            <button 
+              className={styles.saveButton}
+              onClick={savePreferences}
+              disabled={selectedPreferences.length === 0}
+            >
+              {selectedPreferences.length === 0 ? 'Select Categories' : 'Save Preferences'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Learning algorithm to refine preferences based on user interactions
+  const learnFromInteraction = (categoryId, isLiked) => {
+    if (!user) return; // Only learn for logged-in users
+    
+    // Get the current category preferences
+    const categoryPreferences = JSON.parse(localStorage.getItem(`digdeeper_category_stats_${user.id}`) || '{}');
+    
+    // Update the preference stats for this category
+    if (!categoryPreferences[categoryId]) {
+      categoryPreferences[categoryId] = { likes: 0, dislikes: 0 };
+    }
+    
+    if (isLiked) {
+      categoryPreferences[categoryId].likes += 1;
+    } else {
+      categoryPreferences[categoryId].dislikes += 1;
+    }
+    
+    // Save the updated stats
+    localStorage.setItem(`digdeeper_category_stats_${user.id}`, JSON.stringify(categoryPreferences));
+    
+    // Every 5 interactions, consider updating user preferences
+    const totalInteractions = Object.values(categoryPreferences).reduce(
+      (sum, stats) => sum + stats.likes + stats.dislikes, 0
+    );
+    
+    if (totalInteractions % 5 === 0 && totalInteractions >= 10) {
+      recalculatePreferences(categoryPreferences);
+    }
+  };
+  
+  // Automatically update preferences based on interaction history
+  const recalculatePreferences = (categoryStats) => {
+    // Calculate a score for each category based on like/dislike ratio
+    const categoryScores = {};
+    
+    Object.entries(categoryStats).forEach(([categoryId, stats]) => {
+      const total = stats.likes + stats.dislikes;
+      if (total >= 3) { // Only consider categories with enough interactions
+        const score = (stats.likes / total) * 100; // Score as percentage of likes
+        categoryScores[categoryId] = score;
+      }
+    });
+    
+    // Sort categories by score
+    const rankedCategories = Object.entries(categoryScores)
+      .sort((a, b) => b[1] - a[1]) // Sort by score desc
+      .map(([id]) => id); // Just keep the IDs
+    
+    // Select top 3 categories with score > 60%
+    const recommendedCategories = rankedCategories
+      .filter(id => categoryScores[id] >= 60)
+      .slice(0, 3);
+    
+    // If user has manually selected preferences, and our recommendations are different,
+    // show a notification suggesting new preferences
+    if (recommendedCategories.length > 0 && 
+        !arraysEqual(recommendedCategories, selectedPreferences) &&
+        selectedPreferences.length > 0) {
+      
+      const categoryNames = recommendedCategories.map(id => {
+        const category = streamCategories.find(c => c.id === id);
+        return category ? category.name : 'Unknown';
+      });
+      
+      toast((t) => (
+        <div onClick={() => { 
+          updatePreferences(recommendedCategories); 
+          toast.dismiss(t.id);
+        }}>
+          <b>Update your preferences?</b>
+          <p>Based on your likes, we suggest: {categoryNames.join(', ')}</p>
+          <small>(Tap to update)</small>
+        </div>
+      ), { duration: 8000 });
+    }
+  };
+  
+  // Update preferences based on learned preferences
+  const updatePreferences = (newPreferences) => {
+    setSelectedPreferences(newPreferences);
+    if (user) {
+      localStorage.setItem(`digdeeper_preferences_${user.id}`, JSON.stringify(newPreferences));
+    }
+    toast.success('Preferences updated! Pull to refresh for new recommendations.', { duration: 3000 });
+  };
+  
+  // Helper function to compare arrays
+  const arraysEqual = (a, b) => {
+    if (a.length !== b.length) return false;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.every((val, idx) => val === sortedB[idx]);
+  };
+
   return (
     <div className={styles.container}>
       <AuthModal 
@@ -1039,6 +1290,8 @@ const DigDeeperPage = () => {
       </div>
       
       {renderButtons()}
+      
+      {showPreferenceSelector && renderPreferenceSelector()}
     </div>
   );
 };
