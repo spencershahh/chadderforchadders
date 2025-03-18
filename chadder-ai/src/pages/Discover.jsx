@@ -4,7 +4,6 @@ import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import styles from './Discover.module.css';
 import { FaLock } from 'react-icons/fa';
-import useDataFetching from '../hooks/useDataFetching';
 
 // Debug component - only shows in development
 const DebugInfo = ({ isLoading, loadError, streamers, onRetry }) => {
@@ -333,27 +332,69 @@ const Discover = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
-  const {
-    data: streamersData,
-    loading: isLoadingStreamers,
-    error: streamersError,
-    refetch: refetchStreamers
-  } = useDataFetching(
-    async () => {
-      const result = await fetchStreamers();
+  const loadStreamers = async () => {
+    try {
+      console.log('Starting to load streamers...');
+      setIsLoading(true);
+      setLoadError(null);
       
-      if (result?.error) {
-        throw new Error(result.message || 'Failed to load streamers');
+      // Check if the API server is reachable before making the full request
+      if (import.meta.env.VITE_API_URL) {
+        try {
+          console.log('Testing API connectivity...');
+          const testResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/health`, { 
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }).catch(e => {
+            console.error('API connectivity test failed:', e);
+            return { ok: false, status: 0 };
+          });
+          
+          if (!testResponse.ok) {
+            console.warn('API server not responding properly. Status:', testResponse.status);
+            if (testResponse.status === 0) {
+              setLoadError('Unable to connect to the API server. The server may be down or unavailable.');
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            console.log('API server is reachable.');
+          }
+        } catch (connectError) {
+          console.error('Error testing API connectivity:', connectError);
+          // Continue anyway to show the proper error from the API call
+        }
       }
       
-      return result;
-    },
-    {
-      dependencies: [],
-      maxRetries: 2,
-      retryDelay: 2000
+      const streamersData = await fetchStreamers();
+      console.log('Loaded streamers from API:', streamersData);
+      
+      // Check if the result is an error object
+      if (streamersData && streamersData.error) {
+        console.error('Error loading streamers:', streamersData.message);
+        setLoadError(streamersData.message || 'Failed to load live streamer data. Please try refreshing the page.');
+        setStreamers([]);
+      } else if (streamersData && streamersData.length > 0) {
+        console.log('Successfully fetched live data from API:', streamersData.length, 'streamers');
+        setStreamers(streamersData);
+        setLoadError(null);
+      } else {
+        console.warn('No streamers returned from API');
+        setLoadError('No streamers found. Please try refreshing the page.');
+        setStreamers([]);
+      }
+    } catch (error) {
+      console.error('Error in loadStreamers function:', error);
+      setLoadError('Failed to load live streamer data. Please try refreshing the page.');
+      setStreamers([]);
+    } finally {
+      setIsLoading(false);
     }
-  );
+  };
 
   const fetchTotalDonations = async () => {
     try {
@@ -412,16 +453,8 @@ const Discover = () => {
   }, []);
 
   useEffect(() => {
-    if (streamersData && !isLoadingStreamers) {
-      // Update local state with the fetched data
-      setStreamers(streamersData);
-      setLoadError(null);
-      setIsLoading(false);
-    } else if (streamersError) {
-      setLoadError(streamersError);
-      setIsLoading(false);
-    }
-  }, [streamersData, streamersError, isLoadingStreamers]);
+    loadStreamers();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -709,11 +742,8 @@ const Discover = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Update the handleRetry function to use refetch
   const handleRetry = () => {
-    setIsLoading(true);
-    setLoadError(null);
-    refetchStreamers();
+    loadStreamers();
   };
 
   return (
@@ -875,7 +905,7 @@ const Discover = () => {
       </div>
 
       <div className={styles.streamerGrid} ref={streamersGridRef}>
-        {isLoadingStreamers ? (
+        {isLoading ? (
           <div className={styles.messageContainer}>
             <p>Loading streamers...</p>
           </div>
@@ -980,7 +1010,7 @@ const Discover = () => {
       </div>
 
       <DebugInfo 
-        isLoading={isLoadingStreamers} 
+        isLoading={isLoading} 
         loadError={loadError} 
         streamers={streamers} 
         onRetry={handleRetry} 
