@@ -59,6 +59,43 @@ const FavoritesPage = () => {
         ...item.twitch_streamers
       }));
       
+      // If we have favorites, refresh their data from Twitch API
+      if (transformedData.length > 0) {
+        try {
+          // Add timestamp to prevent caching
+          const timestamp = new Date().getTime();
+          const response = await fetch(`/api/twitch/getStreamers?_t=${timestamp}`);
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            if (result.success && result.streamers && result.streamers.length > 0) {
+              // Create a map of streamer IDs to their current Twitch data
+              const streamerMap = {};
+              result.streamers.forEach(streamer => {
+                streamerMap[streamer.id] = streamer;
+              });
+              
+              // Update our favorites with the latest Twitch data
+              transformedData.forEach(favorite => {
+                if (streamerMap[favorite.id]) {
+                  const latestData = streamerMap[favorite.id];
+                  favorite.is_live = latestData.is_live;
+                  favorite.view_count = latestData.view_count;
+                  favorite.game_name = latestData.game_name;
+                  favorite.stream_title = latestData.stream_title;
+                }
+              });
+              
+              console.log('Updated favorites with real-time Twitch data');
+            }
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing Twitch data for favorites:', refreshError);
+          // Continue with stored data if refresh fails
+        }
+      }
+      
       setFavorites(transformedData);
     } catch (error) {
       console.error('Error fetching favorites:', error);
@@ -127,16 +164,34 @@ const FavoritesPage = () => {
                 className={styles.favoriteImage}
                 style={{ backgroundImage: `url(${streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
               >
-                {streamer.is_live && <div className={styles.liveIndicator}>LIVE</div>}
+                {streamer.is_live && (
+                  <div className={styles.liveIndicator}>
+                    LIVE
+                    <div className={styles.viewerCount}>{streamer.view_count.toLocaleString()} viewers</div>
+                  </div>
+                )}
               </div>
               
               <div className={styles.favoriteContent}>
                 <h3>{streamer.display_name || streamer.username}</h3>
+                
+                {streamer.is_live && streamer.stream_title && (
+                  <p className={styles.streamTitle}>{streamer.stream_title}</p>
+                )}
+                
+                {streamer.is_live && streamer.game_name && (
+                  <div className={styles.gameTag}>Playing: {streamer.game_name}</div>
+                )}
+                
                 <p className={styles.description}>{streamer.description || 'No description available'}</p>
                 
                 <div className={styles.statsRow}>
-                  <span>👁️ {streamer.view_count || 0} viewers</span>
-                  <span>❤️ {streamer.votes || 0} votes</span>
+                  {streamer.is_live ? (
+                    <span className={styles.viewCount}>👁️ {streamer.view_count.toLocaleString()} viewers</span>
+                  ) : (
+                    <span className={styles.offlineStatus}>Offline</span>
+                  )}
+                  <span className={styles.voteCount}>❤️ {streamer.votes || 0} votes</span>
                 </div>
                 
                 <div className={styles.actionsRow}>

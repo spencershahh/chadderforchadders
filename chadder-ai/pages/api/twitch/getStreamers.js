@@ -151,7 +151,6 @@ async function getUserInfo(userIds, accessToken) {
       userMap[user.id] = {
         description: user.description,
         profile_image_url: user.profile_image_url,
-        view_count: user.view_count,
         broadcaster_type: user.broadcaster_type
       };
     });
@@ -209,7 +208,7 @@ export default async function handler(req, res) {
         ...streamer,
         ...userData, // Add user data (bio, profile image, etc.)
         is_live: isLive,
-        // Only use view_count from streamData if streamer is live, otherwise set to 0
+        // Only use real-time view_count from stream data, NEVER from user data
         view_count: isLive ? streamData?.view_count || 0 : 0,
         game_name: isLive ? streamData?.game_name : null,
         stream_title: isLive ? streamData?.stream_title : null

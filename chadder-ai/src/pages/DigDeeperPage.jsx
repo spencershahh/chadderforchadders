@@ -18,130 +18,85 @@ const DigDeeperPage = () => {
   const [expandedBios, setExpandedBios] = useState(new Set());
 
   useEffect(() => {
-    fetchStreamers();
-  }, []);
-
-  const fetchStreamers = async () => {
-    try {
-      setLoading(true);
-      
-      // Get user's history if logged in to exclude streamers they've already seen
-      let excludeIds = [];
-      if (user) {
-        try {
-          const { data: historyData, error: historyError } = await supabase
-            .from('user_history')
-            .select('streamer_id')
-            .eq('user_id', user.id);
-          
-          if (!historyError && historyData && historyData.length > 0) {
-            excludeIds = historyData.map(item => item.streamer_id);
-            console.log(`Excluding ${excludeIds.length} already seen streamers`);
-          }
-        } catch (historyErr) {
-          console.error('Error fetching history:', historyErr);
-          // Continue even if history fetch fails
-        }
-      }
-      
-      // Use our API to get real-time Twitch data
+    // Add a timestamp parameter to force a fresh API request rather than using a cached response
+    const fetchWithCache = async () => {
+      const timestamp = new Date().getTime();
       try {
-        const response = await fetch('/api/twitch/getStreamers');
+        setLoading(true);
+        const response = await fetch(`/api/twitch/getStreamers?_t=${timestamp}`);
         
         if (response.ok) {
           const result = await response.json();
-          
           if (result.success && result.streamers && result.streamers.length > 0) {
             console.log('Loaded streamers with real-time Twitch data:', result.streamers.length);
-            
-            // Filter out streamers the user has already seen
-            let filteredStreamers = result.streamers;
-            if (excludeIds.length > 0) {
-              filteredStreamers = result.streamers.filter(
-                streamer => !excludeIds.includes(streamer.id)
-              );
-              console.log(`Filtered to ${filteredStreamers.length} unseen streamers`);
-            }
-            
-            // If we have less than 5 streamers after filtering, include some already seen ones
-            if (filteredStreamers.length < 5 && result.streamers.length > filteredStreamers.length) {
-              console.log('Not enough new streamers, including some already seen ones');
-              const neededCount = Math.min(5, result.streamers.length) - filteredStreamers.length;
-              const alreadySeen = result.streamers.filter(
-                streamer => excludeIds.includes(streamer.id)
-              );
-              
-              // Add some previously seen streamers to ensure we have enough content
-              filteredStreamers = [
-                ...filteredStreamers,
-                ...alreadySeen.slice(0, neededCount)
-              ];
-            }
-            
-            if (filteredStreamers.length > 0) {
-              setStreamers(filteredStreamers);
-              setCurrentIndex(0);
-              return; // Exit early if API call is successful
-            } else {
-              console.warn('No unseen streamers available after filtering');
-            }
+            setStreamers(result.streamers);
+            setCurrentIndex(0);
           } else {
             console.warn('API returned no streamers, falling back to database');
+            await fetchStreamersFromDatabase();
           }
         } else {
           console.warn('API call failed, falling back to database');
+          await fetchStreamersFromDatabase();
         }
-      } catch (apiError) {
-        console.error('Error calling Twitch API:', apiError);
-        console.warn('Falling back to database query');
+      } catch (error) {
+        console.error('Error fetching streamers:', error);
+        await fetchStreamersFromDatabase();
+      } finally {
+        setLoading(false);
       }
-      
-      // Fallback to direct database query
-      let query = supabase
-        .from('twitch_streamers')
-        .select('*')
-        .order('votes', { ascending: false });
+    };
+
+    const fetchStreamersFromDatabase = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('twitch_streamers')
+          .select('*')
+          .order('votes', { ascending: false })
+          .limit(20);
+          
+        if (error) throw error;
         
-      // Apply filter to exclude already seen streamers if user is logged in
-      if (user && excludeIds.length > 0) {
-        query = query.not('id', 'in', `(${excludeIds.join(',')})`);
-      }
-      
-      // Limit to 20 streamers
-      query = query.limit(20);
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        console.log('Loaded streamers from database:', data.length);
-        
-        // If we have less than 5 streamers after filtering, run another query without filter
-        if (data.length < 5 && user && excludeIds.length > 0) {
-          const { data: allData, error: allError } = await supabase
-            .from('twitch_streamers')
-            .select('*')
-            .order('votes', { ascending: false })
-            .limit(20);
-            
-          if (!allError && allData && allData.length > data.length) {
-            console.log('Not enough new streamers, including some already seen ones');
-            setStreamers(allData);
-            setCurrentIndex(0);
-            return;
-          }
+        if (data && data.length > 0) {
+          console.log('Loaded streamers from database:', data.length);
+          setStreamers(data);
+          setCurrentIndex(0);
+        } else {
+          toast.error('No streamers found. Try again later.');
         }
-        
-        setStreamers(data);
-        setCurrentIndex(0);
-      } else {
-        // If no data, you might want to show a message
-        toast.error('No streamers found. Try again later.');
+      } catch (error) {
+        console.error('Error fetching streamers from database:', error);
+        toast.error('Failed to load streamers. Please try again.');
       }
+    };
+
+    fetchWithCache();
+  }, []);
+
+  const fetchStreamers = async () => {
+    const timestamp = new Date().getTime();
+    toast.loading('Refreshing streamer data...', { id: 'refresh' });
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/twitch/getStreamers?_t=${timestamp}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.streamers && result.streamers.length > 0) {
+          console.log('Refreshed streamers with real-time Twitch data:', result.streamers.length);
+          setStreamers(result.streamers);
+          setCurrentIndex(0);
+          toast.success('Streamer data refreshed!', { id: 'refresh' });
+          return;
+        }
+      }
+      
+      toast.error('Failed to refresh streamer data', { id: 'refresh' });
+      // Don't fall back to database on manual refresh - show error instead
     } catch (error) {
-      console.error('Error fetching streamers:', error);
-      toast.error('Failed to load streamers. Please try again.');
+      console.error('Error refreshing streamers:', error);
+      toast.error('Failed to refresh streamer data', { id: 'refresh' });
     } finally {
       setLoading(false);
     }
@@ -439,20 +394,13 @@ const DigDeeperPage = () => {
               <span className={styles.heartIcon}>❤️</span> My Favorites
             </button>
           )}
-
+          
           <button
-            onClick={() => {
-              toast.loading('Refreshing streamer data...', { id: 'refresh' });
-              fetchStreamers().then(() => {
-                toast.success('Streamer data refreshed!', { id: 'refresh' });
-              }).catch(() => {
-                toast.error('Failed to refresh streamer data', { id: 'refresh' });
-              });
-            }}
+            onClick={fetchStreamers}
             className={styles.refreshButton}
-            title="Refresh streamer data from Twitch"
+            title="Refresh real-time data from Twitch"
           >
-            <span className={styles.refreshIcon}>🔄</span>
+            <span className={styles.refreshIcon}>🔄</span> Refresh Data
           </button>
         </div>
       </div>

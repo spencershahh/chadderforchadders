@@ -397,30 +397,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 0, 0, 0.2);
   color: white;
-  padding: 0.5rem;
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 0, 0, 0.4);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 0.9rem;
 }
 
 .refreshButton:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: rotate(180deg);
+  background-color: rgba(255, 0, 0, 0.3);
+  transform: scale(1.05);
 }
 
 .refreshIcon {
-  font-size: 1.1rem;
+  font-size: 1rem;
+  margin-right: 0.4rem;
   display: inline-block;
+  animation: pulse 2s infinite;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 .noMoreCardsEmoji {
@@ -428,12 +430,6 @@
   margin: 1rem 0;
   text-align: center;
   animation: pulse 2s infinite ease-in-out;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
 }
 
 /* Responsive styles */
