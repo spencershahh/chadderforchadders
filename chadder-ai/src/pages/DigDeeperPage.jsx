@@ -57,8 +57,8 @@ const DigDeeperPage = () => {
           
           setTwitchAccessToken(accessToken);
           
-          // Once we have the token, fetch streamers
-          await fetchStreamersWithTwitchData(accessToken);
+          // Once we have the token, fetch low-viewer streamers directly from Twitch
+          await fetchLowViewerStreams(accessToken);
         } catch (error) {
           console.error('Error initializing Twitch auth:', error);
           toast.error(`Error connecting to Twitch: ${error.message}`);
@@ -73,25 +73,10 @@ const DigDeeperPage = () => {
     }
   }, [user]);
 
-  const fetchStreamersWithTwitchData = async (accessToken) => {
+  const fetchLowViewerStreams = async (accessToken) => {
     try {
       setLoading(true);
-      toast.loading('Loading streamers...', { id: 'loading' });
-      
-      // Get only basic streamer info from database - just usernames and votes
-      const { data: baseStreamers, error } = await supabase
-        .from('twitch_streamers')
-        .select('id, username, twitch_id, votes')
-        .order('votes', { ascending: false })
-        .limit(20);
-        
-      if (error) throw error;
-      
-      if (!baseStreamers || baseStreamers.length === 0) {
-        toast.error('No streamers found in database.', { id: 'loading' });
-        setLoading(false);
-        return;
-      }
+      toast.loading('Looking for small streamers...', { id: 'loading' });
       
       const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
       
@@ -99,51 +84,74 @@ const DigDeeperPage = () => {
         throw new Error('Twitch API credentials or token missing');
       }
       
-      // Extract Twitch login names for API call
-      const twitchLogins = baseStreamers
-        .map(streamer => streamer.username?.toLowerCase())
-        .filter(Boolean);
+      let allStreamers = [];
+      let cursor = null;
+      const maxStreamsToFetch = 100; // Adjust as needed
+      
+      // We'll need to make multiple requests to find enough low-viewer streams
+      // Since Twitch doesn't have a direct "less than X viewers" filter
+      while (allStreamers.length < 20 && (cursor !== undefined || allStreamers.length === 0)) {
+        // Get streams sorted by viewer count (lowest first)
+        const queryParams = new URLSearchParams({
+          first: 100 // Max allowed per request
+        });
         
-      if (twitchLogins.length === 0) {
-        throw new Error('No valid Twitch usernames found in database');
+        if (cursor) {
+          queryParams.append('after', cursor);
+        }
+        
+        // Fetch streams from Twitch
+        const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+          headers: {
+            'Client-ID': clientId,
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        if (!streamsResponse.ok) {
+          throw new Error(`Error fetching streams: ${streamsResponse.status}`);
+        }
+        
+        const streamsData = await streamsResponse.json();
+        
+        // Filter for streams with less than 10 viewers
+        const lowViewerStreams = streamsData.data
+          .filter(stream => stream.viewer_count < 10)
+          .map(stream => ({
+            id: stream.user_id, // Use Twitch user ID as our ID
+            twitch_id: stream.user_id,
+            username: stream.user_login,
+            display_name: stream.user_name,
+            is_live: true,
+            view_count: stream.viewer_count,
+            game_name: stream.game_name,
+            stream_title: stream.title,
+            thumbnail_url: stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null,
+            votes: 0 // Initialize with zero votes since these aren't from our database
+          }));
+        
+        allStreamers = [...allStreamers, ...lowViewerStreams];
+        
+        // Update cursor for pagination
+        cursor = streamsData.pagination?.cursor;
+        
+        // Break if we've fetched enough or if we've made too many requests
+        if (allStreamers.length >= 20 || !cursor) {
+          break;
+        }
       }
       
-      // Initialize streamers with database values (id, votes) but nothing else
-      let streamersWithInfo = baseStreamers.map(streamer => ({
-        ...streamer,
-        is_live: false,
-        view_count: 0,
-        game_name: null,
-        stream_title: null,
-        thumbnail_url: null,
-        display_name: streamer.username, // Default fallback
-        profile_image_url: null,
-        description: null
-      }));
-      
-      // Create lookup maps
-      const streamersByLogin = {};
-      streamersWithInfo.forEach(streamer => {
-        if (streamer.username) {
-          streamersByLogin[streamer.username.toLowerCase()] = streamer;
-        }
-      });
-      
-      const streamersByTwitchId = {};
-      streamersWithInfo.forEach(streamer => {
-        if (streamer.twitch_id) {
-          streamersByTwitchId[streamer.twitch_id] = streamer;
-        }
-      });
-      
-      // Get user profile info from Twitch
-      try {
-        // First get user data for all streamers directly from Twitch
-        for (let i = 0; i < twitchLogins.length; i += 100) { // Twitch API limit
-          const chunk = twitchLogins.slice(i, i + 100);
-          const queryString = chunk.map(login => `login=${login}`).join('&');
+      // If we have streamers, get their profile data
+      if (allStreamers.length > 0) {
+        // Extract unique user IDs for profile lookup
+        const userIds = [...new Set(allStreamers.map(s => s.twitch_id))];
+        
+        // Fetch user profiles in batches of 100
+        for (let i = 0; i < userIds.length; i += 100) {
+          const idBatch = userIds.slice(i, i + 100);
+          const userQueryString = idBatch.map(id => `id=${id}`).join('&');
           
-          const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${queryString}`, {
+          const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
             headers: {
               'Client-ID': clientId,
               'Authorization': `Bearer ${accessToken}`
@@ -152,116 +160,42 @@ const DigDeeperPage = () => {
           
           if (!usersResponse.ok) {
             console.error(`Error fetching user data: ${usersResponse.status}`);
-            continue; // Try next chunk
+            continue;
           }
           
           const userData = await usersResponse.json();
           
-          // Update streamers with user data from Twitch
-          if (userData.data && Array.isArray(userData.data)) {
-            userData.data.forEach(user => {
-              const login = user.login?.toLowerCase();
-              if (login && streamersByLogin[login]) {
-                const streamer = streamersByLogin[login];
-                
-                // Update with Twitch data only
-                streamer.twitch_id = user.id;
-                streamer.display_name = user.display_name;
-                streamer.profile_image_url = user.profile_image_url;
-                streamer.description = user.description;
-                
-                // Also update twitch ID map
-                streamersByTwitchId[user.id] = streamer;
-              }
-            });
-          }
-        }
-        
-        // Now get live stream data for all streamers from Twitch
-        const twitchIds = Object.keys(streamersByTwitchId);
-        
-        if (twitchIds.length > 0) {
-          for (let i = 0; i < twitchIds.length; i += 100) { // Twitch API limit
-            const chunk = twitchIds.slice(i, i + 100);
-            const queryString = chunk.map(id => `user_id=${id}`).join('&');
-            
-            const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryString}`, {
-              headers: {
-                'Client-ID': clientId,
-                'Authorization': `Bearer ${accessToken}`
-              }
-            });
-            
-            if (!streamsResponse.ok) {
-              console.error(`Error fetching stream data: ${streamsResponse.status}`);
-              continue; // Try next chunk
+          // Create a lookup map for easier access
+          const userDataMap = {};
+          userData.data.forEach(user => {
+            userDataMap[user.id] = user;
+          });
+          
+          // Enhance streamer data with profile information
+          allStreamers = allStreamers.map(streamer => {
+            const profile = userDataMap[streamer.twitch_id];
+            if (profile) {
+              return {
+                ...streamer,
+                profile_image_url: profile.profile_image_url,
+                description: profile.description
+              };
             }
-            
-            const streamsData = await streamsResponse.json();
-            
-            // Update streamers with real-time stream data from Twitch
-            if (streamsData.data && Array.isArray(streamsData.data)) {
-              streamsData.data.forEach(stream => {
-                const userID = stream.user_id;
-                if (userID && streamersByTwitchId[userID]) {
-                  const streamer = streamersByTwitchId[userID];
-                  
-                  // Only if actually live - this data comes exclusively from Twitch
-                  if (stream.type === 'live') {
-                    streamer.is_live = true;
-                    streamer.view_count = stream.viewer_count || 0;
-                    streamer.game_name = stream.game_name || null;
-                    streamer.stream_title = stream.title || null;
-                    streamer.thumbnail_url = stream.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') || null;
-                  }
-                }
-              });
-            }
-          }
+            return streamer;
+          });
         }
-        
-        // Count actual live streamers
-        const liveCount = streamersWithInfo.filter(s => s.is_live).length;
-        
-        // Update state with fully populated streamers from Twitch
-        setStreamers(streamersWithInfo);
+      }
+      
+      if (allStreamers.length === 0) {
+        toast.warning('No small streamers found right now. Try again later.', { id: 'loading' });
+      } else {
+        setStreamers(allStreamers);
         setCurrentIndex(0);
-        
-        toast.success(`Loaded ${streamersWithInfo.length} streamers with ${liveCount} live!`, { id: 'loading' });
-      } catch (twitchApiError) {
-        console.error('Twitch API error:', twitchApiError);
-        toast.error(`Error: ${twitchApiError.message}. Unable to load streamer data.`, { id: 'loading' });
-        throw twitchApiError; // Re-throw to trigger fallback handling
+        toast.success(`Found ${allStreamers.length} small streamers!`, { id: 'loading' });
       }
     } catch (error) {
-      console.error('Error loading streamers:', error);
+      console.error('Error fetching low-viewer streams:', error);
       toast.error(error.message || 'Failed to load streamers', { id: 'loading' });
-      
-      // Only attempt this as a last resort
-      try {
-        const { data: fallbackStreamers } = await supabase
-          .from('twitch_streamers')
-          .select('id, username, votes')
-          .order('votes', { ascending: false })
-          .limit(20);
-          
-        if (fallbackStreamers && fallbackStreamers.length > 0) {
-          const minimalStreamers = fallbackStreamers.map(s => ({
-            ...s, 
-            is_live: false, // Don't trust stored data
-            view_count: 0,  // Don't trust stored data
-            display_name: s.username,
-            game_name: null,
-            stream_title: null
-          }));
-          
-          setStreamers(minimalStreamers);
-          setCurrentIndex(0);
-          toast.warning('Limited data mode: Live status unavailable', { id: 'loading' });
-        }
-      } catch (fallbackError) {
-        console.error('Complete failure:', fallbackError);
-      }
     } finally {
       setLoading(false);
     }
@@ -271,7 +205,7 @@ const DigDeeperPage = () => {
     if (refreshing) return; // Prevent multiple clicks
     
     setRefreshing(true);
-    toast.loading('Refreshing streamer data...', { id: 'refresh' });
+    toast.loading('Finding small streamers...', { id: 'refresh' });
     
     try {
       // Clear existing streamer data to avoid showing stale data
@@ -279,7 +213,7 @@ const DigDeeperPage = () => {
       
       if (twitchAccessToken) {
         // Use the existing token to refresh data from Twitch
-        await fetchStreamersWithTwitchData(twitchAccessToken);
+        await fetchLowViewerStreams(twitchAccessToken);
       } else {
         // Re-authenticate if token is missing
         const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
@@ -307,10 +241,10 @@ const DigDeeperPage = () => {
         }
         
         setTwitchAccessToken(accessToken);
-        await fetchStreamersWithTwitchData(accessToken);
+        await fetchLowViewerStreams(accessToken);
       }
       
-      toast.success('Streamer data refreshed!', { id: 'refresh' });
+      toast.success('Found new small streamers!', { id: 'refresh' });
     } catch (error) {
       console.error('Error refreshing streamer data:', error);
       toast.error(`Failed to refresh data: ${error.message}`, { id: 'refresh' });
@@ -329,15 +263,46 @@ const DigDeeperPage = () => {
       return;
     }
 
-    // Store this value so we can use it even after moving to next card
-    const streamerId = currentStreamer?.id;
-    
     // Move to next card first to prevent UI freeze
     nextCard();
 
-    // Now handle the database operations
-    if (streamerId) {
+    // Now handle the database operations if needed
+    if (currentStreamer?.twitch_id) {
       try {
+        // First check if this streamer already exists in our database
+        const { data: existingStreamer } = await supabase
+          .from('twitch_streamers')
+          .select('id')
+          .eq('twitch_id', currentStreamer.twitch_id)
+          .single();
+          
+        let streamerId;
+        
+        if (existingStreamer) {
+          // Use existing record
+          streamerId = existingStreamer.id;
+          
+          // Update votes
+          await supabase
+            .from('twitch_streamers')
+            .update({ votes: currentStreamer.votes + 1 })
+            .eq('id', streamerId);
+        } else {
+          // Insert new streamer into database
+          const { data: newStreamer, error } = await supabase
+            .from('twitch_streamers')
+            .insert({
+              username: currentStreamer.username,
+              twitch_id: currentStreamer.twitch_id,
+              votes: 1
+            })
+            .select()
+            .single();
+            
+          if (error) throw error;
+          streamerId = newStreamer.id;
+        }
+        
         // Save to favorites
         await supabase
           .from('user_favorites')
@@ -346,7 +311,7 @@ const DigDeeperPage = () => {
             streamer_id: streamerId 
           });
           
-        // Record in history that user swiped right
+        // Record in history
         await supabase
           .from('user_history')
           .upsert({
@@ -355,24 +320,7 @@ const DigDeeperPage = () => {
             interaction_type: 'swiped_right'
           });
           
-        // Increment vote count
-        const updatedVotes = (currentStreamer.votes || 0) + 1;
-        await supabase
-          .from('twitch_streamers')
-          .update({ votes: updatedVotes })
-          .eq('id', streamerId);
-        
         toast.success('Added to favorites!');
-        
-        // Update local state
-        setStreamers(prevStreamers => {
-          const updatedStreamers = [...prevStreamers];
-          const streamerIndex = updatedStreamers.findIndex(s => s.id === streamerId);
-          if (streamerIndex >= 0) {
-            updatedStreamers[streamerIndex].votes = updatedVotes;
-          }
-          return updatedStreamers;
-        });
       } catch (error) {
         console.error('Error saving favorite:', error);
         toast.error('Failed to save favorite. Please try again.');
@@ -387,16 +335,26 @@ const DigDeeperPage = () => {
     // Move to next card immediately to prevent UI freeze
     nextCard();
     
-    // Only record this if user is logged in
-    if (user && currentStreamer) {
+    // Only record this if user is logged in and we have the streamer in our database
+    if (user && currentStreamer?.twitch_id) {
       try {
-        await supabase
-          .from('user_history')
-          .upsert({
-            user_id: user.id,
-            streamer_id: currentStreamer.id,
-            interaction_type: 'swiped_left'
-          });
+        // Check if streamer exists in our database
+        const { data: existingStreamer } = await supabase
+          .from('twitch_streamers')
+          .select('id')
+          .eq('twitch_id', currentStreamer.twitch_id)
+          .single();
+          
+        // Only record if we have this streamer in our database
+        if (existingStreamer) {
+          await supabase
+            .from('user_history')
+            .upsert({
+              user_id: user.id,
+              streamer_id: existingStreamer.id,
+              interaction_type: 'swiped_left'
+            });
+        }
       } catch (error) {
         console.error('Error recording swipe left:', error);
         // Don't show error to user, just log it
