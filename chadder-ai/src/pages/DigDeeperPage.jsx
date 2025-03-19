@@ -33,11 +33,14 @@ const DigDeeperPage = () => {
   const streamCategories = [
     { id: '509658', name: 'Just Chatting', icon: '💬' },
     { id: '26936', name: 'Music', icon: '🎵' },
+    { id: '33214', name: 'Fortnite', icon: '🔫' },
+    { id: '27471', name: 'Minecraft', icon: '⛏️' },
+    { id: '32982', name: 'Grand Theft Auto V', icon: '🚗' },
+    { id: '21779', name: 'League of Legends', icon: '🧙' },
+    { id: '516575', name: 'VALORANT', icon: '🎯' },
     { id: '509659', name: 'Art', icon: '🎨' },
-    { id: '4169765677', name: 'Retro', icon: '🕹️' },
+    { id: '518203', name: 'Sports', icon: '⚽' },
     { id: '417752', name: 'Talk Shows', icon: '🎙️' },
-    { id: '518203', name: 'Software Development', icon: '💻' },
-    { id: '116747788', name: 'Pools & Hot Tubs', icon: '🌊' },
     { id: '518248', name: 'Indie Games', icon: '🎮' }
   ];
   
@@ -138,8 +141,8 @@ const DigDeeperPage = () => {
       } else {
         // No preferences - use a randomized selection of categories to provide variety
         const shuffledCategories = [...streamCategories].sort(() => Math.random() - 0.5);
-        // Use a subset of categories to provide a diverse mix
-        categoriesToSearch = shuffledCategories.slice(0, 4).map(cat => cat.id);
+        // Use all categories but in a random order to provide maximum diversity
+        categoriesToSearch = shuffledCategories.map(cat => cat.id);
         console.log('No preferences set - using randomized categories for diversity');
       }
       
@@ -148,7 +151,7 @@ const DigDeeperPage = () => {
       
       // Track how many streamers we've found per category to ensure diversity
       const streamersPerCategory = {};
-      const MAX_PER_CATEGORY = selectedPreferences.length > 0 ? 10 : 5; // Allow more from preferred categories
+      const MAX_PER_CATEGORY = 3; // Limit to 3 per category for better variety
       
       // Try different game categories to find small streamers
       for (const gameId of categoriesToSearch) {
@@ -181,19 +184,22 @@ const DigDeeperPage = () => {
           const streamsData = await streamsResponse.json();
           console.log(`Got ${streamsData?.data?.length || 0} streams for game ${gameId}`);
           
-          // Filter for small streams (<= 20 viewers)
+          // Filter for small streams (5-50 viewers)
           if (streamsData?.data && Array.isArray(streamsData.data)) {
             // Sort by viewer count (lowest first)
             const sortedStreams = [...streamsData.data].sort((a, b) => {
               return (a.viewer_count || 999) - (b.viewer_count || 999);
             });
             
-            // Take the smallest viewer streams
+            // Take streams with between 5-50 viewers
             const smallStreams = sortedStreams.filter(stream => 
-              stream && typeof stream.viewer_count === 'number' && stream.viewer_count <= 20
+              stream && 
+              typeof stream.viewer_count === 'number' && 
+              stream.viewer_count >= 5 && 
+              stream.viewer_count <= 50
             );
             
-            console.log(`Found ${smallStreams.length} streams with <=20 viewers for game ${gameId}`);
+            console.log(`Found ${smallStreams.length} streams with 5-50 viewers for game ${gameId}`);
             
             // Track how many we're taking from this category
             streamersPerCategory[gameId] = (streamersPerCategory[gameId] || 0) + 
@@ -324,8 +330,13 @@ const DigDeeperPage = () => {
                 return (a.viewer_count || 999) - (b.viewer_count || 999);
               });
               
-              // Take the 20 smallest viewer streams, regardless of count
-              const smallestStreams = sortedStreams.slice(0, 20);
+              // Take streams with between 5-50 viewers
+              const smallestStreams = sortedStreams.filter(stream =>
+                stream && 
+                typeof stream.viewer_count === 'number' && 
+                stream.viewer_count >= 5 && 
+                stream.viewer_count <= 50
+              ).slice(0, 20);
               
               // Map to our format
               const formattedStreams = smallestStreams.map(stream => ({
@@ -630,6 +641,66 @@ const DigDeeperPage = () => {
     
     // Go to next card
     setCurrentIndex(prevIndex => prevIndex + 1);
+    
+    // Reorder remaining streamers to mix up categories
+    if (streamers.length > currentIndex + 2) { // Don't shuffle if we're on the last card
+      setStreamers(prev => {
+        // Keep the next card the same (at currentIndex + 1)
+        const nextCardStreamer = prev[currentIndex + 1];
+        
+        // Get all streamers after the next card
+        const remainingStreamers = prev.slice(currentIndex + 2);
+        
+        // Group streamers by category for better shuffling
+        const streamersByCategory = {};
+        remainingStreamers.forEach(streamer => {
+          const categoryId = streamer.category_id || 'unknown';
+          if (!streamersByCategory[categoryId]) {
+            streamersByCategory[categoryId] = [];
+          }
+          streamersByCategory[categoryId].push(streamer);
+        });
+        
+        // Flatten in a way that alternates categories
+        let shuffledStreamers = [];
+        const categories = Object.keys(streamersByCategory);
+        
+        // Randomize category order
+        const shuffledCategories = [...categories].sort(() => Math.random() - 0.5);
+        
+        // Take one from each category until we've used them all
+        let categoryIndex = 0;
+        while (shuffledStreamers.length < remainingStreamers.length) {
+          const category = shuffledCategories[categoryIndex % shuffledCategories.length];
+          const streamersInCategory = streamersByCategory[category];
+          
+          if (streamersInCategory && streamersInCategory.length > 0) {
+            // Take the first streamer from this category
+            shuffledStreamers.push(streamersInCategory.shift());
+          }
+          
+          // Move to next category
+          categoryIndex++;
+          
+          // If we've gone through all categories, check if we need a second round
+          if (categoryIndex >= shuffledCategories.length) {
+            // Remove empty categories
+            for (let i = shuffledCategories.length - 1; i >= 0; i--) {
+              if (!streamersByCategory[shuffledCategories[i]] || 
+                  streamersByCategory[shuffledCategories[i]].length === 0) {
+                shuffledCategories.splice(i, 1);
+              }
+            }
+            
+            // If no categories left, we're done
+            if (shuffledCategories.length === 0) break;
+          }
+        }
+        
+        // Return updated array: [current cards up to next card, then shuffled remaining]
+        return [...prev.slice(0, currentIndex + 2), ...shuffledStreamers];
+      });
+    }
   };
 
   const handleDragStart = (_, info) => {
@@ -698,64 +769,165 @@ const DigDeeperPage = () => {
       // Avoid showing streamers we've already seen
       const existingIds = new Set(streamers.map(s => s.twitch_id));
       
-      while (newLowViewerStreams.length < 10 && currentPage < maxPagesToCheck) {
-        currentPage++;
+      // Randomize which categories to check
+      let categoriesToCheck = [];
+      if (selectedPreferences.length > 0) {
+        // User has preferences, prioritize those first
+        categoriesToCheck = [...selectedPreferences];
+      } else {
+        // No preferences - use a randomized selection of top categories
+        const shuffledCategories = [...streamCategories].sort(() => Math.random() - 0.5);
+        categoriesToCheck = shuffledCategories.map(cat => cat.id);
+      }
+      
+      // Limit categories to check to keep API calls reasonable
+      categoriesToCheck = categoriesToCheck.slice(0, 5);
+      
+      // Keep track of streamers per category for diversity
+      const streamersPerCategory = {};
+      const MAX_PER_CATEGORY = 3;
+      
+      // Try different game categories to find streamers
+      for (const gameId of categoriesToCheck) {
+        if (newLowViewerStreams.length >= 15) break; // Stop if we have enough
         
-        // Use a different approach for each page to diversify results
-        const queryParams = new URLSearchParams({
-          first: 100,
-          language: 'en'
-        });
+        // Skip if we already have enough from this category
+        if (streamersPerCategory[gameId] >= MAX_PER_CATEGORY) continue;
         
-        if (paginationCursor) {
-          queryParams.append('after', paginationCursor);
-        }
-        
-        const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-          headers: {
-            'Client-ID': clientId,
-            'Authorization': `Bearer ${twitchAccessToken}`
+        try {
+          const queryParams = new URLSearchParams({
+            first: 100,
+            game_id: gameId,
+            language: 'en'
+          });
+          
+          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+            headers: {
+              'Client-ID': clientId,
+              'Authorization': `Bearer ${twitchAccessToken}`
+            }
+          });
+          
+          if (!streamsResponse.ok) {
+            console.error(`Error fetching streams for game ${gameId}: ${streamsResponse.status}`);
+            continue; // Try next game
           }
-        });
-        
-        if (!streamsResponse.ok) {
-          throw new Error(`Error fetching streams: ${streamsResponse.status}`);
+          
+          const streamsData = await streamsResponse.json();
+          
+          // Process the results
+          if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
+            // Sort by viewer count
+            const sortedStreams = [...streamsData.data].sort((a, b) => {
+              return (a.viewer_count || 999) - (b.viewer_count || 999);
+            });
+            
+            // Take streams with between 5-50 viewers
+            const eligibleStreams = sortedStreams.filter(stream =>
+              stream && 
+              typeof stream.viewer_count === 'number' && 
+              stream.viewer_count >= 5 && 
+              stream.viewer_count <= 50 &&
+              !existingIds.has(stream.user_id)
+            );
+            
+            // Track how many from this category
+            const countToTake = Math.min(eligibleStreams.length, MAX_PER_CATEGORY);
+            streamersPerCategory[gameId] = (streamersPerCategory[gameId] || 0) + countToTake;
+            
+            const selectedStreams = eligibleStreams.slice(0, countToTake);
+            
+            // Map to our format
+            const formattedStreams = selectedStreams.map(stream => ({
+              id: stream.user_id,
+              twitch_id: stream.user_id,
+              username: stream.user_login,
+              display_name: stream.user_name,
+              is_live: true,
+              view_count: stream.viewer_count,
+              game_name: stream.game_name || "",
+              stream_title: stream.title || "",
+              thumbnail_url: stream.thumbnail_url ? 
+                stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                null,
+              votes: 0,
+              category_id: gameId
+            }));
+            
+            // Add new streamers to our list
+            newLowViewerStreams.push(...formattedStreams);
+          }
+        } catch (error) {
+          console.error(`Error processing game ${gameId}:`, error);
         }
-        
-        const streamsData = await streamsResponse.json();
-        
-        // Update pagination cursor for next page
-        paginationCursor = streamsData.pagination?.cursor;
-        
-        // Process the results
-        if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
-          for (let i = 0; i < streamsData.data.length; i++) {
-            const stream = streamsData.data[i];
-            if (stream && 
-                typeof stream.viewer_count === 'number' && 
-                stream.viewer_count <= 20 &&
-                !existingIds.has(stream.user_id)) { // Skip streamers we already have
-              
-              newLowViewerStreams.push({
-                id: stream.user_id,
-                twitch_id: stream.user_id,
-                username: stream.user_login,
-                display_name: stream.user_name,
-                is_live: true,
-                view_count: stream.viewer_count,
-                game_name: stream.game_name || "",
-                stream_title: stream.title || "",
-                thumbnail_url: stream.thumbnail_url ? 
-                  stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                  null,
-                votes: 0
-              });
+      }
+      
+      // If we don't have enough streamers yet, try the generic approach
+      if (newLowViewerStreams.length < 10) {
+        while (newLowViewerStreams.length < 10 && currentPage < maxPagesToCheck) {
+          currentPage++;
+          
+          // Use a different approach for each page to diversify results
+          const queryParams = new URLSearchParams({
+            first: 100,
+            language: 'en'
+          });
+          
+          if (paginationCursor) {
+            queryParams.append('after', paginationCursor);
+          }
+          
+          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+            headers: {
+              'Client-ID': clientId,
+              'Authorization': `Bearer ${twitchAccessToken}`
+            }
+          });
+          
+          if (!streamsResponse.ok) {
+            throw new Error(`Error fetching streams: ${streamsResponse.status}`);
+          }
+          
+          const streamsData = await streamsResponse.json();
+          
+          // Update pagination cursor for next page
+          paginationCursor = streamsData.pagination?.cursor;
+          
+          // Process the results
+          if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
+            for (let i = 0; i < streamsData.data.length; i++) {
+              const stream = streamsData.data[i];
+              if (stream && 
+                  typeof stream.viewer_count === 'number' && 
+                  stream.viewer_count >= 5 && 
+                  stream.viewer_count <= 50 &&
+                  !existingIds.has(stream.user_id)) { // Skip streamers we already have
+                
+                newLowViewerStreams.push({
+                  id: stream.user_id,
+                  twitch_id: stream.user_id,
+                  username: stream.user_login,
+                  display_name: stream.user_name,
+                  is_live: true,
+                  view_count: stream.viewer_count,
+                  game_name: stream.game_name || "",
+                  stream_title: stream.title || "",
+                  thumbnail_url: stream.thumbnail_url ? 
+                    stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                    null,
+                  votes: 0,
+                  category_id: stream.game_id || 'unknown'
+                });
+                
+                // Only add up to 15 streamers
+                if (newLowViewerStreams.length >= 15) break;
+              }
             }
           }
+          
+          // Break if we can't get more pages
+          if (!paginationCursor) break;
         }
-        
-        // Break if we can't get more pages
-        if (!paginationCursor) break;
       }
       
       // Sort by viewer count (lowest first)
