@@ -221,7 +221,8 @@ const DigDeeperPage = () => {
                   stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
                   null,
                 votes: 0,
-                category_id: gameId
+                category_id: gameId,
+                isWildcard: false
               }));
             
             // Add new streamers to our list
@@ -246,6 +247,9 @@ const DigDeeperPage = () => {
           .slice(0, 3)
           .map(cat => cat.id);
           
+        // Flag these as wildcard streamers
+        let wildcardStreamers = [];
+        
         for (const gameId of otherCategories) {
           if (allStreamers.length >= 20) break;
           
@@ -279,6 +283,7 @@ const DigDeeperPage = () => {
                   .filter(stream => stream && typeof stream.viewer_count === 'number' && stream.viewer_count <= 20)
                   .slice(0, 3); // Just take a few for diversity
                   
+                // Map to our format with wildcard indicator
                 const formattedStreams = smallStreams.map(stream => ({
                   id: stream.user_id,
                   twitch_id: stream.user_id,
@@ -292,16 +297,22 @@ const DigDeeperPage = () => {
                     stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
                     null,
                   votes: 0,
-                  category_id: gameId
+                  category_id: gameId,
+                  isWildcard: true
                 }));
                 
-                allStreamers = [...allStreamers, ...formattedStreams];
+                // Add to our wildcards list
+                wildcardStreamers.push(...formattedStreams);
               }
             }
           } catch (error) {
             console.error(`Error processing additional category ${gameId}:`, error);
           }
         }
+        
+        // Add these wildcards to our main list
+        allStreamers.push(...wildcardStreamers);
+        console.log(`Added ${wildcardStreamers.length} wildcard streamers from outside preferred categories`);
       }
       
       // Final fallback - if we still have no streamers, try with higher viewer count
@@ -345,13 +356,15 @@ const DigDeeperPage = () => {
                 username: stream.user_login,
                 display_name: stream.user_name,
                 is_live: true,
-                view_count: stream.viewer_count || 0,
+                view_count: stream.viewer_count,
                 game_name: stream.game_name || "",
                 stream_title: stream.title || "",
                 thumbnail_url: stream.thumbnail_url ? 
                   stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
                   null,
-                votes: 0
+                votes: 0,
+                category_id: stream.game_id || 'unknown',
+                isWildcard: true // These are all wildcards as they're from the fallback
               }));
               
               console.log(`Found ${formattedStreams.length} smallest streams from final fallback`);
@@ -452,6 +465,7 @@ const DigDeeperPage = () => {
       if (allStreamers.length === 0) {
         toast.error('No small streamers found right now. Try again later.', { id: 'loading' });
       } else {
+        // Update our component state
         setStreamers(allStreamers);
         setCurrentIndex(0);
         toast.success(`Found ${allStreamers.length} small streamers!`, { id: 'loading' });
@@ -651,49 +665,122 @@ const DigDeeperPage = () => {
         // Get all streamers after the next card
         const remainingStreamers = prev.slice(currentIndex + 2);
         
-        // Group streamers by category for better shuffling
+        // Check if we just showed a wildcard
+        const wasWildcard = prev[currentIndex]?.isWildcard;
+        
+        // Group streamers by category and wildcard status for better shuffling
         const streamersByCategory = {};
+        const preferredStreamers = [];
+        const wildcardStreamers = [];
+        
         remainingStreamers.forEach(streamer => {
-          const categoryId = streamer.category_id || 'unknown';
-          if (!streamersByCategory[categoryId]) {
-            streamersByCategory[categoryId] = [];
+          if (streamer.isWildcard) {
+            wildcardStreamers.push(streamer);
+          } else {
+            preferredStreamers.push(streamer);
+            
+            // Also group by category
+            const categoryId = streamer.category_id || 'unknown';
+            if (!streamersByCategory[categoryId]) {
+              streamersByCategory[categoryId] = [];
+            }
+            streamersByCategory[categoryId].push(streamer);
           }
-          streamersByCategory[categoryId].push(streamer);
         });
         
         // Flatten in a way that alternates categories
         let shuffledStreamers = [];
-        const categories = Object.keys(streamersByCategory);
         
-        // Randomize category order
-        const shuffledCategories = [...categories].sort(() => Math.random() - 0.5);
-        
-        // Take one from each category until we've used them all
-        let categoryIndex = 0;
-        while (shuffledStreamers.length < remainingStreamers.length) {
-          const category = shuffledCategories[categoryIndex % shuffledCategories.length];
-          const streamersInCategory = streamersByCategory[category];
+        // If we just showed a wildcard, prioritize preferred streamers next
+        if (wasWildcard && preferredStreamers.length > 0) {
+          console.log("Just showed wildcard, prioritizing preferred streamers next");
           
-          if (streamersInCategory && streamersInCategory.length > 0) {
-            // Take the first streamer from this category
-            shuffledStreamers.push(streamersInCategory.shift());
-          }
+          // First add all preferred streamers
+          const categories = Object.keys(streamersByCategory);
+          const shuffledCategories = [...categories].sort(() => Math.random() - 0.5);
           
-          // Move to next category
-          categoryIndex++;
-          
-          // If we've gone through all categories, check if we need a second round
-          if (categoryIndex >= shuffledCategories.length) {
-            // Remove empty categories
-            for (let i = shuffledCategories.length - 1; i >= 0; i--) {
-              if (!streamersByCategory[shuffledCategories[i]] || 
-                  streamersByCategory[shuffledCategories[i]].length === 0) {
-                shuffledCategories.splice(i, 1);
-              }
+          let categoryIndex = 0;
+          while (shuffledStreamers.length < preferredStreamers.length) {
+            const category = shuffledCategories[categoryIndex % shuffledCategories.length];
+            const streamersInCategory = streamersByCategory[category];
+            
+            if (streamersInCategory && streamersInCategory.length > 0) {
+              // Take the first streamer from this category
+              shuffledStreamers.push(streamersInCategory.shift());
             }
             
-            // If no categories left, we're done
-            if (shuffledCategories.length === 0) break;
+            // Move to next category
+            categoryIndex++;
+            
+            // If we've gone through all categories, check if we need a second round
+            if (categoryIndex >= shuffledCategories.length) {
+              // Remove empty categories
+              for (let i = shuffledCategories.length - 1; i >= 0; i--) {
+                if (!streamersByCategory[shuffledCategories[i]] || 
+                    streamersByCategory[shuffledCategories[i]].length === 0) {
+                  shuffledCategories.splice(i, 1);
+                }
+              }
+              
+              // If no categories left, we're done
+              if (shuffledCategories.length === 0) break;
+            }
+          }
+          
+          // Then add wildcards at the end
+          shuffledStreamers = [...shuffledStreamers, ...wildcardStreamers.sort(() => Math.random() - 0.5)];
+        } else {
+          // Normal category-based shuffling, but still keeping wildcards proportionally distributed
+          const categories = Object.keys(streamersByCategory);
+          const shuffledCategories = [...categories].sort(() => Math.random() - 0.5);
+          
+          // Calculate how often to insert wildcards
+          const wildcardInterval = preferredStreamers.length > 0 ? 
+            Math.max(2, Math.floor(preferredStreamers.length / wildcardStreamers.length)) : 1;
+          
+          let categoryIndex = 0;
+          let wildcardIndex = 0;
+          
+          // Mix preferred and wildcard streamers
+          while (shuffledStreamers.length < remainingStreamers.length) {
+            // Insert a wildcard every few streamers
+            if (wildcardStreamers.length > 0 && 
+                shuffledStreamers.length > 0 && 
+                shuffledStreamers.length % wildcardInterval === 0 && 
+                wildcardIndex < wildcardStreamers.length) {
+              shuffledStreamers.push(wildcardStreamers[wildcardIndex++]);
+              continue;
+            }
+            
+            // Otherwise add from preferred categories
+            if (shuffledCategories.length > 0) {
+              const category = shuffledCategories[categoryIndex % shuffledCategories.length];
+              const streamersInCategory = streamersByCategory[category];
+              
+              if (streamersInCategory && streamersInCategory.length > 0) {
+                // Take the first streamer from this category
+                shuffledStreamers.push(streamersInCategory.shift());
+              }
+              
+              // Move to next category
+              categoryIndex++;
+              
+              // If we've gone through all categories, remove empty ones
+              if (categoryIndex >= shuffledCategories.length) {
+                for (let i = shuffledCategories.length - 1; i >= 0; i--) {
+                  if (!streamersByCategory[shuffledCategories[i]] || 
+                      streamersByCategory[shuffledCategories[i]].length === 0) {
+                    shuffledCategories.splice(i, 1);
+                  }
+                }
+              }
+            } else if (wildcardIndex < wildcardStreamers.length) {
+              // If we've gone through all preferred streamers, add remaining wildcards
+              shuffledStreamers.push(wildcardStreamers[wildcardIndex++]);
+            } else {
+              // No more streamers to add
+              break;
+            }
           }
         }
         
@@ -837,7 +924,10 @@ const DigDeeperPage = () => {
             
             const selectedStreams = eligibleStreams.slice(0, countToTake);
             
-            // Map to our format
+            // Flag whether these are from preferred categories
+            const isPreferredCategory = !selectedPreferences.length || selectedPreferences.includes(gameId);
+            
+            // Map to our format with wildcard indicator
             const formattedStreams = selectedStreams.map(stream => ({
               id: stream.user_id,
               twitch_id: stream.user_id,
@@ -851,7 +941,8 @@ const DigDeeperPage = () => {
                 stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
                 null,
               votes: 0,
-              category_id: gameId
+              category_id: gameId,
+              isWildcard: !isPreferredCategory
             }));
             
             // Add new streamers to our list
@@ -916,7 +1007,8 @@ const DigDeeperPage = () => {
                     stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
                     null,
                   votes: 0,
-                  category_id: stream.game_id || 'unknown'
+                  category_id: stream.game_id || 'unknown',
+                  isWildcard: true
                 });
                 
                 // Only add up to 15 streamers
@@ -1081,6 +1173,12 @@ const DigDeeperPage = () => {
               <div className={styles.viewerCount}>
                 {(streamer.view_count || 0).toLocaleString()} viewers
               </div>
+            </div>
+          )}
+          
+          {streamer.isWildcard && (
+            <div className={styles.wildcardIndicator}>
+              WILDCARD
             </div>
           )}
           
