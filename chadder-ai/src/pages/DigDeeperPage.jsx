@@ -1353,6 +1353,27 @@ const DigDeeperPage = () => {
   };
   
   const skipPreferences = () => {
+    // If user has already set preferences before, this is a cancel action
+    if (hasSetPreferences) {
+      // Just close the modal without changing preferences
+      setShowPreferenceSelector(false);
+      
+      // Reset to their previous preferences
+      if (user) {
+        const savedPreferences = localStorage.getItem(`digdeeper_preferences_${user.id}`);
+        if (savedPreferences) {
+          try {
+            const parsedPreferences = JSON.parse(savedPreferences);
+            setSelectedPreferences(parsedPreferences);
+          } catch (e) {
+            console.error('Error parsing saved preferences', e);
+          }
+        }
+      }
+      return;
+    }
+    
+    // This is initial setup - user is skipping preference selection
     setSelectedPreferences([]); // Empty preferences = show all
     setHasSetPreferences(true);
     setShowPreferenceSelector(false);
@@ -1364,11 +1385,16 @@ const DigDeeperPage = () => {
   
   // Render the preference selector
   const renderPreferenceSelector = () => {
+    const isUpdate = hasSetPreferences;
+    
     return (
       <div className={styles.preferenceSelectorOverlay}>
         <div className={styles.preferenceSelector}>
-          <h2>What kind of streams do you enjoy?</h2>
-          <p>Select up to 3 categories to personalize your recommendations</p>
+          <h2>{isUpdate ? 'Update Your Preferences' : 'What kind of streams do you enjoy?'}</h2>
+          <p>{isUpdate 
+            ? 'Select up to 3 categories to update your recommendations' 
+            : 'Select up to 3 categories to personalize your recommendations'}
+          </p>
           
           <div className={styles.categoryGrid}>
             {streamCategories.map(category => (
@@ -1391,14 +1417,18 @@ const DigDeeperPage = () => {
               className={styles.skipButton}
               onClick={skipPreferences}
             >
-              Skip / Show Everything
+              {isUpdate ? 'Cancel' : 'Skip / Show Everything'}
             </button>
             <button 
               className={styles.saveButton}
               onClick={savePreferences}
               disabled={selectedPreferences.length === 0}
             >
-              {selectedPreferences.length === 0 ? 'Select Categories' : 'Save Preferences'}
+              {selectedPreferences.length === 0 
+                ? 'Select Categories' 
+                : isUpdate 
+                  ? 'Update Preferences' 
+                  : 'Save Preferences'}
             </button>
           </div>
         </div>
@@ -1535,6 +1565,14 @@ const DigDeeperPage = () => {
               <span className={styles.heartIcon}>❤️</span> My Favorites
             </button>
           )}
+          
+          <button
+            onClick={() => setShowPreferenceSelector(true)}
+            className={styles.preferencesButton}
+            title="Update your content preferences"
+          >
+            <span className={styles.prefIcon}>⚙️</span> Preferences
+          </button>
           
           <button
             onClick={fetchStreamers}

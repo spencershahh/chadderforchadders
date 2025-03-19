@@ -877,13 +877,23 @@ const Discover = () => {
           </div>
         </div>
 
-        <button 
-          onClick={scrollToNomination}
-          className={styles.nominateButton}
-          aria-label="Go to nominate streamer section"
-        >
-          Nominate a Streamer
-        </button>
+        <div className={styles.actionButtonsContainer}>
+          <a 
+            href="/dig-deeper"
+            className={styles.digDeeperButtonLink}
+            aria-label="Go to Dig Deeper page to find small streamers"
+          >
+            <span className={styles.buttonText}>Dig Deeper</span>
+          </a>
+          
+          <button 
+            onClick={scrollToNomination}
+            className={styles.nominateButton}
+            aria-label="Go to nominate streamer section"
+          >
+            Nominate a Streamer
+          </button>
+        </div>
       </div>
 
       <div className={styles.streamersSection}>

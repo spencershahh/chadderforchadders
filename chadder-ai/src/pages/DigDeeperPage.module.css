@@ -75,6 +75,29 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+.preferencesButton {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(169, 112, 255, 0.5);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.preferencesButton:hover {
+  background-color: rgba(169, 112, 255, 0.2);
+  border-color: #a970ff;
+}
+
+.prefIcon {
+  margin-right: 0.5rem;
+  font-size: 1.1rem;
+}
+
 .instructionsContainer {
   display: flex;
   justify-content: center;

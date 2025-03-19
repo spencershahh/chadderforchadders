@@ -4,10 +4,74 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import styles from './FavoritesPage.module.css';
+import axios from 'axios';
 
 const isDevelopment = typeof import.meta !== 'undefined' && 
   import.meta.env && 
   (import.meta.env.DEV || window.location.hostname === 'localhost');
+
+// Twitch API helper for fetching streamer data
+const twitchApi = {
+  async fetchStreamerById(twitchId) {
+    const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+    const accessToken = localStorage.getItem('twitch_access_token');
+    
+    if (!clientId || !accessToken) {
+      console.error('Missing Twitch credentials');
+      return null;
+    }
+    
+    try {
+      // First get user data
+      const userResponse = await axios.get(`https://api.twitch.tv/helix/users?id=${twitchId}`, {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!userResponse.data || !userResponse.data.data || userResponse.data.data.length === 0) {
+        return null;
+      }
+      
+      const userData = userResponse.data.data[0];
+      
+      // Then check if user is streaming
+      const streamResponse = await axios.get(`https://api.twitch.tv/helix/streams?user_id=${twitchId}`, {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      const isLive = streamResponse.data && 
+                     streamResponse.data.data && 
+                     streamResponse.data.data.length > 0;
+      
+      const streamInfo = isLive ? streamResponse.data.data[0] : null;
+      
+      return {
+        id: userData.id,
+        display_name: userData.display_name,
+        username: userData.login,
+        description: userData.description,
+        profile_image_url: userData.profile_image_url,
+        is_live: isLive,
+        view_count: isLive ? streamInfo.viewer_count : 0,
+        stream_info: isLive ? {
+          title: streamInfo.title,
+          game_name: streamInfo.game_name,
+          thumbnail_url: streamInfo.thumbnail_url
+            .replace('{width}', '320')
+            .replace('{height}', '180'),
+        } : null
+      };
+    } catch (error) {
+      console.error('Error fetching streamer from Twitch API:', error);
+      return null;
+    }
+  }
+};
 
 const FavoritesPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -55,10 +119,62 @@ const FavoritesPage = () => {
         keysAvailable: !!(clientId && clientSecret)
       });
       
+      // Ensure we have a valid Twitch auth token
+      if (clientId && clientSecret) {
+        fetchTwitchAuth();
+      }
+      
     } catch (error) {
       console.error('Error accessing environment variables in FavoritesPage:', error);
     }
   }, []);
+
+  const fetchTwitchAuth = async () => {
+    try {
+      const accessToken = localStorage.getItem('twitch_access_token');
+      const tokenExpiry = localStorage.getItem('twitch_token_expiry');
+      
+      // Check if we have a non-expired token
+      if (accessToken && tokenExpiry && new Date().getTime() < parseInt(tokenExpiry)) {
+        console.log('Using existing Twitch access token');
+        return accessToken;
+      }
+      
+      console.log('Fetching new Twitch access token...');
+      
+      // Get a new token
+      const response = await axios.post(
+        'https://id.twitch.tv/oauth2/token',
+        new URLSearchParams({
+          client_id: twitchConfig.clientId,
+          client_secret: twitchConfig.clientSecret,
+          grant_type: 'client_credentials'
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      if (response.data && response.data.access_token) {
+        const newToken = response.data.access_token;
+        // Store token with expiry (subtract 1 hour to be safe)
+        const expiryTime = new Date().getTime() + (response.data.expires_in - 3600) * 1000;
+        
+        localStorage.setItem('twitch_access_token', newToken);
+        localStorage.setItem('twitch_token_expiry', expiryTime.toString());
+        
+        console.log('Successfully obtained new Twitch access token');
+        return newToken;
+      } else {
+        throw new Error('Invalid response from Twitch auth endpoint');
+      }
+    } catch (error) {
+      console.error('Error fetching Twitch auth token:', error);
+      return null;
+    }
+  };
 
   const fetchFavorites = async () => {
     try {
@@ -208,7 +324,13 @@ const FavoritesPage = () => {
             <div key={streamer.favoriteId} className={styles.favoriteCard}>
               <div 
                 className={styles.favoriteImage}
-                style={{ backgroundImage: `url(${streamer.profile_image_url})` }}
+                style={{ 
+                  backgroundImage: `url(${
+                    streamer.is_live && streamer.stream_info?.thumbnail_url
+                      ? streamer.stream_info.thumbnail_url 
+                      : streamer.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png'
+                  })`
+                }}
               >
                 {streamer.is_live && (
                   <div className={styles.liveIndicator}>

@@ -1063,27 +1063,78 @@
   }
 }
 
+.actionButtonsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 2rem auto;
+  flex-wrap: wrap;
+  padding: 1rem;
+  width: 100%;
+  max-width: 900px;
+  position: relative;
+  z-index: 5;
+}
+
+.digDeeperButtonLink {
+  padding: 0.85rem 2rem;
+  border-radius: 50px;
+  background: linear-gradient(45deg, #6a96ff, #8a6aff);
+  color: white !important;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  box-shadow: 0 8px 20px rgba(106, 150, 255, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  min-width: 180px;
+  display: inline-block;
+  text-align: center;
+}
+
+.digDeeperButtonLink:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(106, 150, 255, 0.5);
+  filter: brightness(1.15);
+  background: linear-gradient(45deg, #5a86ef, #7a5aef);
+}
+
+.digDeeperButtonLink:active {
+  transform: translateY(1px);
+}
+
+.buttonText {
+  color: white;
+  font-weight: 600;
+}
+
 .nominateButton {
   padding: 0.85rem 2rem;
   border-radius: 50px;
   background: linear-gradient(45deg, #8a6aff, #ed6e95);
-  color: white;
+  color: white !important;
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 1rem;
   box-shadow: 0 8px 20px rgba(138, 106, 255, 0.3);
-  margin-top: 1rem;
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.15);
+  min-width: 180px;
+  display: inline-block;
+  text-align: center;
 }
 
 .nominateButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 25px rgba(138, 106, 255, 0.4);
-  filter: brightness(1.1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(138, 106, 255, 0.5);
+  filter: brightness(1.15);
+  background: linear-gradient(45deg, #7a5aef, #dd5e85);
 }
 
 .nominateButton:active {
