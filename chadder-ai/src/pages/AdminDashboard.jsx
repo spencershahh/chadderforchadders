@@ -18,15 +18,19 @@ const AdminDashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('streamers'); // 'streamers', 'users', or 'analytics'
   const [loadingTwitchData, setLoadingTwitchData] = useState(false);
+  const [error, setError] = useState(null); // Add error state
   const textareaRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data, error } = await supabase.auth.getUser();
         
-        if (!user) {
+        if (error || !data.user) {
+          console.error('Auth error:', error);
+          setIsAdmin(false);
+          setIsLoading(false);
           navigate('/login');
           return;
         }
@@ -34,11 +38,13 @@ const AdminDashboard = () => {
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', data.user.id)
           .single();
 
         if (adminError || !adminData) {
+          console.error('Admin check error:', adminError);
           setIsAdmin(false);
+          setIsLoading(false);
           navigate('/');
           toast.error('You do not have admin access');
           return;
@@ -48,7 +54,8 @@ const AdminDashboard = () => {
         await loadStreamers();
       } catch (error) {
         console.error('Error checking admin status:', error);
-        navigate('/');
+        setError(error.message);
+        setIsLoading(false);
       } finally {
         setIsLoading(false);
       }
@@ -374,11 +381,15 @@ const AdminDashboard = () => {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading...</div>;
+    return <div className={styles.loading}>Loading Admin Dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className={styles.error}>Error: {error}</div>;
   }
 
   if (!isAdmin) {
-    return null; // Will redirect in useEffect
+    return <div className={styles.unauthorized}>You don't have permission to access this page</div>;
   }
 
   const renderStreamerManagement = () => (
@@ -571,6 +582,7 @@ const AdminDashboard = () => {
 
   // Helper function to format large numbers
   const formatNumber = (num) => {
+    if (!num && num !== 0) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num.toString();
@@ -578,30 +590,24 @@ const AdminDashboard = () => {
 
   // Calculate how long a stream has been live
   const calculateStreamDuration = (startedAt) => {
-    const startTime = new Date(startedAt);
-    const currentTime = new Date();
-    const durationMs = currentTime - startTime;
-    
-    // Convert to hours and minutes
-    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else {
-      return `${minutes}m`;
-    }
-  };
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'users':
-        return <UserManagement />;
-      case 'analytics':
-        return <AnalyticsDashboard />;
-      case 'streamers':
-      default:
-        return renderStreamerManagement();
+    if (!startedAt) return '0m';
+    try {
+      const startTime = new Date(startedAt);
+      const currentTime = new Date();
+      const durationMs = currentTime - startTime;
+      
+      // Convert to hours and minutes
+      const hours = Math.floor(durationMs / (1000 * 60 * 60));
+      const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      } else {
+        return `${minutes}m`;
+      }
+    } catch (e) {
+      console.error('Error calculating duration:', e);
+      return '0m';
     }
   };
 
@@ -631,7 +637,9 @@ const AdminDashboard = () => {
         </button>
       </div>
       
-      {renderTabContent()}
+      {activeTab === 'users' && <UserManagement />}
+      {activeTab === 'analytics' && <AnalyticsDashboard />}
+      {activeTab === 'streamers' && renderStreamerManagement()}
     </div>
   );
 };
