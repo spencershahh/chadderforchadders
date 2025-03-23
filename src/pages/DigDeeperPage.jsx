@@ -648,204 +648,239 @@ const DigDeeperPage = () => {
   const renderPreferenceSelector = () => {
     const isUpdate = hasSetPreferences;
     
-    // Full-screen fixed position overlay for mobile
-    const mobileOverlayStyle = isMobile ? {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      zIndex: 9999, // Ensure it's above everything
-      touchAction: 'none' // Prevent scroll on mobile
-    } : {};
+    // Handle choosing a preference category
+    const handleCategoryClick = (categoryId, event) => {
+      // Ensure the click doesn't bubble up to the parent
+      if (event) event.stopPropagation();
+      togglePreference(categoryId);
+    };
     
-    // Compact modal for mobile
-    const mobileSelectorStyle = isMobile ? { 
-      width: '85%', 
-      maxWidth: '400px',
-      maxHeight: '75vh',
-      padding: '20px 15px',
-      overflow: 'auto',
-      borderRadius: '16px',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-      position: 'relative',
-      backgroundColor: '#2a2a2a',
-      touchAction: 'auto' // Enable touch actions inside the modal
-    } : {};
+    // Handle saving preferences
+    const handleSavePreferences = (e) => {
+      if (e) e.stopPropagation();
+      savePreferences();
+    };
     
-    // Better sized category grid for mobile
-    const mobileCategoryGridStyle = isMobile ? { 
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
-      gap: '10px',
-      margin: '15px 0',
-      touchAction: 'auto'
-    } : {};
+    // Handle skipping/canceling the preferences modal
+    const handleSkip = (e) => {
+      if (e) e.stopPropagation();
+      skipPreferences();
+    };
     
-    // Improved category card style for mobile
-    const mobileCategoryCardStyle = (isSelected) => isMobile ? {
-      padding: '12px 8px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '70px',
-      position: 'relative',
-      borderRadius: '12px',
-      backgroundColor: isSelected ? 'rgba(124, 58, 237, 0.5)' : 'rgba(50, 50, 50, 0.5)',
-      border: isSelected ? '2px solid #a855f7' : '2px solid transparent',
-      overflow: 'hidden'
-    } : {};
-    
-    // Mobile-optimized button styles
-    const mobileButtonStyle = (isPrimary) => isMobile ? {
-      width: '100%',
-      padding: '16px',
-      borderRadius: '12px',
-      fontSize: '16px',
-      fontWeight: isPrimary ? 'bold' : 'normal',
-      marginBottom: '10px',
-      border: 'none',
-      backgroundColor: isPrimary ? '#a855f7' : '#3a3a3a',
-      color: 'white',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-    } : {};
-    
-    // Handler to close when clicking outside the modal
+    // Handle clicking the overlay (outside the modal)
     const handleOverlayClick = (e) => {
+      // Only close if clicking the actual overlay, not its children
       if (e.target === e.currentTarget) {
         skipPreferences();
       }
     };
-
+    
+    // Create preference selector component directly with optimized styles for mobile
     return (
       <div 
-        className={styles.preferenceSelectorOverlay} 
-        style={mobileOverlayStyle}
+        className={styles.preferenceSelectorOverlay}
         onClick={handleOverlayClick}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          touchAction: 'none',
+          WebkitOverflowScrolling: 'touch'
+        }}
       >
-        <div 
-          className={styles.preferenceSelector} 
-          style={mobileSelectorStyle}
-          onClick={e => e.stopPropagation()} // Prevent clicks from bubbling up
+        <div
+          style={{
+            backgroundColor: '#2a2a2a',
+            borderRadius: '12px',
+            padding: '12px 10px',
+            width: isMobile ? '85%' : '500px',
+            maxWidth: '400px',
+            maxHeight: isMobile ? '70%' : '80vh',
+            position: 'relative',
+            boxShadow: '0 8px 20px rgba(0, 0, 0, 0.5)',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            touchAction: 'auto'
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button for easy dismissal */}
-          <button 
-            onClick={skipPreferences}
+          {/* Close button - made larger for easier tapping */}
+          <button
+            onClick={handleSkip}
             style={{
               position: 'absolute',
-              top: '10px',
-              right: '10px',
-              background: 'rgba(80, 80, 80, 0.5)',
-              border: 'none',
+              top: '8px',
+              right: '8px',
+              width: '30px',
+              height: '30px',
               borderRadius: '50%',
-              width: '36px',
-              height: '36px',
+              background: 'rgba(80, 80, 80, 0.6)',
+              border: 'none',
+              color: 'white',
+              fontSize: '16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '18px',
-              color: '#fff',
               cursor: 'pointer',
-              zIndex: 10
+              zIndex: 11,
+              touchAction: 'manipulation'
             }}
-            aria-label="Close preferences"
           >
             ✕
           </button>
-
-          <h2 style={{ fontSize: isMobile ? '22px' : '24px', margin: '0 0 15px 0', textAlign: 'center' }}>
-            {isUpdate ? 'Update Preferences' : 'Choose Stream Categories'}
+          
+          <h2 style={{
+            fontSize: isMobile ? '18px' : '22px',
+            textAlign: 'center',
+            marginTop: '0',
+            marginBottom: '6px',
+            paddingRight: '25px',
+            color: '#fff'
+          }}>
+            {isUpdate ? 'Update Preferences' : 'Choose Categories'}
           </h2>
           
-          <p style={{ 
-            fontSize: isMobile ? '14px' : '16px', 
-            margin: '0 0 20px 0',
+          <p style={{
+            fontSize: isMobile ? '13px' : '15px',
             textAlign: 'center',
+            marginBottom: '8px',
+            color: 'rgba(255, 255, 255, 0.7)',
             maxWidth: '90%',
             marginLeft: 'auto',
             marginRight: 'auto'
           }}>
-            {isUpdate 
-              ? 'Select up to 3 categories to update your recommendations' 
-              : 'Pick up to 3 categories to see streamers you\'ll enjoy'}
+            Select up to 3 categories
           </p>
           
-          <div style={mobileCategoryGridStyle}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '6px',
+            marginBottom: '10px',
+            marginTop: '8px',
+            touchAction: 'auto'
+          }}>
             {streamCategories.map(category => {
               const isSelected = selectedPreferences.includes(category.id);
               return (
-                <div 
+                <div
                   key={category.id}
-                  onClick={() => togglePreference(category.id)}
+                  onClick={(event) => handleCategoryClick(category.id, event)}
                   style={{
-                    ...mobileCategoryCardStyle(isSelected),
-                    cursor: 'pointer'
+                    padding: '6px 2px',
+                    borderRadius: '8px',
+                    backgroundColor: isSelected ? 'rgba(169, 112, 255, 0.3)' : 'rgba(50, 50, 50, 0.5)',
+                    border: isSelected ? '2px solid #a970ff' : '2px solid transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '48px',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    touchAction: 'manipulation'
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '2px' }}>
                     {category.icon}
                   </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '12px' : '14px',
+                  <div style={{
+                    fontSize: '10px',
                     textAlign: 'center',
-                    fontWeight: isSelected ? 'bold' : 'normal'
+                    fontWeight: isSelected ? 'bold' : 'normal',
+                    color: '#fff',
+                    lineHeight: '1.1'
                   }}>
                     {category.name}
                   </div>
                   {isSelected && (
                     <div style={{
                       position: 'absolute',
-                      top: '5px',
-                      right: '5px',
-                      width: '18px',
-                      height: '18px',
+                      top: '2px',
+                      right: '2px',
+                      width: '14px',
+                      height: '14px',
+                      backgroundColor: '#a970ff',
                       borderRadius: '50%',
-                      backgroundColor: '#a855f7',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '12px',
+                      fontSize: '9px',
                       color: 'white'
-                    }}>✓</div>
+                    }}>
+                      ✓
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
           
-          <div style={{ 
+          <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px',
-            marginTop: '20px'
+            gap: '6px',
+            marginTop: '8px'
           }}>
+            {/* Primary button - save/update preferences or skip */}
             {selectedPreferences.length > 0 ? (
-              <button 
-                onClick={savePreferences}
-                style={mobileButtonStyle(true)}
+              <button
+                onClick={handleSavePreferences}
+                style={{
+                  backgroundColor: '#a970ff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation'
+                }}
               >
-                {isUpdate ? 'Update Preferences' : 'Save Preferences'} ({selectedPreferences.length}/3)
+                {isUpdate ? 'Update' : 'Save'} ({selectedPreferences.length}/3)
               </button>
             ) : (
-              <button 
-                onClick={skipPreferences}
-                style={mobileButtonStyle(true)}
+              <button
+                onClick={handleSkip}
+                style={{
+                  backgroundColor: '#3a3a3a',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation'
+                }}
               >
-                Skip / Show Everything
+                Skip
               </button>
             )}
             
+            {/* Secondary button - only show if categories are selected */}
             {selectedPreferences.length > 0 && (
-              <button 
-                onClick={skipPreferences}
-                style={mobileButtonStyle(false)}
+              <button
+                onClick={handleSkip}
+                style={{
+                  backgroundColor: '#3a3a3a', 
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation'
+                }}
               >
-                {isUpdate ? 'Cancel' : 'Skip / Show Everything'}
+                {isUpdate ? 'Cancel' : 'Skip'}
               </button>
             )}
           </div>
