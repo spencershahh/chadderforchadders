@@ -1387,49 +1387,224 @@ const DigDeeperPage = () => {
   const renderPreferenceSelector = () => {
     const isUpdate = hasSetPreferences;
     
+    // Handle clicking the overlay (outside the modal)
+    const handleOverlayClick = (e) => {
+      // Only close if clicking the actual overlay, not its children
+      if (e.target === e.currentTarget) {
+        skipPreferences();
+      }
+    };
+    
+    // Handle choosing a category with event propagation control
+    const handleCategoryClick = (categoryId, event) => {
+      if (event) event.stopPropagation();
+      togglePreference(categoryId);
+    };
+    
     return (
-      <div className={styles.preferenceSelectorOverlay}>
-        <div className={styles.preferenceSelector}>
-          <h2>{isUpdate ? 'Update Your Preferences' : 'What kind of streams do you enjoy?'}</h2>
-          <p>{isUpdate 
-            ? 'Select up to 3 categories to update your recommendations' 
-            : 'Select up to 3 categories to personalize your recommendations'}
+      <div 
+        className={styles.preferenceSelectorOverlay}
+        onClick={handleOverlayClick}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backdropFilter: 'blur(5px)',
+          WebkitBackdropFilter: 'blur(5px)',
+          touchAction: 'none'
+        }}
+      >
+        <div 
+          className={styles.preferenceSelector}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: '#2d2d2d',
+            borderRadius: '12px',
+            padding: '1rem',
+            width: '90%',
+            maxWidth: '400px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            textAlign: 'center',
+            position: 'relative',
+            touchAction: 'auto'
+          }}
+        >
+          {/* Close button for easy dismissal */}
+          <button
+            onClick={skipPreferences}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: 'rgba(80, 80, 80, 0.6)',
+              border: 'none',
+              color: 'white',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 11
+            }}
+          >
+            ✕
+          </button>
+          
+          <h2 style={{
+            fontSize: '1.3rem',
+            marginBottom: '0.5rem',
+            marginTop: '0.5rem',
+            paddingRight: '25px',
+            color: '#a970ff'
+          }}>
+            {isUpdate ? 'Update Preferences' : 'Choose Categories'}
+          </h2>
+          
+          <p style={{
+            fontSize: '0.85rem',
+            marginBottom: '1rem',
+            color: 'rgba(255, 255, 255, 0.7)'
+          }}>
+            Select up to 3 categories
           </p>
           
-          <div className={styles.categoryGrid}>
-            {streamCategories.map(category => (
-              <div 
-                key={category.id}
-                className={`${styles.categoryCard} ${selectedPreferences.includes(category.id) ? styles.selected : ''}`}
-                onClick={() => togglePreference(category.id)}
-              >
-                <div className={styles.categoryIcon}>{category.icon}</div>
-                <div className={styles.categoryName}>{category.name}</div>
-                {selectedPreferences.includes(category.id) && (
-                  <div className={styles.selectedIndicator}>✓</div>
-                )}
-              </div>
-            ))}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '0.6rem',
+            marginBottom: '1.2rem'
+          }}>
+            {streamCategories.map(category => {
+              const isSelected = selectedPreferences.includes(category.id);
+              return (
+                <div
+                  key={category.id}
+                  onClick={(event) => handleCategoryClick(category.id, event)}
+                  style={{
+                    backgroundColor: isSelected ? 'rgba(169, 112, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    border: isSelected ? '2px solid #a970ff' : '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    padding: '0.6rem 0.3rem',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>
+                    {category.icon}
+                  </div>
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: isSelected ? '500' : '400',
+                    lineHeight: '1.1'
+                  }}>
+                    {category.name}
+                  </div>
+                  {isSelected && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      backgroundColor: '#a970ff',
+                      color: 'white',
+                      fontSize: '0.6rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      ✓
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           
-          <div className={styles.preferencesButtons}>
-            <button 
-              className={styles.skipButton}
-              onClick={skipPreferences}
-            >
-              {isUpdate ? 'Cancel' : 'Skip / Show Everything'}
-            </button>
-            <button 
-              className={styles.saveButton}
-              onClick={savePreferences}
-              disabled={selectedPreferences.length === 0}
-            >
-              {selectedPreferences.length === 0 
-                ? 'Select Categories' 
-                : isUpdate 
-                  ? 'Update Preferences' 
-                  : 'Save Preferences'}
-            </button>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '0.8rem',
+            flexDirection: 'column'
+          }}>
+            {/* Primary button - save preferences */}
+            {selectedPreferences.length > 0 ? (
+              <button
+                onClick={savePreferences}
+                style={{
+                  backgroundColor: '#a970ff',
+                  border: 'none',
+                  padding: '0.7rem',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  width: '100%',
+                  touchAction: 'manipulation'
+                }}
+              >
+                {isUpdate ? 'Update' : 'Save'} ({selectedPreferences.length}/3)
+              </button>
+            ) : (
+              <button
+                onClick={skipPreferences}
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  padding: '0.7rem',
+                  borderRadius: '8px',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  width: '100%',
+                  touchAction: 'manipulation'
+                }}
+              >
+                Skip
+              </button>
+            )}
+            
+            {/* Secondary button - cancel/skip */}
+            {selectedPreferences.length > 0 && (
+              <button
+                onClick={skipPreferences}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  padding: '0.7rem',
+                  borderRadius: '8px',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  width: '100%',
+                  touchAction: 'manipulation'
+                }}
+              >
+                {isUpdate ? 'Cancel' : 'Skip'}
+              </button>
+            )}
           </div>
         </div>
       </div>
