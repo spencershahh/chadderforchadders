@@ -820,3 +820,206 @@
     transform: scale(1);
   }
 }
+
+/* Stream Preview Styles */
+.previewContainer {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  overflow: hidden;
+}
+
+.previewHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 10;
+}
+
+.previewCloseButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.previewFrame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.previewButton {
+  background: rgba(169, 112, 255, 0.8);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 8px 0;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.previewButton:hover {
+  background: rgba(169, 112, 255, 1);
+}
+
+/* Quick Chat Styles */
+.chatModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.chatModalContent {
+  background: #2d2d2d;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chatModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #1f1f23;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chatModalHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #efeff1;
+}
+
+.closeButton {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chatStreamPreview {
+  width: 100%;
+  height: 200px;
+  background: #000;
+}
+
+.chatContainer {
+  width: 100%;
+  height: 300px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quickMessageButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.quickMessageButton {
+  background: #3a3a3d;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.quickMessageButton:hover {
+  background: #464649;
+}
+
+.quickChatButton {
+  background: #3a3a3d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.quickChatButton:hover {
+  background: #464649;
+}
+
+.actionContainer {
+  display: flex;
+  gap: 8px;
+}
+
+/* Responsive design for the chat modal */
+@media (max-width: 600px) {
+  .chatModalContent {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .chatStreamPreview {
+    height: 180px;
+  }
+  
+  .chatContainer {
+    height: 250px;
+  }
+}

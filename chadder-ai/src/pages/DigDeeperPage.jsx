@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -24,6 +24,19 @@ const DigDeeperPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [twitchAccessToken, setTwitchAccessToken] = useState(null);
   
+  // Auto-playing preview state
+  const [previewPlaying, setPreviewPlaying] = useState(null);
+  const previewTimeoutRef = useRef(null);
+  
+  // Quick chat feature state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [currentChatStreamer, setCurrentChatStreamer] = useState(null);
+  const [quickMessages, setQuickMessages] = useState([
+    { id: 1, text: "Hi there! Just discovered your stream!" },
+    { id: 2, text: "Love the content! How long have you been streaming?" },
+    { id: 3, text: "What game/content are you planning next?" }
+  ]);
+  
   // Preference selector state
   const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
   const [selectedPreferences, setSelectedPreferences] = useState([]);
@@ -43,6 +56,40 @@ const DigDeeperPage = () => {
     { id: '417752', name: 'Talk Shows', icon: '🎙️' },
     { id: '518248', name: 'Indie Games', icon: '🎮' }
   ];
+  
+  // Auto-preview timeout cleanup
+  useEffect(() => {
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Auto-start preview for current streamer
+  useEffect(() => {
+    if (streamers.length > 0 && currentIndex < streamers.length) {
+      const currentStreamer = streamers[currentIndex];
+      
+      if (currentStreamer?.is_live) {
+        // Auto-start preview after a short delay
+        previewTimeoutRef.current = setTimeout(() => {
+          setPreviewPlaying(currentStreamer.twitch_id);
+        }, 1500); // 1.5 second delay before auto-playing
+      }
+    }
+    
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, [currentIndex, streamers]);
+
+  // Reset preview when changing cards
+  useEffect(() => {
+    setPreviewPlaying(null);
+  }, [currentIndex]);
   
   // Check if this is the first visit
   useEffect(() => {
@@ -1161,42 +1208,54 @@ const DigDeeperPage = () => {
       >
         <div 
           className={styles.cardImageContainer}
-          style={{ backgroundImage: `url(${streamer.thumbnail_url || streamer.profile_image_url || 'https://via.placeholder.com/300'})` }}
+          style={{ 
+            backgroundImage: previewPlaying !== streamer.twitch_id ? 
+              `url(${streamer.thumbnail_url || streamer.profile_image_url || 'https://via.placeholder.com/300'})` : 
+              'none',
+            height: previewPlaying === streamer.twitch_id ? 'auto' : '220px'
+          }}
         >
-          <div className={styles.streamerOverlay}>
-            <span className={styles.streamerNameOverlay}>{streamer.display_name || streamer.username}</span>
-          </div>
-          
-          {streamer.is_live === true && (
-            <div className={styles.liveIndicator}>
-              LIVE
-              <div className={styles.viewerCount}>
-                {(streamer.view_count || 0).toLocaleString()} viewers
+          {previewPlaying === streamer.twitch_id ? (
+            renderStreamPreview(streamer)
+          ) : (
+            <>
+              <div className={styles.streamerOverlay}>
+                <span className={styles.streamerNameOverlay}>{streamer.display_name || streamer.username}</span>
               </div>
-            </div>
+              
+              {streamer.is_live === true && (
+                <div className={styles.liveIndicator}>
+                  LIVE
+                  <div className={styles.viewerCount}>
+                    {(streamer.view_count || 0).toLocaleString()} viewers
+                  </div>
+                </div>
+              )}
+              
+              {streamer.isWildcard && (
+                <div className={styles.wildcardIndicator}>
+                  WILDCARD
+                </div>
+              )}
+              
+              <div className={styles.swipeOverlay}>
+                <motion.div 
+                  className={styles.likeOverlay} 
+                  animate={{ opacity: controls.x > 50 ? 1 : 0 }}
+                >
+                  FAVORITE
+                </motion.div>
+                <motion.div 
+                  className={styles.dislikeOverlay} 
+                  animate={{ opacity: controls.x < -50 ? 1 : 0 }}
+                >
+                  PASS
+                </motion.div>
+              </div>
+            </>
           )}
-          
-          {streamer.isWildcard && (
-            <div className={styles.wildcardIndicator}>
-              WILDCARD
-            </div>
-          )}
-          
-          <div className={styles.swipeOverlay}>
-            <motion.div 
-              className={styles.likeOverlay} 
-              animate={{ opacity: controls.x > 50 ? 1 : 0 }}
-            >
-              FAVORITE
-            </motion.div>
-            <motion.div 
-              className={styles.dislikeOverlay} 
-              animate={{ opacity: controls.x < -50 ? 1 : 0 }}
-            >
-              PASS
-            </motion.div>
-          </div>
         </div>
+        
         <div className={styles.cardContent}>
           <h2 className={styles.streamerName}>{streamer.display_name || streamer.username}</h2>
           
@@ -1227,6 +1286,11 @@ const DigDeeperPage = () => {
                 )}
               </div>
             )}
+            
+            {/* Stream preview button (when not auto-playing) */}
+            {streamer.is_live && previewPlaying !== streamer.twitch_id && (
+              renderStreamPreview(streamer)
+            )}
           </div>
           
           <div className={styles.cardFooter}>
@@ -1239,14 +1303,25 @@ const DigDeeperPage = () => {
               )}
             </div>
             
-            {streamer.is_live && (
-              <Link 
-                to={`/stream/${streamer.username}`} 
-                className={styles.watchButton}
-              >
-                🔴 Watch Live
-              </Link>
-            )}
+            <div className={styles.actionContainer}>
+              {streamer.is_live && (
+                <button 
+                  className={styles.quickChatButton}
+                  onClick={(e) => openQuickChat(streamer, e)}
+                >
+                  💬 Say Hi
+                </button>
+              )}
+              
+              {streamer.is_live && (
+                <Link 
+                  to={`/stream/${streamer.username}`} 
+                  className={styles.watchButton}
+                >
+                  🔴 Watch Live
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -1706,6 +1781,122 @@ const DigDeeperPage = () => {
     return sortedA.every((val, idx) => val === sortedB[idx]);
   };
 
+  // Quick chat functions
+  const openQuickChat = (streamer, e) => {
+    if (e) e.stopPropagation();
+    setCurrentChatStreamer(streamer);
+    setChatOpen(true);
+    
+    // Stop auto-preview if it's playing
+    if (previewPlaying === streamer.twitch_id) {
+      setPreviewPlaying(null);
+    }
+  };
+  
+  const closeQuickChat = () => {
+    setChatOpen(false);
+    setCurrentChatStreamer(null);
+  };
+  
+  const sendQuickMessage = (message) => {
+    if (!currentChatStreamer) return;
+    
+    toast.success(`Message would be sent: "${message}"`);
+    
+    // In a real implementation, this would use Twitch API to send a message
+    // For now, we'll open the chat in a new tab
+    window.open(`https://www.twitch.tv/${currentChatStreamer.username}`, '_blank');
+  };
+  
+  // Render stream preview
+  const renderStreamPreview = (streamer) => {
+    if (!streamer.is_live) return null;
+    
+    if (previewPlaying === streamer.twitch_id) {
+      const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+      
+      return (
+        <div className={styles.previewContainer}>
+          <div className={styles.previewHeader}>
+            <span>🔴 LIVE PREVIEW</span>
+            <button 
+              className={styles.previewCloseButton}
+              onClick={() => setPreviewPlaying(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <iframe
+            src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
+            height="100%"
+            width="100%"
+            allowFullScreen={false}
+            title={`${streamer.display_name} stream preview`}
+            className={styles.previewFrame}
+          ></iframe>
+        </div>
+      );
+    } else {
+      return (
+        <button 
+          className={styles.previewButton}
+          onClick={() => setPreviewPlaying(streamer.twitch_id)}
+        >
+          ▶️ Watch Preview
+        </button>
+      );
+    }
+  };
+  
+  // Quick chat modal
+  const renderQuickChatModal = () => {
+    if (!chatOpen || !currentChatStreamer) return null;
+    
+    const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+    
+    return (
+      <div className={styles.chatModalOverlay} onClick={closeQuickChat}>
+        <div className={styles.chatModalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.chatModalHeader}>
+            <h3>Chat with {currentChatStreamer.display_name}</h3>
+            <button className={styles.closeButton} onClick={closeQuickChat}>✕</button>
+          </div>
+          
+          <div className={styles.chatStreamPreview}>
+            <iframe
+              src={`https://player.twitch.tv/?channel=${currentChatStreamer.username}&parent=${hostname}&muted=false`}
+              height="200px"
+              width="100%"
+              allowFullScreen={true}
+              title={`${currentChatStreamer.display_name} stream`}
+            ></iframe>
+          </div>
+          
+          <div className={styles.chatContainer}>
+            <iframe
+              src={`https://www.twitch.tv/embed/${currentChatStreamer.username}/chat?parent=${hostname}`}
+              height="300px"
+              width="100%"
+              title={`${currentChatStreamer.display_name} chat`}
+            ></iframe>
+          </div>
+          
+          <div className={styles.quickMessageButtons}>
+            {quickMessages.map(msg => (
+              <button 
+                key={msg.id}
+                className={styles.quickMessageButton}
+                onClick={() => sendQuickMessage(msg.text)}
+              >
+                {msg.text}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={styles.container}>
       <AuthModal 
@@ -1715,6 +1906,9 @@ const DigDeeperPage = () => {
         onLogin={() => window.location.href = '/login'}
         onSignup={() => window.location.href = '/signup'}
       />
+      
+      {/* Quick Chat Modal */}
+      {renderQuickChatModal()}
       
       <div className={styles.header}>
         <h1>Dig Deeper</h1>
