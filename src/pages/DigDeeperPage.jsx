@@ -608,17 +608,21 @@ const DigDeeperPage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '10px'
+      padding: '10px',
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      zIndex: 1000
     } : {};
     
     const mobileSelectorStyle = isMobile ? { 
-      width: '98%', 
+      width: '90%', 
       maxWidth: '100%',
-      maxHeight: '90vh',
+      maxHeight: '80vh',
       padding: '15px',
       overflow: 'auto',
       borderRadius: '12px',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+      position: 'relative',
+      backgroundColor: '#2a2a2a'  // Ensure background is visible
     } : {};
     
     // Better sized category grid for mobile
@@ -635,7 +639,8 @@ const DigDeeperPage = () => {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '60px'
+      minHeight: '60px',
+      position: 'relative'  // For proper positioning of checkmark
     } : {};
     
     const mobileTitleStyle = isMobile ? {
@@ -657,10 +662,39 @@ const DigDeeperPage = () => {
     const mobileCategoryIconStyle = isMobile ? {
       fontSize: '20px' 
     } : {};
-    
+
+    // Handler to close when clicking outside the modal
+    const handleOverlayClick = (e) => {
+      if (e.target === e.currentTarget) {
+        skipPreferences();
+      }
+    };
+
     return (
-      <div className={styles.preferenceSelectorOverlay} style={mobileOverlayStyle}>
+      <div 
+        className={styles.preferenceSelectorOverlay} 
+        style={mobileOverlayStyle}
+        onClick={handleOverlayClick}
+      >
         <div className={styles.preferenceSelector} style={mobileSelectorStyle}>
+          {/* Close button for easy dismissal */}
+          <button 
+            onClick={skipPreferences}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              background: 'transparent',
+              border: 'none',
+              fontSize: '20px',
+              color: '#fff',
+              cursor: 'pointer',
+              zIndex: 10
+            }}
+          >
+            ✕
+          </button>
+
           <h2 style={mobileTitleStyle}>{isUpdate ? 'Update Preferences' : 'What streams do you enjoy?'}</h2>
           <p style={mobileDescriptionStyle}>{isUpdate 
             ? 'Select up to 3 categories to update your recommendations' 
@@ -705,7 +739,8 @@ const DigDeeperPage = () => {
                 width: '100%', 
                 padding: '12px',
                 borderRadius: '8px',
-                fontSize: '16px'
+                fontSize: '16px',
+                marginBottom: '10px'
               } : {}}
             >
               {isUpdate ? 'Cancel' : 'Skip / Show Everything'}
@@ -719,7 +754,8 @@ const DigDeeperPage = () => {
                 padding: '12px',
                 borderRadius: '8px',
                 fontSize: '16px',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                marginBottom: '5px'
               } : {}}
             >
               {selectedPreferences.length === 0 
@@ -728,6 +764,15 @@ const DigDeeperPage = () => {
                   ? 'Update Preferences' 
                   : 'Save Preferences'}
             </button>
+            {selectedPreferences.length > 0 && (
+              <div style={{ 
+                textAlign: 'center', 
+                fontSize: isMobile ? '12px' : '14px',
+                marginTop: '5px'
+              }}>
+                Selected: {selectedPreferences.length}/3
+              </div>
+            )}
           </div>
         </div>
       </div>
