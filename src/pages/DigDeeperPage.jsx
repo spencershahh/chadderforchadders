@@ -603,40 +603,110 @@ const DigDeeperPage = () => {
   const renderPreferenceSelector = () => {
     const isUpdate = hasSetPreferences;
     
+    // Mobile-optimized styles for preference modal
+    const mobileOverlayStyle = isMobile ? {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '10px'
+    } : {};
+    
+    const mobileSelectorStyle = isMobile ? { 
+      width: '98%', 
+      maxWidth: '100%',
+      maxHeight: '90vh',
+      padding: '15px',
+      overflow: 'auto',
+      borderRadius: '12px',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+    } : {};
+    
+    // Better sized category grid for mobile
+    const mobileCategoryGridStyle = isMobile ? { 
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '8px',
+      margin: '10px 0'
+    } : {};
+    
+    // Improved category card style for mobile
+    const mobileCategoryCardStyle = isMobile ? {
+      padding: '8px 4px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60px'
+    } : {};
+    
+    const mobileTitleStyle = isMobile ? {
+      fontSize: '18px',
+      margin: '0 0 10px 0'
+    } : {};
+    
+    const mobileDescriptionStyle = isMobile ? {
+      fontSize: '14px',
+      margin: '0 0 15px 0'
+    } : {};
+    
+    const mobileCategoryNameStyle = isMobile ? {
+      fontSize: '12px',
+      marginTop: '4px',
+      textAlign: 'center'
+    } : {};
+    
+    const mobileCategoryIconStyle = isMobile ? {
+      fontSize: '20px' 
+    } : {};
+    
     return (
-      <div className={styles.preferenceSelectorOverlay}>
-        <div className={styles.preferenceSelector} style={isMobile ? { width: '95%', maxWidth: '100%', padding: '15px' } : {}}>
-          <h2>{isUpdate ? 'Update Your Preferences' : 'What kind of streams do you enjoy?'}</h2>
-          <p>{isUpdate 
+      <div className={styles.preferenceSelectorOverlay} style={mobileOverlayStyle}>
+        <div className={styles.preferenceSelector} style={mobileSelectorStyle}>
+          <h2 style={mobileTitleStyle}>{isUpdate ? 'Update Preferences' : 'What streams do you enjoy?'}</h2>
+          <p style={mobileDescriptionStyle}>{isUpdate 
             ? 'Select up to 3 categories to update your recommendations' 
-            : 'Select up to 3 categories to personalize your recommendations'}
+            : 'Pick up to 3 categories to personalize recommendations'}
           </p>
           
-          <div className={styles.categoryGrid} style={isMobile ? { 
-            gridTemplateColumns: 'repeat(2, 1fr)', 
-            gap: '10px' 
-          } : {}}>
+          <div className={styles.categoryGrid} style={mobileCategoryGridStyle}>
             {streamCategories.map(category => (
               <div 
                 key={category.id}
                 className={`${styles.categoryCard} ${selectedPreferences.includes(category.id) ? styles.selected : ''}`}
                 onClick={() => togglePreference(category.id)}
-                style={isMobile ? { padding: '10px' } : {}}
+                style={mobileCategoryCardStyle}
               >
-                <div className={styles.categoryIcon}>{category.icon}</div>
-                <div className={styles.categoryName}>{category.name}</div>
+                <div className={styles.categoryIcon} style={mobileCategoryIconStyle}>
+                  {category.icon}
+                </div>
+                <div className={styles.categoryName} style={mobileCategoryNameStyle}>
+                  {category.name}
+                </div>
                 {selectedPreferences.includes(category.id) && (
-                  <div className={styles.selectedIndicator}>✓</div>
+                  <div className={styles.selectedIndicator} style={isMobile ? {
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    fontSize: '12px'
+                  } : {}}>✓</div>
                 )}
               </div>
             ))}
           </div>
           
-          <div className={styles.preferencesButtons} style={isMobile ? { flexDirection: 'column', gap: '10px' } : {}}>
+          <div className={styles.preferencesButtons} style={isMobile ? { 
+            flexDirection: 'column', 
+            gap: '10px',
+            marginTop: '15px'
+          } : {}}>
             <button 
               className={styles.skipButton}
               onClick={skipPreferences}
-              style={isMobile ? { width: '100%', padding: '12px' } : {}}
+              style={isMobile ? { 
+                width: '100%', 
+                padding: '12px',
+                borderRadius: '8px',
+                fontSize: '16px'
+              } : {}}
             >
               {isUpdate ? 'Cancel' : 'Skip / Show Everything'}
             </button>
@@ -644,7 +714,13 @@ const DigDeeperPage = () => {
               className={styles.saveButton}
               onClick={savePreferences}
               disabled={selectedPreferences.length === 0}
-              style={isMobile ? { width: '100%', padding: '12px' } : {}}
+              style={isMobile ? { 
+                width: '100%', 
+                padding: '12px',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: 'bold'
+              } : {}}
             >
               {selectedPreferences.length === 0 
                 ? 'Select Categories' 
