@@ -13,6 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
     url: !!supabaseUrl,
     key: !!supabaseAnonKey
   });
+  throw new Error('Supabase configuration is missing. Please check your environment variables.');
 }
 
 // Initialize the Supabase client with more robust configuration
@@ -24,7 +25,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce',
     storage: window.localStorage,
     storageKey: 'supabase.auth.token',
-    debug: false, // Set to true only in development
+    debug: true, // Enable debug mode to help troubleshoot
     redirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
     emailRedirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
     multiTab: {
@@ -201,5 +202,19 @@ supabase.from = (table) => {
     }
   } catch (err) {
     console.error('Failed to check initial session:', err);
+  }
+})();
+
+// Test database connection
+(async () => {
+  try {
+    const { data, error } = await supabase.from('streamers').select('count').limit(1);
+    if (error) {
+      console.error('Database connection test failed:', error);
+    } else {
+      console.log('Database connection test successful');
+    }
+  } catch (err) {
+    console.error('Failed to test database connection:', err);
   }
 })();

@@ -25,37 +25,58 @@ const AdminDashboard = () => {
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
+        console.log('Checking admin status...');
+        setIsLoading(true);
+        setError(null);
+
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (error || !data.user) {
-          console.error('Auth error:', error);
-          setIsAdmin(false);
-          setIsLoading(false);
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          throw new Error('Failed to get session');
+        }
+
+        if (!session?.user) {
+          console.log('No active session found');
           navigate('/login');
           return;
         }
 
+        console.log('Session found:', session.user.email);
+
+        // Check admin status
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('*')
-          .eq('user_id', data.user.id)
+          .eq('user_id', session.user.id)
           .single();
 
-        if (adminError || !adminData) {
+        if (adminError) {
           console.error('Admin check error:', adminError);
-          setIsAdmin(false);
-          setIsLoading(false);
+          if (adminError.code === 'PGRST116') {
+            console.log('User is not an admin');
+            navigate('/');
+            toast.error('You do not have admin access');
+            return;
+          }
+          throw adminError;
+        }
+
+        if (!adminData) {
+          console.log('No admin data found');
           navigate('/');
           toast.error('You do not have admin access');
           return;
         }
 
+        console.log('Admin access confirmed');
         setIsAdmin(true);
         await loadStreamers();
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('Error in checkAdminStatus:', error);
         setError(error.message);
-        setIsLoading(false);
+        toast.error('Error checking admin status: ' + error.message);
       } finally {
         setIsLoading(false);
       }
@@ -66,6 +87,8 @@ const AdminDashboard = () => {
 
   const loadStreamers = async () => {
     try {
+      console.log('Loading streamers...');
+      
       // First try to load streamers from Supabase
       const { data: dbStreamers, error: dbError } = await supabase
         .from('streamers')
@@ -91,7 +114,7 @@ const AdminDashboard = () => {
         setStreamersJson(JSON.stringify(transformedStreamers, null, 2));
         
         // After loading streamers, fetch their Twitch data
-        fetchTwitchDataForStreamers(transformedStreamers);
+        await fetchTwitchDataForStreamers(transformedStreamers);
         return;
       }
       
@@ -106,7 +129,7 @@ const AdminDashboard = () => {
       setStreamersJson(JSON.stringify(data, null, 2));
       
       // After loading streamers, fetch their Twitch data
-      fetchTwitchDataForStreamers(data);
+      await fetchTwitchDataForStreamers(data);
       
       // If we loaded from JSON but database exists, sync to database
       if (!dbError) {
@@ -114,7 +137,8 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error loading streamers:', error);
-      toast.error('Failed to load streamers');
+      setError(error.message);
+      toast.error('Failed to load streamers: ' + error.message);
     }
   };
   
@@ -381,15 +405,42 @@ const AdminDashboard = () => {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Loading Admin Dashboard...</div>;
+    return (
+      <div className={styles.loading}>
+        <div className={styles.loadingSpinner} />
+        <div>Loading Admin Dashboard...</div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className={styles.error}>Error: {error}</div>;
+    return (
+      <div className={styles.error}>
+        <h2>Error</h2>
+        <p>{error}</p>
+        <button 
+          className={styles.retryButton}
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   if (!isAdmin) {
-    return <div className={styles.unauthorized}>You don't have permission to access this page</div>;
+    return (
+      <div className={styles.unauthorized}>
+        <h2>Unauthorized</h2>
+        <p>You don't have permission to access this page</p>
+        <button 
+          className={styles.button}
+          onClick={() => navigate('/')}
+        >
+          Return to Home
+        </button>
+      </div>
+    );
   }
 
   const renderStreamerManagement = () => (

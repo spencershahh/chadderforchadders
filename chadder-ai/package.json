@@ -14,7 +14,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/server.js",
-    "seed:streamers": "node scripts/seedTwitchStreamers.js"
+    "seed:streamers": "node scripts/seedTwitchStreamers.js",
+    "setup-admin": "node scripts/setup-admin-db.js",
+    "make-admin": "node scripts/make-admin.js"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
