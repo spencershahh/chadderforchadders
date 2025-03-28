@@ -30,31 +30,36 @@ const AdminDashboard = () => {
         setError(null);
 
         // First check if we have a session
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('Session error:', sessionError);
           throw new Error('Failed to get session: ' + sessionError.message);
         }
 
-        if (!sessionData?.session?.user) {
+        if (!session?.user) {
           console.log('No active session found');
           navigate('/login');
           return;
         }
 
-        const userId = sessionData.session.user.id;
-        console.log('Session found for user:', userId);
+        console.log('Session found for user:', session.user.email);
 
         // Now check if user is an admin
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('id')
-          .eq('user_id', userId)
-          .maybeSingle();
+          .eq('user_id', session.user.id)
+          .single();
 
         if (adminError) {
           console.error('Admin check error:', adminError);
+          if (adminError.code === 'PGRST116') {
+            console.log('User is not an admin');
+            navigate('/');
+            toast.error('You do not have admin access');
+            return;
+          }
           throw new Error('Failed to check admin status: ' + adminError.message);
         }
 

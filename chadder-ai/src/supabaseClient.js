@@ -9,60 +9,19 @@ const queryCache = new Map();
 const CACHE_TTL = 60000; // 1 minute cache TTL
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: !!supabaseUrl,
-    key: !!supabaseAnonKey
-  });
+  console.error('Missing Supabase environment variables');
   throw new Error('Supabase configuration is missing. Please check your environment variables.');
 }
 
 // Initialize the Supabase client with more robust configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-    storage: window.localStorage,
-    storageKey: 'supabase.auth.token',
-    debug: true, // Enable debug mode to help troubleshoot
-    redirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
-    emailRedirectTo: `${siteUrl}/login`, // Redirect to login after email confirmation
-    multiTab: {
-      enabled: true
-    },
-    storageOptions: {
-      skipSynchronizationOnInit: false
-    }
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 2
-    },
-    heartbeat: {
-      interval: 5000, // Send heartbeat every 5 seconds
-      timeout: 10000  // Consider connection dead after 10 seconds
-    }
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'chadder-web'
-    }
+    persistSession: true,
+    detectSessionInUrl: true
   },
   db: {
     schema: 'public'
-  },
-  // Improve network performance
-  fetch: (url, options) => {
-    // Add performance hints to fetch requests
-    const customOptions = {
-      ...options,
-      headers: {
-        ...options.headers,
-        'X-Priority-Hint': 'high'
-      }
-    };
-    return fetch(url, customOptions);
   }
 });
 
@@ -180,41 +139,32 @@ supabase.from = (table) => {
   return result;
 };
 
-// Warm up connection
+// Test database connection and auth status
 (async () => {
   try {
-    // Pre-fetch session just once at startup
-    const { data: { session }, error } = await supabase.auth.getSession();
+    // Check session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (error) {
-      console.error('Error checking initial session:', error);
+    if (sessionError) {
+      console.error('Session error:', sessionError);
     } else {
+      console.log('Auth status:', session ? 'Authenticated' : 'Not authenticated');
+      
       if (session) {
-        console.log('Session initialized successfully');
-        
-        // Pre-warm common queries
-        supabase.from('streamers').select('id,username').limit(1).then(() => {
-          console.log('Database connection established');
-        });
-      } else {
-        console.log('No active session');
+        // Test database access
+        const { error: dbError } = await supabase
+          .from('admins')
+          .select('count')
+          .limit(1);
+          
+        if (dbError) {
+          console.error('Database access error:', dbError);
+        } else {
+          console.log('Database connection successful');
+        }
       }
     }
   } catch (err) {
-    console.error('Failed to check initial session:', err);
-  }
-})();
-
-// Test database connection
-(async () => {
-  try {
-    const { data, error } = await supabase.from('streamers').select('count').limit(1);
-    if (error) {
-      console.error('Database connection test failed:', error);
-    } else {
-      console.log('Database connection test successful');
-    }
-  } catch (err) {
-    console.error('Failed to test database connection:', err);
+    console.error('Initialization error:', err);
   }
 })();
