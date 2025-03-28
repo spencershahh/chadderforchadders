@@ -142,26 +142,29 @@ supabase.from = (table) => {
 // Test database connection and auth status
 (async () => {
   try {
-    // Check session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
       console.error('Session error:', sessionError);
-    } else {
-      console.log('Auth status:', session ? 'Authenticated' : 'Not authenticated');
+      return;
+    }
+
+    console.log('Auth status:', session ? 'Authenticated' : 'Not authenticated');
+    
+    if (session) {
+      console.log('Logged in as:', session.user.email);
       
-      if (session) {
-        // Test database access
-        const { error: dbError } = await supabase
-          .from('admins')
-          .select('count')
-          .limit(1);
-          
-        if (dbError) {
-          console.error('Database access error:', dbError);
-        } else {
-          console.log('Database connection successful');
-        }
+      // Test database access
+      const { data, error: dbError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single();
+        
+      if (dbError) {
+        console.error('Database access error:', dbError);
+      } else {
+        console.log('Admin status:', data ? 'Is admin' : 'Not admin');
       }
     }
   } catch (err) {
