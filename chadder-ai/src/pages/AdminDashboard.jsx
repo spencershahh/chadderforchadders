@@ -29,42 +29,37 @@ const AdminDashboard = () => {
         setIsLoading(true);
         setError(null);
 
-        // Get current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // First check if we have a session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('Session error:', sessionError);
-          throw new Error('Failed to get session');
+          throw new Error('Failed to get session: ' + sessionError.message);
         }
 
-        if (!session?.user) {
+        if (!sessionData?.session?.user) {
           console.log('No active session found');
           navigate('/login');
           return;
         }
 
-        console.log('Session found:', session.user.email);
+        const userId = sessionData.session.user.id;
+        console.log('Session found for user:', userId);
 
-        // Check admin status
+        // Now check if user is an admin
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
 
         if (adminError) {
           console.error('Admin check error:', adminError);
-          if (adminError.code === 'PGRST116') {
-            console.log('User is not an admin');
-            navigate('/');
-            toast.error('You do not have admin access');
-            return;
-          }
-          throw adminError;
+          throw new Error('Failed to check admin status: ' + adminError.message);
         }
 
         if (!adminData) {
-          console.log('No admin data found');
+          console.log('User is not an admin');
           navigate('/');
           toast.error('You do not have admin access');
           return;
@@ -76,7 +71,7 @@ const AdminDashboard = () => {
       } catch (error) {
         console.error('Error in checkAdminStatus:', error);
         setError(error.message);
-        toast.error('Error checking admin status: ' + error.message);
+        toast.error(error.message);
       } finally {
         setIsLoading(false);
       }
@@ -88,57 +83,33 @@ const AdminDashboard = () => {
   const loadStreamers = async () => {
     try {
       console.log('Loading streamers...');
-      
-      // First try to load streamers from Supabase
-      const { data: dbStreamers, error: dbError } = await supabase
+      setIsLoading(true);
+      setError(null);
+
+      const { data: streamers, error } = await supabase
         .from('streamers')
-        .select('name, bio')
-        .order('name');
-      
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw dbError;
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading streamers:', error);
+        throw new Error('Failed to load streamers: ' + error.message);
       }
-      
-      // If we have data from Supabase, use it
-      if (dbStreamers && dbStreamers.length > 0) {
-        console.log('Loaded streamers from Supabase:', dbStreamers.length);
-        
-        // Transform the data to use username for frontend compatibility
-        const transformedStreamers = dbStreamers.map(streamer => ({
-          username: streamer.name,
-          bio: streamer.bio
-        }));
-        
-        setStreamers(transformedStreamers);
-        setStreamersJson(JSON.stringify(transformedStreamers, null, 2));
-        
-        // After loading streamers, fetch their Twitch data
-        await fetchTwitchDataForStreamers(transformedStreamers);
+
+      if (!streamers) {
+        console.log('No streamers found');
+        setStreamers([]);
         return;
       }
-      
-      // Fall back to loading from JSON file
-      console.log('No streamers in database, falling back to JSON file');
-      const response = await fetch('/streamers.json');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch streamers: ${response.status} ${response.statusText}`);
-      }
-      const data = await response.json();
-      setStreamers(data);
-      setStreamersJson(JSON.stringify(data, null, 2));
-      
-      // After loading streamers, fetch their Twitch data
-      await fetchTwitchDataForStreamers(data);
-      
-      // If we loaded from JSON but database exists, sync to database
-      if (!dbError) {
-        await syncStreamersToDatabase(data);
-      }
+
+      console.log(`Loaded ${streamers.length} streamers`);
+      setStreamers(streamers);
     } catch (error) {
-      console.error('Error loading streamers:', error);
+      console.error('Error in loadStreamers:', error);
       setError(error.message);
-      toast.error('Failed to load streamers: ' + error.message);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -404,26 +375,21 @@ const AdminDashboard = () => {
       });
   };
 
+  // Render loading state
   if (isLoading) {
     return (
-      <div className={styles.loading}>
+      <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner} />
-        <div>Loading Admin Dashboard...</div>
+        <p>Loading admin dashboard...</p>
       </div>
     );
   }
 
+  // Render error state
   if (error) {
     return (
-      <div className={styles.error}>
-        <h2>Error</h2>
-        <p>{error}</p>
-        <button 
-          className={styles.retryButton}
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </button>
+      <div className={styles.errorContainer}>
+        <p className={styles.errorMessage}>{error}</p>
       </div>
     );
   }
@@ -664,7 +630,7 @@ const AdminDashboard = () => {
 
   return (
     <div className={styles.adminDashboard}>
-      <Toaster position="top-center" />
+      <Toaster position="top-right" />
       <h1 className={styles.title}>Admin Dashboard</h1>
       
       <div className={styles.tabBar}>
