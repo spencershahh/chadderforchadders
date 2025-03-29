@@ -4,14 +4,15 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const siteUrl = import.meta.env.VITE_APP_URL || window.location.origin;
 
-// Create a simple in-memory cache system
-const queryCache = new Map();
-const CACHE_TTL = 60000; // 1 minute cache TTL
-
+// Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
   throw new Error('Supabase configuration is missing. Please check your environment variables.');
 }
+
+// Create a simple in-memory cache system
+const queryCache = new Map();
+const CACHE_TTL = 60000; // 1 minute cache TTL
 
 // Initialize the Supabase client with more robust configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -61,6 +62,13 @@ const setupAuthListener = () => {
         userId: session?.user?.id,
         timestamp: new Date().toISOString()
       });
+    }
+    
+    // Persist session in localStorage for better recovery
+    if (event === 'SIGNED_IN') {
+      localStorage.setItem('authSession', JSON.stringify(session));
+    } else if (event === 'SIGNED_OUT') {
+      localStorage.removeItem('authSession');
     }
   });
 };
@@ -139,9 +147,42 @@ supabase.from = (table) => {
   return result;
 };
 
+// Test database connection
+const testConnection = async () => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .select('count(*)', { count: 'exact' })
+      .limit(0);
+    
+    if (error) {
+      console.error('Database connection error:', error.message);
+      return false;
+    }
+    
+    console.log('Database connection successful');
+    return true;
+  } catch (error) {
+    console.error('Database connection test failed:', error.message);
+    return false;
+  }
+};
+
+// Add cleanup function for better memory management
+export const cleanup = () => {
+  if (authSubscription) {
+    authSubscription.subscription.unsubscribe();
+  }
+  queryCache.clear();
+};
+
 // Test database connection and auth status
 (async () => {
   try {
+    // Test database connection
+    await testConnection();
+    
+    // Check auth status
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
@@ -154,14 +195,14 @@ supabase.from = (table) => {
     if (session) {
       console.log('Logged in as:', session.user.email);
       
-      // Test database access
+      // Test admin status
       const { data, error: dbError } = await supabase
         .from('admins')
         .select('*')
         .eq('user_id', session.user.id)
         .single();
         
-      if (dbError) {
+      if (dbError && dbError.code !== 'PGRST116') { // Not found is okay
         console.error('Database access error:', dbError);
       } else {
         console.log('Admin status:', data ? 'Is admin' : 'Not admin');

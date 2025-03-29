@@ -5,9 +5,32 @@ import './Navbar.css';
 
 const Navbar = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const menuRef = useRef(null);
   const hamburgerRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('admins')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (!error && data) {
+          setIsAdmin(true);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -65,6 +88,11 @@ const Navbar = ({ user }) => {
       <Link to="/leaderboard" onClick={() => setIsOpen(false)}>Leaderboard</Link>
       <Link to="/credits" onClick={() => setIsOpen(false)}>Credits</Link>
       <Link to="/settings" onClick={() => setIsOpen(false)}>Settings</Link>
+      {isAdmin && (
+        <Link to="/admin" onClick={() => setIsOpen(false)} className="admin-link">
+          Admin
+        </Link>
+      )}
       {user ? (
         <button 
           onClick={handleLogout} 

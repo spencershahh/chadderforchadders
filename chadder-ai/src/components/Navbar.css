@@ -90,6 +90,21 @@
   background: rgba(145, 71, 255, 0.1);
 }
 
+.navbar .nav-links .admin-link {
+  background: linear-gradient(135deg, #9147ff, #6441a5);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.navbar .nav-links .admin-link:hover {
+  background: linear-gradient(135deg, #772ce8, #52348c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+}
+
 .navbar .hamburger {
   display: none;
   flex-direction: column;
@@ -205,6 +220,19 @@
   }
 
   .navbar .navbar-menu .signup-button:hover {
+    background: linear-gradient(135deg, #772ce8, #52348c);
+    box-shadow: 0 4px 20px rgba(145, 71, 255, 0.4);
+  }
+
+  .navbar .navbar-menu .admin-link {
+    background: linear-gradient(135deg, #9147ff, #6441a5);
+    color: white;
+    margin-top: 1rem;
+    font-weight: 600;
+    border: none;
+  }
+
+  .navbar .navbar-menu .admin-link:hover {
     background: linear-gradient(135deg, #772ce8, #52348c);
     box-shadow: 0 4px 20px rgba(145, 71, 255, 0.4);
   }

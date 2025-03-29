@@ -20,6 +20,7 @@ const Signup = () => {
   const [popularStreamers, setPopularStreamers] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const navigate = useNavigate();
+  const [verificationSent, setVerificationSent] = useState(false);
 
   // Fetch real stats and streamers for the teaser section
   useEffect(() => {
@@ -109,9 +110,15 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // Validate display name
+      // Validate display name and password
       if (!displayName.trim()) {
         toast.error('Display name is required');
+        setLoading(false);
+        return;
+      }
+
+      if (password.length < 6) {
+        toast.error('Password must be at least 6 characters');
         setLoading(false);
         return;
       }
@@ -143,10 +150,17 @@ const Signup = () => {
 
       if (existingDbUser) {
         // Delete the existing user from the database
-        await supabase
+        const { error: deleteError } = await supabase
           .from('users')
           .delete()
           .eq('id', existingDbUser.id);
+        
+        if (deleteError) {
+          console.error("Error removing existing user:", deleteError);
+          toast.error("An error occurred. Please try again or use a different email.");
+          setLoading(false);
+          return;
+        }
       }
 
       // Get site URL for email confirmation
@@ -186,9 +200,8 @@ const Signup = () => {
               id: user.id,
               email: user.email,
               display_name: displayName,
-              username: username,
+              tier: 'free-tier',
               gem_balance: 0,
-              tier: 'free',
               created_at: new Date().toISOString()
             }
           ], { onConflict: 'id' });
@@ -200,9 +213,10 @@ const Signup = () => {
           return;
         }
 
+        // Show verification message
+        setVerificationSent(true);
         toast.success('Signup successful! Please check your email to confirm your account.', {
-          duration: 5000,
-          onClose: () => navigate("/login")
+          duration: 5000
         });
       }
     } catch (err) {
@@ -324,38 +338,55 @@ const Signup = () => {
       <div className="auth-container" ref={authContainerRef}>
         <h2 className="auth-title">Sign Up for Chadder.ai</h2>
         <p className="auth-description">Join our community and help support emerging streamers</p>
-        <form className="auth-form" onSubmit={handleSignup}>
-          <input
-            type="text"
-            placeholder="Display Name"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            required
-            className="auth-input"
-          />
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="auth-input"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="auth-input"
-          />
-          <button type="submit" disabled={loading} className="auth-button">
-            {loading ? "Signing up..." : "Sign Up"}
-          </button>
-          <p className="terms-text">
-            By signing up, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>
-          </p>
-        </form>
+        
+        {verificationSent ? (
+          <div className="verification-message" style={{ textAlign: 'center', padding: '20px' }}>
+            <h3>Verification Email Sent</h3>
+            <p>We've sent a verification email to <strong>{email}</strong>.</p>
+            <p>Please check your inbox and click the link to complete your registration.</p>
+            <button 
+              onClick={() => navigate("/login")} 
+              className="auth-button"
+              style={{ marginTop: '20px' }}
+            >
+              Go to Login
+            </button>
+          </div>
+        ) : (
+          <form className="auth-form" onSubmit={handleSignup}>
+            <input
+              type="text"
+              placeholder="Display Name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+              className="auth-input"
+            />
+            <input
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="auth-input"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="auth-input"
+            />
+            <button type="submit" disabled={loading} className="auth-button">
+              {loading ? "Signing up..." : "Sign Up"}
+            </button>
+            <p className="terms-text">
+              By signing up, you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>
+            </p>
+          </form>
+        )}
+        
         <p className="auth-switch">
           Already have an account? <a href="/login">Log in</a>
         </p>
