@@ -535,4 +535,67 @@
   font-family: monospace;
   font-size: 14px;
   margin: 0;
+}
+
+/* Add these styles at the end of the file */
+
+.notice {
+  background-color: #302e44;
+  border-left: 4px solid #00ccff;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.notice p {
+  margin: 0;
+  color: #ddd;
+}
+
+.mockUsers {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mockUser {
+  background-color: #222;
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mockStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.statCard {
+  background: linear-gradient(to bottom right, #1e272e, #2C3A47);
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.statValue {
+  font-size: 36px;
+  font-weight: bold;
+  color: #00ccff;
+  margin-bottom: 8px;
+}
+
+.statLabel {
+  color: #aaa;
+  font-size: 14px;
 } 
