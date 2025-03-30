@@ -120,7 +120,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 500px;
+  height: 550px;
   margin-bottom: 1.5rem;
   perspective: 1000px;
 }
@@ -128,7 +128,7 @@
 .card {
   width: 100%;
   max-width: 350px;
-  height: 500px;
+  height: 550px;
   border-radius: 16px;
   overflow: hidden;
   background-color: #2a2a2a;
@@ -147,7 +147,9 @@
   height: 60%;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   position: relative;
+  min-height: 250px;
 }
 
 .liveIndicator {
@@ -228,6 +230,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 240px;
 }
 
 .streamerName {
@@ -247,6 +250,7 @@
   margin: 0.5rem -1rem;
   padding: 0 1rem;
   min-height: 80px;
+  max-height: 140px;
 }
 
 .contentScroll::-webkit-scrollbar {
@@ -299,7 +303,7 @@
 }
 
 .cardFooter {
-  margin-top: 0.5rem;
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -472,7 +476,7 @@
   
   .card {
     max-width: 300px;
-    height: 450px;
+    height: 500px;
   }
   
   .instructionsContainer {
@@ -483,12 +487,20 @@
   .instruction {
     margin: 0.5rem 0;
   }
+  
+  .cardsContainer {
+    height: 500px;
+  }
 }
 
 @media (max-width: 480px) {
   .card {
     max-width: 280px;
-    height: 400px;
+    height: 480px;
+  }
+  
+  .cardsContainer {
+    height: 480px;
   }
   
   .cardContent h2 {
@@ -968,6 +980,48 @@
   padding: 12px;
 }
 
+.quickMessageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quickMessageHeader h4 {
+  margin: 0;
+  color: #a970ff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.refreshMessagesButton {
+  background: rgba(169, 112, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(169, 112, 255, 0.4);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.refreshMessagesButton:hover {
+  background: rgba(169, 112, 255, 0.3);
+}
+
+.quickMessageHelper {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
 .quickMessageButton {
   background: #3a3a3d;
   color: white;
@@ -1022,4 +1076,44 @@
   .chatContainer {
     height: 250px;
   }
+}
+
+.chatMessages {
+  padding: 12px;
+  height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.chatMessage {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: white;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.chatSender {
+  font-weight: bold;
+  color: #a970ff;
+  margin-right: 8px;
+}
+
+.chatText {
+  color: #efeff1;
+}
+
+.emptyChatMessage {
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }

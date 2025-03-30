@@ -37,6 +37,139 @@ const DigDeeperPage = () => {
     { id: 3, text: "What game/content are you planning next?" }
   ]);
   
+  // All potential quick messages
+  const allQuickMessages = [
+    { id: 1, text: "Hi there! Just discovered your stream!" },
+    { id: 2, text: "Love the content! How long have you been streaming?" },
+    { id: 3, text: "What game/content are you planning next?" },
+    { id: 4, text: "Your stream setup looks amazing!" },
+    { id: 5, text: "Just followed! Looking forward to more streams" },
+    { id: 6, text: "Any tips for someone new to this game?" },
+    { id: 7, text: "That was an awesome play!" },
+    { id: 8, text: "What's your streaming schedule like?" },
+    { id: 9, text: "Do you play with viewers?" },
+    { id: 10, text: "What other games do you enjoy playing?" },
+    { id: 11, text: "How did you get into streaming?" },
+    { id: 12, text: "Loving the stream quality, what's your setup?" },
+    { id: 13, text: "Found you through Chadder, great recommendation!" },
+    { id: 14, text: "Do you have a Discord community?" },
+    { id: 15, text: "Just dropped a sub, keep up the great content!" },
+    { id: 16, text: "What's your favorite part about streaming?" },
+    { id: 17, text: "How's your experience been with this game so far?" },
+    { id: 18, text: "Your energy is so entertaining!" },
+    { id: 19, text: "What advice would you give to new streamers?" },
+    { id: 20, text: "This is my first time catching your stream live!" },
+    { id: 21, text: "The vibes here are immaculate!" },
+    { id: 22, text: "Do you have any gameplay goals for today's stream?" },
+    { id: 23, text: "Your commentary is hilarious!" },
+    { id: 24, text: "What's the hardest part about this game?" },
+    { id: 25, text: "Hey! Love the stream!" },
+    { id: 26, text: "Any memorable moments from your streaming career?" },
+    { id: 27, text: "What got you interested in this game initially?" },
+    { id: 28, text: "Your reactions are priceless!" },
+    { id: 29, text: "Do you collaborate with other streamers?" },
+    { id: 30, text: "What's your go-to snack during long streams?" },
+    { id: 31, text: "The music selection is on point!" },
+    { id: 32, text: "How do you handle stream snipers?" },
+    { id: 33, text: "Just coming in from another channel, happy to be here!" },
+    { id: 34, text: "Your community seems really awesome!" },
+    { id: 35, text: "What's been your favorite gaming moment recently?" },
+    { id: 36, text: "How long have you been playing this game?" },
+    { id: 37, text: "What's your streaming pet peeve?" },
+    { id: 38, text: "Your emotes are fantastic!" },
+    { id: 39, text: "Any plans for special event streams?" },
+    { id: 40, text: "Coming over from Chadder.ai, just wanted to say hi!" },
+    { id: 41, text: "I'm a big fan of your content!" },
+    { id: 42, text: "What's your favorite thing about streaming?" },
+    { id: 43, text: "How do you stay motivated to stream?" },
+    { id: 44, text: "What's your favorite game to play?" },
+    { id: 45, text: "How do you deal with stream burnout?" },
+    { id: 46, text: "What's your favorite way to interact with your community?" },
+    { id: 47, text: "What's your favorite thing about this game?" },
+    { id: 48, text: "Where are you from? I'm tuning in from [location]!" },
+    { id: 49, text: "What hardware do you use for streaming?" },
+    { id: 50, text: "Your voice is perfect for streaming!" },
+    { id: 51, text: "Any games coming out that you're excited to play?" },
+    { id: 52, text: "How did you come up with your username?" },
+    { id: 53, text: "What's the most challenging part of streaming?" },
+    { id: 54, text: "Just wanted to drop by and show some support!" },
+    { id: 55, text: "Do you have any stream goals today?" },
+    { id: 56, text: "How often do you stream each week?" },
+    { id: 57, text: "First time here, loving the vibe!" },
+    { id: 58, text: "What got you into gaming/streaming?" },
+    { id: 59, text: "Your gameplay skills are impressive!" },
+    { id: 60, text: "What's your favorite moment from streaming so far?" },
+    { id: 61, text: "Do you ever do viewer games or challenges?" },
+    { id: 62, text: "I appreciate how interactive you are with chat!" },
+    { id: 63, text: "Have you tried any other platforms besides Twitch?" },
+    { id: 64, text: "What makes streaming fulfilling for you?" },
+    { id: 65, text: "How long did it take you to get comfortable on stream?" },
+    { id: 66, text: "The stream quality is fantastic!" },
+    { id: 67, text: "Any chance you'll do a setup tour sometime?" },
+    { id: 68, text: "Your laugh is contagious!" },
+    { id: 69, text: "What's something you wish more viewers knew about streaming?" },
+    { id: 70, text: "What achievement are you most proud of?" },
+    { id: 71, text: "Do you have a favorite streamer that inspires you?" },
+    { id: 72, text: "Your overlay looks great! Did you design it yourself?" },
+    { id: 73, text: "That was a clutch play right there!" },
+    { id: 74, text: "How do you balance streaming with other responsibilities?" },
+    { id: 75, text: "Your stream always puts me in a good mood!" },
+    { id: 76, text: "What's something exciting happening in your life lately?" },
+    { id: 77, text: "Found you through Chadder - so happy I did!" },
+    { id: 78, text: "Good luck in this game/match!" },
+    { id: 79, text: "Your chat seems really friendly!" },
+    { id: 80, text: "Do you have merch or ways to support outside of Twitch?" },
+    { id: 81, text: "Would love to play with you sometime if you ever need teammates!" },
+    { id: 82, text: "What's been your biggest challenge growing your channel?" },
+    { id: 83, text: "Have you played [popular game] yet?" },
+    { id: 84, text: "You deserve way more viewers!" },
+    { id: 85, text: "How do you handle trolls in chat?" },
+    { id: 86, text: "The background music is perfect!" },
+    { id: 87, text: "Are you a full-time streamer or is this a side hobby?" },
+    { id: 88, text: "What's your opinion on current gaming trends?" },
+    { id: 89, text: "Will you be streaming any upcoming game releases?" },
+    { id: 90, text: "Popping in to say hi before I have to go - keep up the great work!" },
+    { id: 91, text: "How's your day going so far?" },
+    { id: 92, text: "Would you ever consider attending gaming/streaming conventions?" },
+    { id: 93, text: "What specs does your gaming computer have?" },
+    { id: 94, text: "Do you have a favorite game of all time?" },
+    { id: 95, text: "Your stream has such a chill atmosphere!" },
+    { id: 96, text: "What's the story behind your channel/branding?" },
+    { id: 97, text: "Impressive skills! How much practice did that take?" },
+    { id: 98, text: "Do you play any other games off-stream?" },
+    { id: 99, text: "Really enjoying the stream - it's made my day better!" },
+    { id: 100, text: "Wishing you all the best with your channel growth!" }
+  ];
+  
+  // Function to generate new quick message options
+  const generateNewMessageOptions = () => {
+    let messagePool = [...allQuickMessages];
+    
+    // Add game-specific messages if the streamer is playing a known game
+    if (currentChatStreamer && currentChatStreamer.game_name) {
+      const gameName = currentChatStreamer.game_name;
+      
+      // Add game-specific messages
+      const gameSpecificMessages = [
+        { id: 100, text: `I love watching ${gameName}! Great choice!` },
+        { id: 101, text: `How long have you been playing ${gameName}?` },
+        { id: 102, text: `Any tips for someone starting out in ${gameName}?` },
+        { id: 103, text: `What's your favorite thing about ${gameName}?` }
+      ];
+      
+      // Add them to the pool
+      messagePool = [...messagePool, ...gameSpecificMessages];
+    }
+    
+    // Get 3 random messages from the pool
+    const shuffled = [...messagePool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 3);
+    setQuickMessages(selected);
+    
+    // Show toast notification
+    toast.success('New message options generated!', { duration: 1500 });
+  };
+  
   // Preference selector state
   const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
   const [selectedPreferences, setSelectedPreferences] = useState([]);
@@ -1212,7 +1345,7 @@ const DigDeeperPage = () => {
             backgroundImage: previewPlaying !== streamer.twitch_id ? 
               `url(${streamer.thumbnail_url || streamer.profile_image_url || 'https://via.placeholder.com/300'})` : 
               'none',
-            height: previewPlaying === streamer.twitch_id ? 'auto' : '220px'
+            height: previewPlaying === streamer.twitch_id ? 'auto' : '60%'
           }}
         >
           {previewPlaying === streamer.twitch_id ? (
@@ -1787,6 +1920,30 @@ const DigDeeperPage = () => {
     setCurrentChatStreamer(streamer);
     setChatOpen(true);
     
+    // Prepare message pool with generic messages
+    let messagePool = [...allQuickMessages];
+    
+    // Add game-specific messages if the streamer is playing a known game
+    if (streamer.game_name) {
+      const gameName = streamer.game_name;
+      
+      // Add game-specific messages
+      const gameSpecificMessages = [
+        { id: 100, text: `I love watching ${gameName}! Great choice!` },
+        { id: 101, text: `How long have you been playing ${gameName}?` },
+        { id: 102, text: `Any tips for someone starting out in ${gameName}?` },
+        { id: 103, text: `What's your favorite thing about ${gameName}?` }
+      ];
+      
+      // Add them to the pool
+      messagePool = [...messagePool, ...gameSpecificMessages];
+    }
+    
+    // Get 3 random messages from the pool
+    const shuffled = [...messagePool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 3);
+    setQuickMessages(selected);
+    
     // Stop auto-preview if it's playing
     if (previewPlaying === streamer.twitch_id) {
       setPreviewPlaying(null);
@@ -1801,11 +1958,30 @@ const DigDeeperPage = () => {
   const sendQuickMessage = (message) => {
     if (!currentChatStreamer) return;
     
-    toast.success(`Message would be sent: "${message}"`);
-    
-    // In a real implementation, this would use Twitch API to send a message
-    // For now, we'll open the chat in a new tab
-    window.open(`https://www.twitch.tv/${currentChatStreamer.username}`, '_blank');
+    // Since we can't directly inject text into the Twitch iframe due to cross-origin restrictions,
+    // we'll copy the message to clipboard and guide the user
+    try {
+      // Copy the message to clipboard
+      navigator.clipboard.writeText(message);
+      
+      // Show success toast
+      toast.success('Message copied to clipboard!', { duration: 2000 });
+      
+      // Show instructions to the user
+      toast.info('Click on the chat input and press Ctrl+V to paste, then Enter to send', {
+        duration: 5000,
+        icon: '💬'
+      });
+      
+      // Attempt to focus the iframe (may not work due to security restrictions)
+      const chatIframe = document.querySelector('iframe[title*="chat"]');
+      if (chatIframe) {
+        chatIframe.focus();
+      }
+    } catch (error) {
+      console.error('Error copying message:', error);
+      toast.error('Unable to copy message. Please type it manually in chat.');
+    }
   };
   
   // Render stream preview
@@ -1882,6 +2058,17 @@ const DigDeeperPage = () => {
           </div>
           
           <div className={styles.quickMessageButtons}>
+            <div className={styles.quickMessageHeader}>
+              <h4>Quick Messages</h4>
+              <button 
+                className={styles.refreshMessagesButton}
+                onClick={generateNewMessageOptions}
+                title="Generate new message options"
+              >
+                🔄 New Options
+              </button>
+            </div>
+            
             {quickMessages.map(msg => (
               <button 
                 key={msg.id}
@@ -1891,6 +2078,9 @@ const DigDeeperPage = () => {
                 {msg.text}
               </button>
             ))}
+            <div className={styles.quickMessageHelper}>
+              Click a message above to copy it to your clipboard. Then click in the Twitch chat and paste (Ctrl+V) to send.
+            </div>
           </div>
         </div>
       </div>
