@@ -5,6 +5,7 @@ import InsufficientGemsModal from '../components/InsufficientGemsModal';
 import WatchAdButton from '../components/WatchAdButton';
 import GemBalanceDisplay from '../components/GemBalanceDisplay';
 import './StreamPage.css';
+import './MobileStreamPage.css';
 
 
 const StreamPage = () => {
@@ -37,7 +38,8 @@ const StreamPage = () => {
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileVotePanel, setShowMobileVotePanel] = useState(false);
-  const [mobileMessage, setMobileMessage] = useState('');
+  const [showVoteModal, setShowVoteModal] = useState(false);
+  const [isAuthError, setIsAuthError] = useState(false);
 
   // Simplified debug logging
   useEffect(() => {
@@ -216,7 +218,7 @@ const StreamPage = () => {
     };
   }, []);
 
-  // Add this effect after other useEffects to detect mobile devices
+  // Add this effect to detect mobile devices
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768;
@@ -232,6 +234,68 @@ const StreamPage = () => {
     // Cleanup
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Add this effect to initialize the Twitch embeds after the DOM elements exist
+  useEffect(() => {
+    if (!loading && username) {
+      // Small delay to ensure DOM elements are rendered
+      const timer = setTimeout(() => {
+        setupTwitchEmbed();
+        setupTwitchChatEmbed();
+        
+        console.log("Initialized Twitch embeds");
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, username, isMobile]);
+
+  // Update the useEffect to call our removeTwitchChatInput function
+  useEffect(() => {
+    if (isMobile) {
+      // Function to clean up duplicate inputs
+      const cleanupInputs = () => {
+        console.log("Cleaning up duplicate inputs");
+        
+        // Find any inputs that aren't our mobile-chat-input
+        const extraInputs = document.querySelectorAll('input:not(.mobile-chat-input)');
+        extraInputs.forEach(input => {
+          if (input.getAttribute('placeholder')?.toLowerCase()?.includes('message') || 
+              input.getAttribute('placeholder')?.toLowerCase()?.includes('chat')) {
+            console.log("Found non-mobile chat input, hiding:", input);
+            input.style.display = 'none';
+            
+            // Also hide parent elements that might contain the input
+            let parent = input.parentElement;
+            for (let i = 0; i < 3 && parent; i++) {
+              if (parent.classList.contains('chat-input') || 
+                  parent.classList.contains('chat-input-container')) {
+                parent.style.display = 'none';
+              }
+              parent = parent.parentElement;
+            }
+          }
+        });
+      };
+      
+      // Run cleanup multiple times to catch any delayed renders
+      const timer1 = setTimeout(cleanupInputs, 1000);
+      const timer2 = setTimeout(cleanupInputs, 2000);
+      const timer3 = setTimeout(cleanupInputs, 5000);
+      const timer4 = setTimeout(cleanupInputs, 10000);
+      
+      // Also run on window resize as this can trigger re-renders
+      window.addEventListener('resize', cleanupInputs);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+        clearTimeout(timer4);
+        window.removeEventListener('resize', cleanupInputs);
+      };
+    }
+  }, [isMobile]);
 
   const calculateDonationBomb = (votes) => {
     const WACP = 0.0725; // Fixed WACP value
@@ -280,9 +344,19 @@ const StreamPage = () => {
 
   const setupTwitchEmbed = () => {
     try {
-      const embedContainer = document.getElementById("twitch-embed");
-      if (!embedContainer) return;
+      // Find appropriate container based on device
+      const desktopEmbedContainer = document.querySelector("#twitch-embed");
+      const mobileEmbedContainer = document.querySelector("#mobile-twitch-embed");
       
+      // Use the appropriate container based on device
+      const embedContainer = isMobile ? mobileEmbedContainer : desktopEmbedContainer;
+      
+      if (!embedContainer) {
+        console.error("Embed container not found for device:", isMobile ? "mobile" : "desktop");
+        return;
+      }
+      
+      console.log("Setting up Twitch embed in container:", embedContainer);
       embedContainer.innerHTML = "";
       
       // Create Twitch embed iframe
@@ -291,55 +365,46 @@ const StreamPage = () => {
       iframe.width = "100%";
       iframe.height = "100%";
       iframe.allowFullscreen = true;
-      iframe.style.display = "block"; // Ensure block display
-      iframe.style.minHeight = isMobile ? "200px" : "500px"; // Min height based on device
+      iframe.style.display = "block";
       
       embedContainer.appendChild(iframe);
-      
-      // Ensure container is properly sized
-      embedContainer.style.width = "100%";
-      embedContainer.style.height = isMobile ? "auto" : "100%";
-      embedContainer.style.minHeight = isMobile ? "200px" : "500px";
-      
-      // Force iframe to maintain aspect ratio with CSS
-      const forceAspectRatio = () => {
-        if (!isMobile && embedContainer.offsetWidth > 0) {
-          // Calculate 16:9 aspect ratio height
-          const aspectHeight = Math.floor(embedContainer.offsetWidth * (9/16));
-          // Use the larger of calculated height or min height
-          const targetHeight = Math.max(aspectHeight, 500);
-          embedContainer.style.height = `${targetHeight}px`;
-        }
-      };
-      
-      // Set initial size
-      forceAspectRatio();
-      
-      // Add resize listener to maintain aspect ratio
-      window.addEventListener('resize', forceAspectRatio);
-      
-      // Clean up on component unmount
-      return () => {
-        window.removeEventListener('resize', forceAspectRatio);
-      };
     } catch (error) {
       console.error("Error in setupTwitchEmbed:", error);
     }
   };
 
+  // Update setupTwitchChatEmbed to ensure it works with our new layout
   const setupTwitchChatEmbed = () => {
     try {
-      const chatContainer = document.getElementById("twitch-chat");
-      if (!chatContainer) return;
+      // Clear any existing chat embed
+      const desktopChatContainer = document.getElementById("twitch-chat");
+      const mobileChatContainer = document.getElementById("mobile-twitch-chat");
       
+      // Target the appropriate container based on device
+      const chatContainer = isMobile ? mobileChatContainer : desktopChatContainer;
+      
+      if (!chatContainer) {
+        console.error("Chat container not found for device:", isMobile ? "mobile" : "desktop");
+        return;
+      }
+      
+      console.log("Setting up Twitch chat in container:", chatContainer);
       chatContainer.innerHTML = "";
       
-      // Create chat iframe
+      // Create chat iframe - don't hide the input form
       const chatIframe = document.createElement("iframe");
-      chatIframe.src = `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=${window.location.hostname}`;
+      
+      // Keep the Twitch chat input by NOT using the hideform parameter
+      let iframeSrc = `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=${window.location.hostname}`;
+      
+      chatIframe.src = iframeSrc;
       chatIframe.width = "100%";
-      chatIframe.height = "100%";
+      chatIframe.height = "100%"; 
       chatIframe.style.border = "none";
+      chatIframe.allow = "fullscreen";
+      
+      // Add a class to target with CSS
+      chatIframe.classList.add("chat-iframe");
       
       chatContainer.appendChild(chatIframe);
     } catch (error) {
@@ -491,9 +556,14 @@ const StreamPage = () => {
 
   const handleVote = async () => {
     setIsVoting(true);
+    setIsAuthError(false);
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("Please log in to continue.");
+      if (authError || !user) {
+        setIsAuthError(true);
+        setIsVoting(false);
+        throw new Error("Please log in to continue.");
+      }
 
       // Check if user has enough gems
       if (gemBalance < selectedAmount) {
@@ -600,34 +670,6 @@ const StreamPage = () => {
     }
   };
 
-  // Update sendChatMessage to handle mobile chat input
-  const sendChatMessage = (message) => {
-    const chatIframe = document.querySelector("#twitch-chat iframe");
-    if (chatIframe && message.trim()) {
-      try {
-        chatIframe.contentWindow.postMessage(
-          { type: 'chat-message', message }, 
-          'https://www.twitch.tv'
-        );
-        
-        // Clear mobile chat input after sending
-        if (isMobile) {
-          setMobileMessage('');
-        }
-      } catch (error) {
-        console.error("Error sending chat message:", error);
-      }
-    }
-  };
-
-  // Handle mobile chat submission
-  const handleMobileChatSubmit = (e) => {
-    e.preventDefault();
-    if (mobileMessage.trim()) {
-      sendChatMessage(mobileMessage);
-    }
-  };
-
   // Toggle mobile vote panel
   const toggleMobileVotePanel = () => {
     setShowMobileVotePanel(!showMobileVotePanel);
@@ -678,6 +720,12 @@ const StreamPage = () => {
     }
   }, [username]);
 
+  const handleSignIn = () => {
+    // Save current page to redirect back after login
+    sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+    navigate('/login');
+  };
+
   // Render component
   try {
     // Show loading state
@@ -708,113 +756,86 @@ const StreamPage = () => {
     
     // Main render
     return (
-      <div className="stream-page">
-        {/* Show mobile-optimized layout for smaller screens */}
+      <div className={`stream-page ${isMobile ? 'mobile-mode' : ''}`}>
         {isMobile ? (
           <div className="mobile-stream-layout">
-            <h2 className="stream-title">Watching {username}'s Stream</h2>
+            {/* Video section at top */}
+            <div className="mobile-video-container" id="mobile-twitch-embed"></div>
             
-            {/* Video section (top) */}
-            <div className="mobile-video-container" id="twitch-embed">
-              {/* Twitch video will be embedded here */}
+            {/* Chat section with header */}
+            <div className="mobile-chat-header">
+              <span>STREAM CHAT</span>
+              <span className="chat-user-count">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 4C10.4178 4 8.87103 4.46919 7.55544 5.34824C6.23985 6.22729 5.21447 7.47672 4.60897 8.93853C4.00347 10.4003 3.84504 12.0089 4.15372 13.5607C4.4624 15.1126 5.22433 16.538 6.34315 17.6569C7.46197 18.7757 8.88743 19.5376 10.4393 19.8463C11.9911 20.155 13.5997 19.9965 15.0615 19.391C16.5233 18.7855 17.7727 17.7602 18.6518 16.4446C19.5308 15.129 20 13.5823 20 12C20 9.87827 19.1571 7.84344 17.6569 6.34315C16.1566 4.84285 14.1217 4 12 4Z" fill="white"/>
+                </svg>
+              </span>
             </div>
             
-            {/* Chat section (middle) */}
-            <div className="mobile-chat-container" id="twitch-chat">
-              {/* Twitch chat will be embedded here */}
+            {/* Top supporters section */}
+            <div className="mobile-supporters">
+              <div className="mobile-supporters-scroll">
+                <button className="mobile-scroll-button left">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                
+                <div className="mobile-supporters-list">
+                  {topSupporters.slice(0, 3).map((supporter, index) => (
+                    <div key={index} className="mobile-supporter">
+                      <div className="supporter-icon">
+                        {index === 0 && <span className="supporter-rank">1</span>}
+                        {index === 0 ? 
+                          <span className="gift-icon">🎁</span> : 
+                          <span className="gift-icon">{index === 1 ? "🎁" : "🎁"}</span>
+                        }
+                      </div>
+                      <div className="supporter-name">{supporter.username}</div>
+                      <div className="supporter-gems">
+                        <span className="gem-icon">💎</span> {index === 0 ? "5" : (index === 1 ? "2" : "1")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <button className="mobile-scroll-button right">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 6L15 12L9 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             
-            {/* Chat input (bottom) */}
-            <form className="mobile-chat-input-container" onSubmit={handleMobileChatSubmit}>
-              <input
-                type="text"
-                placeholder="Send a message"
-                value={mobileMessage}
-                onChange={(e) => setMobileMessage(e.target.value)}
-                className="mobile-chat-input"
-              />
-              <button type="submit" className="mobile-chat-send-button">
-                <span className="send-icon">→</span>
-              </button>
-            </form>
+            {/* Real Twitch chat with full height */}
+            <div className="mobile-chat-container">
+              <div className="mobile-chat-messages" id="mobile-twitch-chat">
+                {/* Twitch chat will be embedded here */}
+              </div>
+            </div>
             
-            {/* Mobile vote button (floating) */}
+            {/* Fixed bottom elements */}
+            <div className="mobile-stats-row">
+              <div className="mobile-time-display">
+                <span className="mobile-time-label">Time Remaining</span>
+                <span className="mobile-time-value">{timeRemaining || '0d 0h 0m 0s'}</span>
+              </div>
+              <div className="mobile-prize-display">
+                <span className="mobile-prize-label">Prize Pool</span>
+                <span className="mobile-prize-value">${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+            
+            {/* Vote button */}
             <button 
-              className={`mobile-vote-button ${showMobileVotePanel ? 'active' : ''}`}
-              onClick={toggleMobileVotePanel}
-              aria-label="Vote"
+              className="vote-button"
+              onClick={() => setShowVoteModal(true)}
             >
               VOTE
             </button>
-            
-            {/* Mobile vote panel */}
-            <div className={`mobile-vote-panel ${showMobileVotePanel ? 'show' : ''}`}>
-              <div className="panel-header">
-                <h3 className="panel-title">Vote for {username}</h3>
-                <button 
-                  className="panel-close" 
-                  onClick={toggleMobileVotePanel}
-                  aria-label="Close voting panel"
-                >
-                  <span>✕</span>
-                </button>
-              </div>
-              
-              <div className="panel-body">
-                <div className="panel-balance">
-                  <span className="balance-amount">Available Gems: {gemBalance} 💎</span>
-                  <WatchAdButton 
-                    onGemsEarned={refreshUserCredits} 
-                    compact={true}
-                  />
-                </div>
-                
-                <div className="panel-amount-grid">
-                  {[5, 10, 25, 50, 100].map((amount) => (
-                    <button
-                      key={amount}
-                      className={`panel-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedAmount(amount);
-                        setCustomAmount('');
-                      }}
-                    >
-                      {amount} 💎
-                    </button>
-                  ))}
-                  <div className="panel-amount-button">
-                    <input
-                      type="text"
-                      value={customAmount}
-                      onChange={handleCustomAmountChange}
-                      placeholder="Custom"
-                      className="panel-custom-input"
-                    />
-                  </div>
-                </div>
-                
-                {errorMessage && (
-                  <div className="error-message">{errorMessage}</div>
-                )}
-                
-                <button 
-                  className={`panel-submit-button ${voteSuccess ? 'success' : ''}`}
-                  onClick={handleSendVote} 
-                  disabled={isVoting || !selectedAmount || errorMessage === "Please log in to continue."}
-                >
-                  {isVoting ? 'Processing...' : voteSuccess ? 'Vote Successful!' : `Vote with ${selectedAmount || 0} 💎`}
-                </button>
-              </div>
-            </div>
-            
-            {/* Backdrop for mobile vote panel */}
-            <div 
-              className={`mobile-vote-backdrop ${showMobileVotePanel ? 'show' : ''}`} 
-              onClick={toggleMobileVotePanel}
-            ></div>
           </div>
         ) : (
-          // Desktop layout (unchanged)
+          // Desktop layout
           <>
             <h2 className="stream-title">Watching {username}'s Stream</h2>
             
@@ -829,38 +850,47 @@ const StreamPage = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Central Vote Button */}
+            <div className="central-vote-button">
+              <button onClick={() => setShowVoteModal(true)}>
+                VOTE
+              </button>
+            </div>
 
-            {/* Supporting Content Section */}
-            <div className="supporting-content">
-              <div className="info-row">
-                {streamerInfo.bio && (
-                  <div className="streamer-bio-card">
+            {/* Dashboard Layout - will only render on page load if there's data */}
+            {!loading && (
+              <div className="dashboard-layout">
+                {/* Bio Card */}
+                <div className="dashboard-card bio-card">
+                  <h3>About {username}</h3>
+                  {streamerInfo.profileImageUrl && (
                     <div className="bio-header">
-                      {streamerInfo.profileImageUrl && (
-                        <img 
-                          src={streamerInfo.profileImageUrl} 
-                          alt={`${username}'s profile`} 
-                          className="bio-profile-image"
-                        />
-                      )}
-                      <h3>About {username}</h3>
+                      <img 
+                        src={streamerInfo.profileImageUrl} 
+                        alt={`${username}'s profile`} 
+                        className="bio-profile-image"
+                      />
                     </div>
-                    <p className="bio-text">{streamerInfo.bio}</p>
-                  </div>
-                )}
+                  )}
+                  <p className="bio-text">
+                    {streamerInfo.bio || "This streamer hasn't added a bio yet."}
+                  </p>
+                </div>
 
-                <div className="top-supporters-card">
-                  <h3>💎 Top Supporters</h3>
+                {/* Top Supporters Card */}
+                <div className="dashboard-card supporters-card">
+                  <h3>Top Supporters</h3>
                   <div className="supporters-list">
                     {topSupporters.length > 0 ? (
                       topSupporters.map((supporter, index) => (
                         <div 
                           key={`${supporter.username}-${supporter.amount}-${index}`} 
-                          className="supporter-item animate-update"
+                          className="supporter-item"
                         >
                           <span className="rank">#{index + 1}</span>
                           <span className="username">{supporter.username}</span>
-                          <span className="amount">{supporter.amount} 💎</span>
+                          <span className="amount">{supporter.amount}</span>
                         </div>
                       ))
                     ) : (
@@ -870,88 +900,75 @@ const StreamPage = () => {
                     )}
                   </div>
                 </div>
-              </div>
 
-              <div className="vote-stats-container">
-                <div className="stat-box">
-                  <p>Votes Today</p>
-                  <h4>{voteStats.today}</h4>
-                </div>
-                <div className="stat-box">
-                  <p>Votes This Week</p>
-                  <h4>{voteStats.week}</h4>
-                </div>
-                <div className="stat-box">
-                  <p>All Time Votes</p>
-                  <h4>{voteStats.allTime}</h4>
-                </div>
-              </div>
-
-              <div className="leaderboard-info-card">
-                <h3>🏆 Current Competition</h3>
-                <div className="leaderboard-stats">
-                  <div className="stat-item">
-                    <p>Time Remaining</p>
-                    <h4>{timeRemaining || 'Loading...'}</h4>
+                {/* Vote Stats Container */}
+                <div className="stats-container">
+                  <div className="stat-box">
+                    <p>Votes Today</p>
+                    <h4>{voteStats.today}</h4>
                   </div>
-                  <div className="stat-item">
-                    <p>Prize Pool</p>
-                    <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
+                  <div className="stat-box">
+                    <p>Votes This Week</p>
+                    <h4>{voteStats.week}</h4>
+                  </div>
+                  <div className="stat-box">
+                    <p>All Time Votes</p>
+                    <h4>{voteStats.allTime}</h4>
                   </div>
                 </div>
-              </div>
 
-              {/* Desktop Voting Panel */}
-              <div 
-                className={`floating-vote-container ${isVotePaneCollapsed ? 'collapsed' : ''}`}
-                title={isVotePaneCollapsed ? "Click to vote for streamer" : ""}
-                onClick={(e) => {
-                  if (isVotePaneCollapsed) {
-                    e.stopPropagation();
-                    setIsVotePaneCollapsed(false);
-                  }
-                }}
-              >
-                {isVotePaneCollapsed ? (
-                  <div 
-                    className="vote-button-collapsed"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      zIndex: 1030
-                    }}
-                    onClick={toggleDesktopVotePanel}
-                  >
-                    VOTE
+                {/* Competition Information Card */}
+                <div className="dashboard-card competition-card">
+                  <h3>Current Competition</h3>
+                  <div className="competition-stats">
+                    <div className="competition-stat-item">
+                      <p>Time Remaining</p>
+                      <h4>{timeRemaining || 'Loading...'}</h4>
+                    </div>
+                    <div className="competition-stat-item">
+                      <p>Prize Pool</p>
+                      <h4>${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+            
+        {/* Vote Modal - shared between mobile and desktop */}
+        {showVoteModal && (
+          <div className="vote-modal-overlay" onClick={() => setShowVoteModal(false)}>
+            <div className="vote-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="vote-modal-header">
+                <h3 className="vote-modal-title">Vote for {username}</h3>
+                <button 
+                  className="vote-modal-close"
+                  onClick={() => setShowVoteModal(false)}
+                  aria-label="Close vote modal"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="vote-modal-body">
+                {isAuthError ? (
+                  <div className="auth-error-container">
+                    <p className="auth-error-message">Please sign in to vote</p>
+                    <button 
+                      className="sign-in-btn"
+                      onClick={handleSignIn}
+                    >
+                      Sign In
+                    </button>
                   </div>
                 ) : (
-                  <button 
-                    className="collapse-toggle"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Stop propagation to prevent conflicting toggles
-                      setIsVotePaneCollapsed(!isVotePaneCollapsed);
-                    }}
-                    aria-label="Collapse voting panel"
-                  >
-                    ↓
-                  </button>
-                )}
-
-                {!isVotePaneCollapsed && (
-                  <div className="vote-options" onClick={(e) => e.stopPropagation()}>
-                    <h3 className="vote-title">Vote for {username}</h3>
-                    <div className="vote-buttons">
+                  <>
+                    <div className="vote-amount-grid">
                       {[5, 10, 25, 50, 100].map((amount) => (
                         <button
                           key={amount}
-                          className={`vote-amount-button ${selectedAmount === amount ? 'selected' : ''}`}
+                          className={`vote-amount-btn ${selectedAmount === amount ? 'selected' : ''}`}
                           onClick={() => {
                             setSelectedAmount(amount);
                             setCustomAmount('');
@@ -960,52 +977,42 @@ const StreamPage = () => {
                           {amount} 💎
                         </button>
                       ))}
-                      <div className="custom-amount-wrapper">
-                        <input
-                          type="text"
-                          value={customAmount}
-                          onChange={handleCustomAmountChange}
-                          placeholder="Custom"
-                          className="custom-amount-input"
-                        />
-                        <span className="custom-amount-icon">💎</span>
-                      </div>
                     </div>
-
+                    
+                    <div className="custom-amount-input-wrapper">
+                      <input
+                        type="text"
+                        value={customAmount}
+                        onChange={handleCustomAmountChange}
+                        placeholder="Custom amount"
+                        className="custom-amount-input"
+                      />
+                      <span className="custom-amount-input-icon">💎</span>
+                    </div>
+                    
+                    {errorMessage && errorMessage !== "Please log in to continue." && (
+                      <div className="error-message">{errorMessage}</div>
+                    )}
+                    
                     <button 
-                      className={`vote-submit-button ${voteSuccess ? 'success' : ''}`}
+                      className={`vote-submit-btn ${voteSuccess ? 'success' : ''}`}
                       onClick={handleSendVote} 
-                      disabled={isVoting || errorMessage === "Please log in to continue."}
+                      disabled={isVoting || !selectedAmount}
                     >
-                      {isVoting ? (
-                        `Processing Vote (${selectedAmount} 💎)`
-                      ) : voteSuccess ? (
-                        `Vote Successful! (${selectedAmount} 💎)`
-                      ) : (
-                        `👍 Vote with ${selectedAmount} 💎`
-                      )}
+                      {isVoting ? 'Processing...' : voteSuccess ? 'Vote Successful!' : `Vote with ${selectedAmount || 0} 💎`}
                     </button>
-
-                    <div className="gems-section">
-                      <p className="credit-balance">
-                        {isVoting ? (
-                          `Processing... Current Balance: ${gemBalance} 💎`
-                        ) : errorMessage ? (
-                          `Error: ${errorMessage}`
-                        ) : (
-                          `Available Gems: ${gemBalance} 💎`
-                        )}
-                      </p>
-                      
-                      <div className="earn-more-gems">
-                        <WatchAdButton onGemsEarned={refreshUserCredits} />
-                      </div>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
+              
+              <div className="vote-modal-footer">
+                <div className="credit-display">
+                  Available Gems: {gemBalance} 💎
+                </div>
+                <WatchAdButton onGemsEarned={refreshUserCredits} />
+              </div>
             </div>
-          </>
+          </div>
         )}
 
         <InsufficientGemsModal
