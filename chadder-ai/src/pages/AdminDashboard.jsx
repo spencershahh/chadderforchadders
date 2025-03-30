@@ -1,200 +1,230 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import toast, { Toaster } from 'react-hot-toast';
 import styles from './AdminDashboard.module.css';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('debug');
+  const [userId, setUserId] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [rawData, setRawData] = useState({
+    user: null,
+    admins: null,
+    streamers: null
+  });
+  const [debugMessages, setDebugMessages] = useState([]);
 
-  // Basic debug section to help troubleshoot database issues
-  const runDatabaseTest = async () => {
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Add debug message
+        addDebugMessage("Fetching user data...");
+        
+        // Get current session
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          addDebugMessage(`Session error: ${error.message}`);
+          return;
+        }
+        
+        if (!data.session) {
+          addDebugMessage("No active session found");
+          return;
+        }
+        
+        const user = data.session.user;
+        setUserId(user.id);
+        setUserEmail(user.email);
+        setRawData(prev => ({ ...prev, user }));
+        
+        addDebugMessage(`User authenticated: ${user.email}`);
+        
+        // Check if admin
+        checkIfAdmin(user.id);
+        
+        // Fetch basic data
+        fetchBasicData();
+        
+      } catch (err) {
+        addDebugMessage(`Error: ${err.message}`);
+      }
+    };
+    
+    fetchUserData();
+  }, []);
+  
+  const addDebugMessage = (message) => {
+    setDebugMessages(prev => [...prev, {
+      time: new Date().toLocaleTimeString(),
+      message
+    }]);
+  };
+  
+  const checkIfAdmin = async (userId) => {
     try {
-      toast.loading('Testing database connection...');
+      addDebugMessage("Checking admin status...");
       
-      // Test streamers table
-      const { data: streamers, error: streamersError } = await supabase
-        .from('streamers')
-        .select('*')
-        .limit(5);
-        
-      // Test admins table
-      const { data: admins, error: adminsError } = await supabase
+      // Direct SQL count query instead of a potentially problematic select
+      const { count, error } = await supabase
         .from('admins')
-        .select('*')
-        .limit(5);
-        
-      // Test auth.users 
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .limit(5);
-        
-      toast.dismiss();
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
       
-      if (streamersError) {
-        toast.error(`Streamers table error: ${streamersError.message}`);
-      } else {
-        toast.success(`Successfully queried streamers table. Found ${streamers?.length || 0} records.`);
+      // Store the raw response
+      setRawData(prev => ({ 
+        ...prev, 
+        admins: { count, error } 
+      }));
+      
+      if (error) {
+        addDebugMessage(`Admin check error: ${error.message}`);
+        return;
       }
       
-      if (adminsError) {
-        toast.error(`Admins table error: ${adminsError.message}`);
-      } else {
-        toast.success(`Successfully queried admins table. Found ${admins?.length || 0} records.`);
-      }
+      // If count > 0, user is admin
+      const userIsAdmin = count > 0;
+      setIsAdmin(userIsAdmin);
       
-      if (usersError) {
-        toast.error(`Users table error: ${usersError.message}`);
-      } else {
-        toast.success(`Successfully queried users table. Found ${users?.length || 0} records.`);
-      }
+      addDebugMessage(`Admin status: ${userIsAdmin ? 'Yes' : 'No'}`);
       
-    } catch (error) {
-      toast.dismiss();
-      toast.error(`Test failed: ${error.message}`);
+    } catch (err) {
+      addDebugMessage(`Admin check failed: ${err.message}`);
     }
   };
-
+  
+  const fetchBasicData = async () => {
+    try {
+      addDebugMessage("Fetching basic data...");
+      
+      // Get streamers count
+      const { count, error } = await supabase
+        .from('streamers')
+        .select('*', { count: 'exact', head: true });
+      
+      setRawData(prev => ({ 
+        ...prev, 
+        streamers: { count, error } 
+      }));
+      
+      if (error) {
+        addDebugMessage(`Streamers query error: ${error.message}`);
+      } else {
+        addDebugMessage(`Found ${count} streamers`);
+      }
+      
+    } catch (err) {
+      addDebugMessage(`Data fetch failed: ${err.message}`);
+    }
+  };
+  
+  const makeAdmin = async () => {
+    if (!userId) return;
+    
+    try {
+      addDebugMessage("Adding current user as admin...");
+      
+      const { data, error } = await supabase
+        .from('admins')
+        .insert([{ user_id: userId }]);
+      
+      if (error) {
+        addDebugMessage(`Admin creation failed: ${error.message}`);
+      } else {
+        addDebugMessage("Successfully added as admin!");
+        setIsAdmin(true);
+      }
+      
+    } catch (err) {
+      addDebugMessage(`Error: ${err.message}`);
+    }
+  };
+  
   const addTestStreamer = async () => {
     try {
-      toast.loading('Adding test streamer...');
-      
-      const testStreamer = {
-        name: 'teststreamer_' + Math.floor(Math.random() * 1000),
-        bio: 'This is a test streamer added from admin panel'
-      };
+      addDebugMessage("Adding test streamer...");
       
       const { data, error } = await supabase
         .from('streamers')
-        .insert([testStreamer])
-        .select();
-        
-      toast.dismiss();
+        .insert([{ 
+          name: `test_${Math.floor(Math.random() * 1000)}`,
+          bio: 'Test streamer added from debug panel'
+        }]);
       
       if (error) {
-        toast.error(`Error adding test streamer: ${error.message}`);
+        addDebugMessage(`Streamer creation failed: ${error.message}`);
       } else {
-        toast.success('Test streamer added successfully!');
+        addDebugMessage("Test streamer added successfully!");
+        // Refresh data
+        fetchBasicData();
       }
-    } catch (error) {
-      toast.dismiss();
-      toast.error(`Failed to add test streamer: ${error.message}`);
+      
+    } catch (err) {
+      addDebugMessage(`Error: ${err.message}`);
     }
   };
-
-  const addCurrentUserAsAdmin = async () => {
-    try {
-      toast.loading('Adding current user as admin...');
-      
-      // Get current user
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData?.session?.user) {
-        toast.dismiss();
-        toast.error('No authenticated user found');
-        return;
-      }
-      
-      const userId = sessionData.session.user.id;
-      
-      // Check if already admin
-      const { data: existingAdmin, error: checkError } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-        
-      if (existingAdmin) {
-        toast.dismiss();
-        toast.success('User is already an admin');
-        return;
-      }
-      
-      // Add as admin
-      const { error: insertError } = await supabase
-        .from('admins')
-        .insert([{ user_id: userId }]);
-        
-      toast.dismiss();
-      
-      if (insertError) {
-        toast.error(`Error adding as admin: ${insertError.message}`);
-      } else {
-        toast.success('Successfully added current user as admin');
-      }
-    } catch (error) {
-      toast.dismiss();
-      toast.error(`Operation failed: ${error.message}`);
-    }
-  };
-
-  const renderDebugPanel = () => (
-    <div className={styles.section}>
-      <h2>Database Debugging Tools</h2>
-      <div className={styles.debugActions}>
-        <button 
-          className={styles.button}
-          onClick={runDatabaseTest}
-        >
-          Test Database Connections
-        </button>
-        
-        <button 
-          className={styles.button}
-          onClick={addTestStreamer}
-        >
-          Add Test Streamer
-        </button>
-        
-        <button 
-          className={styles.button}
-          onClick={addCurrentUserAsAdmin}
-        >
-          Add Current User as Admin
-        </button>
-      </div>
-      
-      <div className={styles.debugHelp}>
-        <h3>Troubleshooting Info</h3>
-        <ul>
-          <li>If database tests fail, check your permissions in Supabase</li>
-          <li>Run the SQL fix scripts in the Supabase SQL Editor</li>
-          <li>Make sure Row Level Security (RLS) is disabled for development</li>
-          <li>Verify the tables exist with the correct schema</li>
-        </ul>
-      </div>
-    </div>
-  );
 
   return (
     <div className={styles.adminDashboard}>
-      <Toaster position="top-right" />
-      <h1 className={styles.title}>Admin Dashboard</h1>
+      <h1 className={styles.title}>Admin Dashboard (Debug Mode)</h1>
       
-      <div className={styles.tabBar}>
-        <button 
-          className={`${styles.tabButton} ${activeTab === 'debug' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('debug')}
-        >
-          Debug Panel
-        </button>
-        <button 
-          className={`${styles.tabButton} ${activeTab === 'streamers' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('streamers')}
-        >
-          Streamer Management
-        </button>
-        <button 
-          className={`${styles.tabButton} ${activeTab === 'users' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          User Management
-        </button>
+      <div className={styles.section}>
+        <h2>User & Session Info</h2>
+        {userEmail ? (
+          <div>
+            <p>Email: <strong>{userEmail}</strong></p>
+            <p>ID: <code>{userId}</code></p>
+            <p>Admin Status: {isAdmin ? '✅ Yes' : '❌ No'}</p>
+          </div>
+        ) : (
+          <p>Not logged in</p>
+        )}
       </div>
       
-      {activeTab === 'debug' && renderDebugPanel()}
-      {activeTab === 'streamers' && <div className={styles.section}><h2>Streamer Management</h2><p>Simplified view - use Debug Panel first</p></div>}
-      {activeTab === 'users' && <div className={styles.section}><h2>User Management</h2><p>Simplified view - use Debug Panel first</p></div>}
+      <div className={styles.section}>
+        <h2>Actions</h2>
+        <div className={styles.buttonGroup}>
+          <button 
+            className={styles.button}
+            onClick={makeAdmin}
+            disabled={isAdmin}
+          >
+            {isAdmin ? 'Already Admin' : 'Make Admin'}
+          </button>
+          
+          <button 
+            className={styles.button}
+            onClick={addTestStreamer}
+          >
+            Add Test Streamer
+          </button>
+          
+          <button 
+            className={styles.button}
+            onClick={fetchBasicData}
+          >
+            Refresh Data
+          </button>
+        </div>
+      </div>
+      
+      <div className={styles.section}>
+        <h2>Debug Log</h2>
+        <div className={styles.debugLog}>
+          {debugMessages.map((msg, idx) => (
+            <div key={idx} className={styles.logEntry}>
+              <span className={styles.logTime}>{msg.time}</span>
+              <span className={styles.logMessage}>{msg.message}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className={styles.section}>
+        <h2>Raw Data</h2>
+        <div className={styles.rawData}>
+          <pre>{JSON.stringify(rawData, null, 2)}</pre>
+        </div>
+      </div>
     </div>
   );
 };

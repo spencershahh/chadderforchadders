@@ -487,4 +487,52 @@
     border-bottom: none;
     border-left: 3px solid #00ccff;
   }
+}
+
+/* Add these styles to the end of the file */
+
+.debugLog {
+  background-color: #0d0d0d;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px;
+  height: 300px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.logEntry {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #222;
+  display: flex;
+}
+
+.logTime {
+  color: #888;
+  margin-right: 10px;
+  min-width: 100px;
+}
+
+.logMessage {
+  color: #eee;
+  word-break: break-word;
+}
+
+.rawData {
+  background-color: #0d0d0d;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.rawData pre {
+  color: #8aff80;
+  font-family: monospace;
+  font-size: 14px;
+  margin: 0;
 } 
