@@ -154,9 +154,7 @@ const App = () => {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                 </Route>
-                <Route element={<AdminRoute />}>
-                  <Route path="/admin" element={<AdminDashboard />} />
-                </Route>
+                <Route path="/admin" element={<AdminDashboard />} />
               </Routes>
             </Suspense>
           </Elements>
