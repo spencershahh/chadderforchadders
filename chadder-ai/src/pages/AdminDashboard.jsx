@@ -97,26 +97,15 @@ const AdminDashboard = () => {
     
     setIsLoading(true);
     try {
-      // Prepare streamer data in the format expected by the Discover page
+      // Prepare streamer data to match the actual database structure
       const streamerData = {
         name: formData.name.trim(),
         bio: formData.bio.trim(),
-        // For compatibility with both data models
         username: formData.name.trim().toLowerCase().replace(/\s+/g, '_'),
-        display_name: formData.name.trim(),
-        // Only add twitchId if provided
-        ...(formData.twitchId.trim() && { 
-          twitch_id: formData.twitchId.trim(),
-          user_login: formData.twitchId.trim().toLowerCase() 
-        }),
-        // Timestamps
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // Default values
-        is_live: false,
+        // Only include fields that exist in the actual database
         votes: 0,
-        view_count: 0,
-        profile_image_url: "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png"
+        created_at: new Date().toISOString()
+        // Other fields like display_name, twitch_id, etc. are removed as they don't exist in the schema
       };
       
       const { data, error } = await supabase
