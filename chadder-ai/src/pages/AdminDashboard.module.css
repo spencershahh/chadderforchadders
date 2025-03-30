@@ -598,4 +598,176 @@
 .statLabel {
   color: #aaa;
   font-size: 14px;
+}
+
+/* Add these styles to the file */
+
+.modeToggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+}
+
+.toggleButton {
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.emergencyMode {
+  background-color: #4CAF50;
+  color: #fff;
+}
+
+.databaseMode {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.modeIndicator {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.errorMessage {
+  background-color: rgba(244, 67, 54, 0.2);
+  border-left: 4px solid #f44336;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.successMessage {
+  background-color: rgba(76, 175, 80, 0.2);
+  border-left: 4px solid #4CAF50;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.streamerForm {
+  background-color: #222;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 8px;
+  color: #eee;
+  font-weight: 500;
+}
+
+.inputError {
+  border-color: #f44336 !important;
+}
+
+.errorText {
+  color: #f44336;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.helpText {
+  color: #aaa;
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.formActions {
+  margin-top: 20px;
+}
+
+.loadingIndicator {
+  text-align: center;
+  padding: 20px;
+  color: #aaa;
+}
+
+.streamersList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.streamerItem {
+  background-color: #222;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.streamerInfo {
+  flex: 1;
+}
+
+.streamerInfo h3 {
+  margin: 0 0 10px 0;
+  color: #fff;
+}
+
+.streamerInfo p {
+  margin: 0 0 10px 0;
+  color: #ccc;
+}
+
+.streamerMeta {
+  display: flex;
+  gap: 15px;
+  color: #888;
+  font-size: 14px;
+}
+
+.twitchId {
+  color: #9147ff;
+}
+
+.streamerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 120px;
+  align-items: stretch;
+}
+
+.viewButton {
+  background-color: #9147ff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.deleteButton {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.emptyState {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  color: #888;
 } 

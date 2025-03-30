@@ -1,12 +1,192 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 import styles from './AdminDashboard.module.css';
 
-// Emergency admin page with absolutely no database operations
+// Admin dashboard with emergency mode fallback
 const AdminDashboard = () => {
-  return (
-    <div className={styles.adminDashboard}>
-      <h1 className={styles.title}>Admin Dashboard</h1>
+  // State management
+  const [mode, setMode] = useState('emergency'); // 'emergency' or 'database'
+  const [streamers, setStreamers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    bio: '',
+    twitchId: ''
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Attempt to load streamers if in database mode
+  useEffect(() => {
+    if (mode === 'database') {
+      fetchStreamers();
+    }
+  }, [mode]);
+
+  // Safe database operation to fetch streamers
+  const fetchStreamers = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('streamers')
+        .select('*')
+        .order('created_at', { ascending: false });
       
+      if (error) {
+        console.error('Error fetching streamers:', error);
+        setError(`Failed to fetch streamers: ${error.message}`);
+        // Switch back to emergency mode if database error
+        setMode('emergency');
+        return;
+      }
+      
+      setStreamers(data || []);
+    } catch (err) {
+      console.error('Exception fetching streamers:', err);
+      setError(`Something went wrong: ${err.message}`);
+      // Switch back to emergency mode if exception
+      setMode('emergency');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: null
+      });
+    }
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (!formData.twitchId.trim() && !formData.name.trim()) {
+      errors.twitchId = 'Twitch ID or name is required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSuccessMessage('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // Prepare streamer data in the format expected by the Discover page
+      const streamerData = {
+        name: formData.name.trim(),
+        bio: formData.bio.trim(),
+        // For compatibility with both data models
+        username: formData.name.trim().toLowerCase().replace(/\s+/g, '_'),
+        display_name: formData.name.trim(),
+        // Only add twitchId if provided
+        ...(formData.twitchId.trim() && { 
+          twitch_id: formData.twitchId.trim(),
+          user_login: formData.twitchId.trim().toLowerCase() 
+        }),
+        // Timestamps
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        // Default values
+        is_live: false,
+        votes: 0,
+        view_count: 0,
+        profile_image_url: "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png"
+      };
+      
+      const { data, error } = await supabase
+        .from('streamers')
+        .insert([streamerData])
+        .select();
+      
+      if (error) {
+        console.error('Error adding streamer:', error);
+        setError(`Failed to add streamer: ${error.message}`);
+        return;
+      }
+      
+      // Success!
+      setSuccessMessage(`Streamer "${formData.name}" added successfully! They will now appear on the Discover page.`);
+      setFormData({ name: '', bio: '', twitchId: '' });
+      
+      // Refresh the streamers list
+      fetchStreamers();
+    } catch (err) {
+      console.error('Exception adding streamer:', err);
+      setError(`Something went wrong: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle streamer deletion
+  const handleDeleteStreamer = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete streamer "${name}"?`)) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('streamers')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting streamer:', error);
+        setError(`Failed to delete streamer: ${error.message}`);
+        return;
+      }
+      
+      setSuccessMessage(`Streamer "${name}" deleted successfully!`);
+      
+      // Refresh the streamers list
+      fetchStreamers();
+    } catch (err) {
+      console.error('Exception deleting streamer:', err);
+      setError(`Something went wrong: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Toggle between modes
+  const toggleMode = () => {
+    if (mode === 'emergency') {
+      setMode('database');
+    } else {
+      setMode('emergency');
+    }
+  };
+
+  // Render emergency mode
+  const renderEmergencyMode = () => (
+    <>
       <div className={styles.notice}>
         <p><strong>Emergency Mode:</strong> This is a static admin dashboard with no database operations.</p>
       </div>
@@ -48,6 +228,151 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+    </>
+  );
+
+  // Render database mode
+  const renderDatabaseMode = () => (
+    <>
+      {error && (
+        <div className={styles.errorMessage}>
+          <p>{error}</p>
+        </div>
+      )}
+      
+      {successMessage && (
+        <div className={styles.successMessage}>
+          <p>{successMessage}</p>
+        </div>
+      )}
+      
+      <div className={styles.section}>
+        <h2>Add New Streamer</h2>
+        <p>Add a streamer to the Discover page by filling out this form.</p>
+        
+        <form onSubmit={handleSubmit} className={styles.streamerForm}>
+          <div className={styles.formGroup}>
+            <label htmlFor="name">Streamer Name*:</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className={`${styles.input} ${formErrors.name ? styles.inputError : ''}`}
+              placeholder="Enter streamer name"
+            />
+            {formErrors.name && <div className={styles.errorText}>{formErrors.name}</div>}
+          </div>
+          
+          <div className={styles.formGroup}>
+            <label htmlFor="twitchId">Twitch ID:</label>
+            <input
+              type="text"
+              id="twitchId"
+              name="twitchId"
+              value={formData.twitchId}
+              onChange={handleInputChange}
+              className={`${styles.input} ${formErrors.twitchId ? styles.inputError : ''}`}
+              placeholder="Enter Twitch ID (optional)"
+            />
+            {formErrors.twitchId && <div className={styles.errorText}>{formErrors.twitchId}</div>}
+            <div className={styles.helpText}>The Twitch username or ID of the streamer</div>
+          </div>
+          
+          <div className={styles.formGroup}>
+            <label htmlFor="bio">Bio:</label>
+            <textarea
+              id="bio"
+              name="bio"
+              value={formData.bio}
+              onChange={handleInputChange}
+              className={styles.textarea}
+              rows={4}
+              placeholder="Enter streamer bio (optional)"
+            />
+          </div>
+          
+          <div className={styles.formActions}>
+            <button 
+              type="submit" 
+              className={styles.button}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Adding...' : 'Add Streamer'}
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <div className={styles.section}>
+        <h2>Manage Streamers</h2>
+        {isLoading ? (
+          <div className={styles.loadingIndicator}>Loading streamers...</div>
+        ) : streamers.length > 0 ? (
+          <div className={styles.streamersList}>
+            {streamers.map((streamer) => (
+              <div key={streamer.id} className={styles.streamerItem}>
+                <div className={styles.streamerInfo}>
+                  <h3>{streamer.name}</h3>
+                  {streamer.bio && <p>{streamer.bio}</p>}
+                  <div className={styles.streamerMeta}>
+                    {streamer.twitch_id && (
+                      <span className={styles.twitchId}>
+                        Twitch: {streamer.twitch_id}
+                      </span>
+                    )}
+                    <span className={styles.timestamp}>
+                      Added: {new Date(streamer.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.streamerActions}>
+                  <button
+                    onClick={() => window.open(`https://twitch.tv/${streamer.name || streamer.twitch_id}`, '_blank')}
+                    className={styles.viewButton}
+                  >
+                    View on Twitch
+                  </button>
+                  <button
+                    onClick={() => handleDeleteStreamer(streamer.id, streamer.name)}
+                    className={styles.deleteButton}
+                    disabled={isLoading}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <p>No streamers found. Add some using the form above!</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className={styles.adminDashboard}>
+      <h1 className={styles.title}>Admin Dashboard</h1>
+      
+      <div className={styles.modeToggle}>
+        <button 
+          onClick={toggleMode}
+          className={`${styles.toggleButton} ${mode === 'database' ? styles.databaseMode : styles.emergencyMode}`}
+        >
+          {mode === 'emergency' 
+            ? '🔄 Switch to Database Mode' 
+            : '⚠️ Switch to Emergency Mode'}
+        </button>
+        <div className={styles.modeIndicator}>
+          Current Mode: {mode === 'emergency' ? 'Emergency (No Database)' : 'Database (Live Operations)'}
+        </div>
+      </div>
+      
+      {mode === 'emergency' ? renderEmergencyMode() : renderDatabaseMode()}
     </div>
   );
 };
