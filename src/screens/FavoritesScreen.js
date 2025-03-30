@@ -244,12 +244,19 @@ const FavoritesScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       
-      {loading ? (
+      <View style={styles.infoCard}>
+        <Text style={styles.infoText}>
+          Your favorites help determine which streamers appear on the Discover page.
+          Each favorite counts as a vote toward their ranking!
+        </Text>
+      </View>
+      
+      {!user ? (
+        renderSignInMessage()
+      ) : loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4263eb" />
         </View>
-      ) : !user ? (
-        renderSignInMessage()
       ) : favorites.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>You haven't added any favorites yet.</Text>
@@ -289,6 +296,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    padding: 16,
     color: '#333',
   },
   backButton: {
@@ -394,6 +402,20 @@ const styles = StyleSheet.create({
   statsText: {
     fontSize: 12,
     color: '#999',
+  },
+  infoCard: {
+    backgroundColor: 'rgba(66, 99, 235, 0.1)',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4263eb',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });
 

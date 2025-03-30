@@ -53,6 +53,6 @@ git reset --hard origin/main
 
 git add .
 
-git commit -m "mobile optimized streamerpagee"
+git commit -m "dig deep adds to discover"
 
 git push origin main

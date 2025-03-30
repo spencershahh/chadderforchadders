@@ -395,7 +395,9 @@ const DigDeeperScreen = ({ navigation }) => {
             streamer_id: currentStreamer.id 
           });
           
-        // Increment vote count for the streamer - only thing we update in DB
+        // Increment vote count for the streamer
+        // These votes determine which streamers appear on the Discover page
+        // The more votes a streamer has, the higher they'll rank on Discover
         const updatedVotes = (currentStreamer.votes || 0) + 1;
         await supabase
           .from('twitch_streamers')
@@ -512,7 +514,18 @@ const DigDeeperScreen = ({ navigation }) => {
         >
           <Text style={styles.favoritesButtonText}>❤️ Favorites</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.discoverButton}
+          onPress={() => navigation.navigate('Discover')}
+        >
+          <Text style={styles.discoverButtonText}>🔍 Discover Top Streamers</Text>
+        </TouchableOpacity>
       </View>
+      
+      <Text style={styles.featureDescription}>
+        Swipe right to favorite streamers and help them reach the Discover page!
+      </Text>
       
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -567,6 +580,19 @@ const styles = StyleSheet.create({
   favoritesButtonText: {
     fontWeight: '600',
     color: '#333',
+  },
+  discoverButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginLeft: 10,
+  },
+  discoverButtonText: {
+    color: '#4263eb',
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -715,6 +741,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  featureDescription: {
+    fontSize: 12,
+    color: '#777',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
 });
 

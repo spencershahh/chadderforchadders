@@ -28,6 +28,28 @@ const isDevelopment = typeof import.meta !== 'undefined' &&
   import.meta.env && 
   (import.meta.env.DEV || window.location.hostname === 'localhost');
 
+// Preloader component that silently loads the Twitch player for the next card
+const StreamPreviewPreloader = ({ streamer }) => {
+  const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+  
+  if (!streamer || !streamer.username || !streamer.is_live) {
+    return null;
+  }
+  
+  // This iframe is not displayed, just preloaded in the DOM
+  return (
+    <div style={{ display: 'none', position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+      <iframe
+        src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=false`}
+        height="10"
+        width="10"
+        allowFullScreen={false}
+        title={`Preload ${streamer.display_name} stream`}
+      ></iframe>
+    </div>
+  );
+};
+
 const DigDeeperPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -52,6 +74,11 @@ const DigDeeperPage = () => {
   const touchStartRef = useRef(null);
   const cardRef = useRef(null);
   
+  // Auto-playing preview state
+  const [previewPlaying, setPreviewPlaying] = useState(null);
+  const previewTimeoutRef = useRef(null);
+  const preloadedStreamersRef = useRef(new Set());
+  
   // Category definitions with icons
   const streamCategories = [
     { id: '509658', name: 'Just Chatting', icon: '💬' },
@@ -66,6 +93,19 @@ const DigDeeperPage = () => {
     { id: '417752', name: 'Talk Shows', icon: '🎙️' },
     { id: '518248', name: 'Indie Games', icon: '🎮' }
   ];
+  
+  // Define the ASMR category ID for filtering
+  const ASMR_CATEGORY_ID = '509659'; // ASMR category ID from Twitch
+  
+  // Helper function to check if a stream is ASMR content
+  const isASMRContent = (stream) => {
+    // Check if the game name or title contains ASMR (case insensitive)
+    return (
+      (stream.game_name && stream.game_name.toUpperCase().includes('ASMR')) || 
+      (stream.title && stream.title.toUpperCase().includes('ASMR')) ||
+      (stream.stream_title && stream.stream_title.toUpperCase().includes('ASMR'))
+    );
+  };
   
   // Check if this is the first visit
   useEffect(() => {
@@ -123,6 +163,11 @@ const DigDeeperPage = () => {
           
           // Once we have the token, fetch low-viewer streamers directly from Twitch
           await fetchLowViewerStreams(accessToken);
+          
+          // Apply ASMR filter after loading streams
+          if (!selectedPreferences.includes(ASMR_CATEGORY_ID)) {
+            setStreamers(current => current.filter(streamer => !isASMRContent(streamer)));
+          }
         } catch (error) {
           console.error('Error initializing Twitch auth:', error);
           toast.error(`Error connecting to Twitch: ${error.message}`);
@@ -324,6 +369,127 @@ const DigDeeperPage = () => {
     // ... existing code ...
   };
 
+  // Auto-start preview for current streamer
+  useEffect(() => {
+    if (streamers.length > 0 && currentIndex < streamers.length) {
+      const currentStreamer = streamers[currentIndex];
+      
+      if (currentStreamer?.is_live) {
+        // Preload the thumbnail image
+        if (currentStreamer.thumbnail_url || currentStreamer.profile_image_url) {
+          const img = new Image();
+          img.src = currentStreamer.thumbnail_url || currentStreamer.profile_image_url;
+        }
+        
+        // Auto-start preview after a very short delay
+        previewTimeoutRef.current = setTimeout(() => {
+          setPreviewPlaying(currentStreamer.twitch_id);
+        }, 500); // Reduced delay for faster auto-playing
+        
+        // Preload the next 2 streams
+        for (let i = 1; i <= 2; i++) {
+          const nextIndex = currentIndex + i;
+          if (nextIndex < streamers.length) {
+            const nextStreamer = streamers[nextIndex];
+            if (nextStreamer?.is_live) {
+              preloadedStreamersRef.current.add(nextStreamer.twitch_id);
+            }
+          }
+        }
+      }
+    }
+    
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, [currentIndex, streamers]);
+
+  // Create a component for stream preview (defined inside main component to avoid hook errors)
+  const StreamPreview = ({ streamer, onClose }) => {
+    const [iframeLoading, setIframeLoading] = useState(true);
+    const [iframeError, setIframeError] = useState(false);
+    const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+    const wasPreloaded = preloadedStreamersRef.current.has(streamer.twitch_id);
+    
+    // Handle iframe load error
+    const handleIframeError = () => {
+      setIframeError(true);
+      setIframeLoading(false);
+    };
+    
+    // If this was preloaded, reduce the loading timeout
+    useEffect(() => {
+      const timeoutId = setTimeout(() => {
+        if (iframeLoading) {
+          console.log('Iframe loading timeout - forcing completion');
+          setIframeLoading(false);
+        }
+      }, wasPreloaded ? 3000 : 8000); // Shorter timeout for preloaded streams
+      
+      return () => clearTimeout(timeoutId);
+    }, [iframeLoading, wasPreloaded]);
+    
+    return (
+      <div className={styles.previewContainer}>
+        <div className={styles.previewHeader}>
+          <span>🔴 LIVE PREVIEW</span>
+          <button 
+            className={styles.previewCloseButton}
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        
+        {(iframeLoading || iframeError) && (
+          <div className={styles.previewLoading}>
+            {!iframeError ? (
+              <>
+                <div className={styles.previewLoadingSpinner}></div>
+                <div className={styles.previewLoadingText}>Loading stream{wasPreloaded ? '...' : ' (this may take a moment)...'}</div>
+              </>
+            ) : (
+              <div className={styles.previewLoadingText}>Unable to load stream preview</div>
+            )}
+            <img 
+              src={streamer.thumbnail_url || streamer.profile_image_url} 
+              alt={`${streamer.display_name} thumbnail`}
+              className={styles.previewPlaceholder}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://via.placeholder.com/320x180/0e0e10/FFFFFF?text=Loading+Stream";
+              }}
+            />
+            {iframeError && (
+              <a 
+                href={`https://twitch.tv/${streamer.username}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className={styles.previewExternalLink}
+              >
+                Watch on Twitch
+              </a>
+            )}
+          </div>
+        )}
+        
+        <iframe
+          src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
+          height="100%"
+          width="100%"
+          allowFullScreen={false}
+          title={`${streamer.display_name} stream preview`}
+          className={`${styles.previewFrame} ${iframeLoading ? styles.previewFrameLoading : ''}`}
+          onLoad={() => setIframeLoading(false)}
+          onError={handleIframeError}
+        ></iframe>
+      </div>
+    );
+  };
+
+  // Render the streamer cards
   const renderCards = () => {
     if (loading) {
       return (
@@ -493,6 +659,14 @@ const DigDeeperPage = () => {
             )}
           </div>
         </div>
+
+        {/* Preload next streams for faster loading */}
+        {streamers.length > 0 && currentIndex + 1 < streamers.length && (
+          <StreamPreviewPreloader streamer={streamers[currentIndex + 1]} />
+        )}
+        {streamers.length > 0 && currentIndex + 2 < streamers.length && (
+          <StreamPreviewPreloader streamer={streamers[currentIndex + 2]} />
+        )}
       </motion.div>
     );
   };
@@ -924,6 +1098,22 @@ const DigDeeperPage = () => {
     gap: '8px'
   } : {};
   
+  // Render stream preview
+  const renderStreamPreview = (streamer) => {
+    if (previewPlaying === streamer.twitch_id) {
+      return <StreamPreview streamer={streamer} onClose={() => setPreviewPlaying(null)} />;
+    }
+    
+    return (
+      <button
+        className={styles.previewButton}
+        onClick={() => setPreviewPlaying(streamer.twitch_id)}
+      >
+        ▶️ Watch Preview
+      </button>
+    );
+  };
+
   return (
     <div className={styles.container} style={containerStyle}>
       <AuthModal 

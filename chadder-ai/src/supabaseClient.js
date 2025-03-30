@@ -109,6 +109,12 @@ supabase.from = (table) => {
         try {
           const result = await originalThen(...thenArgs);
           
+          // Check if result is undefined or null
+          if (!result) {
+            console.error(`Query result is ${result === null ? 'null' : 'undefined'} for ${table}`);
+            return { data: null, error: new Error('Empty response from database') };
+          }
+          
           // Only cache successful responses
           if (!result.error && result.data) {
             queryCache.set(cacheKey, {
@@ -134,7 +140,12 @@ supabase.from = (table) => {
             await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             return tryQuery();
           }
-          throw error;
+          
+          // Return a properly structured error response
+          return { 
+            data: null, 
+            error: error instanceof Error ? error : new Error(String(error))
+          };
         }
       };
 

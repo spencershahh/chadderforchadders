@@ -205,6 +205,12 @@ const DigDeeperPage = () => {
       const currentStreamer = streamers[currentIndex];
       
       if (currentStreamer?.is_live) {
+        // Preload the thumbnail image
+        if (currentStreamer.thumbnail_url || currentStreamer.profile_image_url) {
+          const img = new Image();
+          img.src = currentStreamer.thumbnail_url || currentStreamer.profile_image_url;
+        }
+        
         // Auto-start preview after a short delay
         previewTimeoutRef.current = setTimeout(() => {
           setPreviewPlaying(currentStreamer.twitch_id);
@@ -256,7 +262,7 @@ const DigDeeperPage = () => {
           if (!clientId || !clientSecret) {
             console.error('Twitch API credentials missing');
             toast.error('Twitch API credentials are missing in environment variables');
-            return null;
+            return;
           }
           
           const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
@@ -1989,29 +1995,7 @@ const DigDeeperPage = () => {
     if (!streamer.is_live) return null;
     
     if (previewPlaying === streamer.twitch_id) {
-      const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
-      
-      return (
-        <div className={styles.previewContainer}>
-          <div className={styles.previewHeader}>
-            <span>🔴 LIVE PREVIEW</span>
-            <button 
-              className={styles.previewCloseButton}
-              onClick={() => setPreviewPlaying(null)}
-            >
-              ✕
-            </button>
-          </div>
-          <iframe
-            src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
-            height="100%"
-            width="100%"
-            allowFullScreen={false}
-            title={`${streamer.display_name} stream preview`}
-            className={styles.previewFrame}
-          ></iframe>
-        </div>
-      );
+      return <StreamPreview streamer={streamer} onClose={() => setPreviewPlaying(null)} />;
     } else {
       return (
         <button 
@@ -2083,6 +2067,105 @@ const DigDeeperPage = () => {
             </div>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  // Preload next streamer images
+  useEffect(() => {
+    if (streamers.length > 0 && currentIndex < streamers.length) {
+      // Preload the next 2-3 streamer images if available
+      for (let i = 1; i <= 3; i++) {
+        const nextIndex = currentIndex + i;
+        if (nextIndex < streamers.length) {
+          const nextStreamer = streamers[nextIndex];
+          if (nextStreamer.thumbnail_url || nextStreamer.profile_image_url) {
+            const img = new Image();
+            img.src = nextStreamer.thumbnail_url || nextStreamer.profile_image_url;
+          }
+        }
+      }
+    }
+  }, [currentIndex, streamers]);
+
+  // Create a component for stream preview (defined inside main component to avoid hook errors)
+  const StreamPreview = ({ streamer, onClose }) => {
+    const [iframeLoading, setIframeLoading] = useState(true);
+    const [iframeError, setIframeError] = useState(false);
+    const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+    
+    // Handle iframe load error
+    const handleIframeError = () => {
+      setIframeError(true);
+      setIframeLoading(false);
+    };
+    
+    // Add a timeout in case the iframe takes too long to load
+    useEffect(() => {
+      const timeoutId = setTimeout(() => {
+        if (iframeLoading) {
+          console.log('Iframe loading timeout - forcing completion');
+          setIframeLoading(false);
+        }
+      }, 8000); // 8 second maximum loading time
+      
+      return () => clearTimeout(timeoutId);
+    }, [iframeLoading]);
+    
+    return (
+      <div className={styles.previewContainer}>
+        <div className={styles.previewHeader}>
+          <span>🔴 LIVE PREVIEW</span>
+          <button 
+            className={styles.previewCloseButton}
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        
+        {(iframeLoading || iframeError) && (
+          <div className={styles.previewLoading}>
+            {!iframeError ? (
+              <>
+                <div className={styles.previewLoadingSpinner}></div>
+                <div className={styles.previewLoadingText}>Loading stream...</div>
+              </>
+            ) : (
+              <div className={styles.previewLoadingText}>Unable to load stream preview</div>
+            )}
+            <img 
+              src={streamer.thumbnail_url || streamer.profile_image_url} 
+              alt={`${streamer.display_name} thumbnail`}
+              className={styles.previewPlaceholder}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://via.placeholder.com/320x180/0e0e10/FFFFFF?text=Loading+Stream";
+              }}
+            />
+            {iframeError && (
+              <a 
+                href={`https://twitch.tv/${streamer.username}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className={styles.previewExternalLink}
+              >
+                Watch on Twitch
+              </a>
+            )}
+          </div>
+        )}
+        
+        <iframe
+          src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
+          height="100%"
+          width="100%"
+          allowFullScreen={false}
+          title={`${streamer.display_name} stream preview`}
+          className={`${styles.previewFrame} ${iframeLoading ? styles.previewFrameLoading : ''}`}
+          onLoad={() => setIframeLoading(false)}
+          onError={handleIframeError}
+        ></iframe>
       </div>
     );
   };
