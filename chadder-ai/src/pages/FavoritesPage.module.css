@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 3rem 1rem 2rem;
   color: white;
 }
 
@@ -11,6 +11,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  padding-top: 1rem;
 }
 
 .header h1 {
@@ -105,8 +106,8 @@
 
 .favoritesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
 }
 
 .favoriteCard {
@@ -115,6 +116,9 @@
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s, box-shadow 0.2s;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .favoriteCard:hover {
@@ -123,10 +127,12 @@
 }
 
 .favoriteImage {
-  height: 160px;
+  height: 220px;
   background-size: cover;
   background-position: center;
   position: relative;
+  background-repeat: no-repeat;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .liveIndicator {
@@ -183,6 +189,9 @@
 
 .favoriteContent {
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .favoriteContent h3 {
@@ -208,44 +217,76 @@
   margin-bottom: 1rem;
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.6);
+  margin-top: auto;
 }
 
 .actionsRow {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
-.watchButton, .removeButton {
+.watchButton, 
+.favoriteCard .watchButton,
+.favoriteContent .actionsRow .watchButton {
   flex: 1;
   padding: 0.5rem;
-  border-radius: 4px;
+  border-radius: 6px !important;
   font-size: 0.9rem;
   font-weight: 600;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.watchButton {
-  background-color: #9147ff;
-  color: white;
-  border: none;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
+  border: none !important;
+  background-color: #9147ff !important;
+  color: white !important;
 }
 
-.watchButton:hover {
-  background-color: #772ce8;
+.watchButton:hover, 
+.favoriteCard .watchButton:hover,
+.favoriteContent .actionsRow .watchButton:hover {
+  background-color: #772ce8 !important;
 }
 
-.removeButton {
-  background-color: transparent;
-  color: #ff5c5c;
-  border: 1px solid #ff5c5c;
+.watchButton[disabled], 
+.favoriteCard .watchButton[disabled],
+.favoriteContent .actionsRow .watchButton[disabled] {
+  background-color: #4a4a4a !important;
+  color: #999 !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
 }
 
-.removeButton:hover {
-  background-color: rgba(255, 92, 92, 0.1);
+.removeButton,
+.favoriteCard .removeButton,
+.favoriteContent .actionsRow .removeButton {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 6px !important;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent !important;
+  color: #ff5c5c !important;
+  border: 1px solid #ff5c5c !important;
+}
+
+.removeButton:hover,
+.favoriteCard .removeButton:hover,
+.favoriteContent .actionsRow .removeButton:hover {
+  background-color: rgba(255, 92, 92, 0.1) !important;
 }
 
 /* Responsive styles */
@@ -253,20 +294,25 @@
   .header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
   }
   
   .header h1 {
     font-size: 2rem;
-    margin-bottom: 1rem;
   }
   
   .favoritesGrid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
 
 @media (max-width: 480px) {
   .favoritesGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  
+  .favoriteImage {
+    height: 150px;
   }
 }

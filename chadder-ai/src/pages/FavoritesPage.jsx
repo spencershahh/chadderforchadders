@@ -326,10 +326,11 @@ const FavoritesPage = () => {
                 className={styles.favoriteImage}
                 style={{ 
                   backgroundImage: `url(${
-                    streamer.is_live && streamer.stream_info?.thumbnail_url
-                      ? streamer.stream_info.thumbnail_url 
-                      : streamer.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png'
-                  })`
+                    // Prioritize larger profile images
+                    streamer.profile_image_url 
+                      ? streamer.profile_image_url.replace('-70x70', '-300x300')
+                      : 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-300x300.png'
+                  })` 
                 }}
               >
                 {streamer.is_live && (
@@ -363,21 +364,34 @@ const FavoritesPage = () => {
                 </div>
                 
                 <div className={styles.actionsRow}>
-                  {streamer.is_live && (
-                    <Link 
-                      to={`/stream/${streamer.username}`}
-                      className={styles.watchButton}
-                    >
-                      Watch Live
-                    </Link>
+                  {streamer.is_live ? (
+                    <>
+                      <Link 
+                        to={`/stream/${streamer.username}`}
+                        className={styles.watchButton}
+                      >
+                        Watch Live
+                      </Link>
+                      <button 
+                        className={styles.removeButton}
+                        onClick={() => removeFavorite(streamer.favoriteId, streamer.id)}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className={styles.watchButton} disabled>
+                        Offline
+                      </button>
+                      <button 
+                        className={styles.removeButton}
+                        onClick={() => removeFavorite(streamer.favoriteId, streamer.id)}
+                      >
+                        Remove
+                      </button>
+                    </>
                   )}
-                  
-                  <button 
-                    className={styles.removeButton}
-                    onClick={() => removeFavorite(streamer.favoriteId, streamer.id)}
-                  >
-                    Remove
-                  </button>
                 </div>
               </div>
             </div>

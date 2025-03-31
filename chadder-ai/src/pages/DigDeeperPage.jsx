@@ -509,7 +509,7 @@ const DigDeeperPage = () => {
   // Function to generate new quick message options
   const generateNewMessageOptions = useCallback(() => {
     const allQuickMessages = [
-      { id: 1, text: "Hi there! Just discovered your stream!" },
+      { id: 1, text: "Hi there! Just discovered your stream on Chadder!" },
       { id: 2, text: "Love the content! How long have you been streaming?" },
       { id: 3, text: "What game/content are you planning next?" },
       { id: 4, text: "Your stream setup looks amazing!" },
@@ -940,6 +940,13 @@ const DigDeeperPage = () => {
         <p>Discover and vote for your favorite Twitch streamers</p>
         
         <div className={styles.headerButtons}>
+          <button
+            onClick={() => navigate('/favorites')}
+            className={styles.preferencesButton}
+            title="View your favorited streamers"
+          >
+            <span>❤️</span> Favorites
+          </button>
           <button
             onClick={() => setShowPreferenceSelector(true)}
             className={styles.preferencesButton}
