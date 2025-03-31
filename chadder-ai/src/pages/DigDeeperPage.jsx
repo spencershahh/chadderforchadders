@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -11,171 +11,137 @@ const isDevelopment = typeof import.meta !== 'undefined' &&
   import.meta.env && 
   (import.meta.env.DEV || window.location.hostname === 'localhost');
 
+// Stream preview player with improved rendering
+const StreamPreview = ({ streamer, onClose }) => {
+  if (!streamer || !streamer.username) {
+    return (
+      <div className={styles.previewContainer}>
+        <div className={styles.previewHeader}>
+          <span>🔴 LIVE PREVIEW</span>
+          <button className={styles.previewCloseButton} onClick={onClose}>✕</button>
+        </div>
+        <div className={styles.previewLoading}>
+          <div className={styles.previewLoadingText}>Streamer data unavailable</div>
+        </div>
+      </div>
+    );
+  }
+
+  const [loading, setLoading] = useState(true);
+  
+  // Get hostname safely
+  let hostname = 'localhost';
+  try {
+    hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+  } catch (e) {
+    console.error('Error getting hostname:', e);
+  }
+  
+  return (
+    <div className={styles.previewContainer}>
+      <div className={styles.previewHeader}>
+        <span>🔴 LIVE PREVIEW</span>
+        <button className={styles.previewCloseButton} onClick={onClose}>✕</button>
+      </div>
+      
+      {loading && (
+        <div className={styles.previewLoading}>
+          <div className={styles.previewLoadingSpinner}></div>
+          <div className={styles.previewLoadingText}>Loading stream...</div>
+        </div>
+      )}
+      
+      <iframe
+        src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
+        height="100%"
+        width="100%"
+        allowFullScreen={false}
+        title={`${streamer.display_name || streamer.username} stream preview`}
+        className={`${styles.previewFrame} ${loading ? styles.previewFrameLoading : ''}`}
+        onLoad={() => setLoading(false)}
+      ></iframe>
+    </div>
+  );
+};
+
+// Advanced preloader component that preloads actual iframes for streams
+const AdvancedStreamerPreloader = ({ streamers, currentIndex }) => {
+  if (!streamers || streamers.length === 0) return null;
+  
+  // Get hostname safely
+  let hostname = 'localhost';
+  try {
+    hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+  } catch (e) {
+    console.error('Error getting hostname:', e);
+  }
+  
+  // Only preload the next streamer (to avoid excessive resource usage)
+  const nextIndex = currentIndex + 1;
+  if (nextIndex >= streamers.length) return null;
+  
+  const nextStreamer = streamers[nextIndex];
+  if (!nextStreamer || !nextStreamer.username || !nextStreamer.is_live) return null;
+  
+  return (
+    <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', overflow: 'hidden', width: 0, height: 0 }}>
+      <iframe
+        key={`preload-iframe-${nextStreamer.twitch_id}`}
+        src={`https://player.twitch.tv/?channel=${nextStreamer.username}&parent=${hostname}&muted=true&autoplay=false`}
+        height="1px"
+        width="1px"
+        title={`Preload ${nextStreamer.display_name || nextStreamer.username}`}
+        tabIndex="-1"
+        aria-hidden="true"
+      ></iframe>
+    </div>
+  );
+};
+
+// Main component
 const DigDeeperPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [streamers, setStreamers] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const controls = useAnimation();
-  const [expandedBios, setExpandedBios] = useState(new Set());
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [twitchAccessToken, setTwitchAccessToken] = useState(null);
-  
-  // Auto-playing preview state
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [previewPlaying, setPreviewPlaying] = useState(null);
-  const previewTimeoutRef = useRef(null);
-  
-  // Quick chat feature state
   const [chatOpen, setChatOpen] = useState(false);
   const [currentChatStreamer, setCurrentChatStreamer] = useState(null);
+  const [preloadedStreamers, setPreloadedStreamers] = useState(new Set());
+  const [autoPlayDelay, setAutoPlayDelay] = useState(500);
+  
+  // Preference selector state
+  const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
+  const [selectedPreferences, setSelectedPreferences] = useState([]);
+  const [showASMR, setShowASMR] = useState(false);
+  
+  // Set up animation controls
+  const controls = useAnimation();
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // Get viewport width for responsive behavior
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const isMobile = viewportWidth < 768;
+  
+  // Update viewport width on resize
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Define some quick chat messages
   const [quickMessages, setQuickMessages] = useState([
     { id: 1, text: "Hi there! Just discovered your stream!" },
     { id: 2, text: "Love the content! How long have you been streaming?" },
     { id: 3, text: "What game/content are you planning next?" }
   ]);
   
-  // All potential quick messages
-  const allQuickMessages = [
-    { id: 1, text: "Hi there! Just discovered your stream!" },
-    { id: 2, text: "Love the content! How long have you been streaming?" },
-    { id: 3, text: "What game/content are you planning next?" },
-    { id: 4, text: "Your stream setup looks amazing!" },
-    { id: 5, text: "Just followed! Looking forward to more streams" },
-    { id: 6, text: "Any tips for someone new to this game?" },
-    { id: 7, text: "That was an awesome play!" },
-    { id: 8, text: "What's your streaming schedule like?" },
-    { id: 9, text: "Do you play with viewers?" },
-    { id: 10, text: "What other games do you enjoy playing?" },
-    { id: 11, text: "How did you get into streaming?" },
-    { id: 12, text: "Loving the stream quality, what's your setup?" },
-    { id: 13, text: "Found you through Chadder, great recommendation!" },
-    { id: 14, text: "Do you have a Discord community?" },
-    { id: 15, text: "Just dropped a sub, keep up the great content!" },
-    { id: 16, text: "What's your favorite part about streaming?" },
-    { id: 17, text: "How's your experience been with this game so far?" },
-    { id: 18, text: "Your energy is so entertaining!" },
-    { id: 19, text: "What advice would you give to new streamers?" },
-    { id: 20, text: "This is my first time catching your stream live!" },
-    { id: 21, text: "The vibes here are immaculate!" },
-    { id: 22, text: "Do you have any gameplay goals for today's stream?" },
-    { id: 23, text: "Your commentary is hilarious!" },
-    { id: 24, text: "What's the hardest part about this game?" },
-    { id: 25, text: "Hey! Love the stream!" },
-    { id: 26, text: "Any memorable moments from your streaming career?" },
-    { id: 27, text: "What got you interested in this game initially?" },
-    { id: 28, text: "Your reactions are priceless!" },
-    { id: 29, text: "Do you collaborate with other streamers?" },
-    { id: 30, text: "What's your go-to snack during long streams?" },
-    { id: 31, text: "The music selection is on point!" },
-    { id: 32, text: "How do you handle stream snipers?" },
-    { id: 33, text: "Just coming in from another channel, happy to be here!" },
-    { id: 34, text: "Your community seems really awesome!" },
-    { id: 35, text: "What's been your favorite gaming moment recently?" },
-    { id: 36, text: "How long have you been playing this game?" },
-    { id: 37, text: "What's your streaming pet peeve?" },
-    { id: 38, text: "Your emotes are fantastic!" },
-    { id: 39, text: "Any plans for special event streams?" },
-    { id: 40, text: "Coming over from Chadder.ai, just wanted to say hi!" },
-    { id: 41, text: "I'm a big fan of your content!" },
-    { id: 42, text: "What's your favorite thing about streaming?" },
-    { id: 43, text: "How do you stay motivated to stream?" },
-    { id: 44, text: "What's your favorite game to play?" },
-    { id: 45, text: "How do you deal with stream burnout?" },
-    { id: 46, text: "What's your favorite way to interact with your community?" },
-    { id: 47, text: "What's your favorite thing about this game?" },
-    { id: 48, text: "Where are you from? I'm tuning in from [location]!" },
-    { id: 49, text: "What hardware do you use for streaming?" },
-    { id: 50, text: "Your voice is perfect for streaming!" },
-    { id: 51, text: "Any games coming out that you're excited to play?" },
-    { id: 52, text: "How did you come up with your username?" },
-    { id: 53, text: "What's the most challenging part of streaming?" },
-    { id: 54, text: "Just wanted to drop by and show some support!" },
-    { id: 55, text: "Do you have any stream goals today?" },
-    { id: 56, text: "How often do you stream each week?" },
-    { id: 57, text: "First time here, loving the vibe!" },
-    { id: 58, text: "What got you into gaming/streaming?" },
-    { id: 59, text: "Your gameplay skills are impressive!" },
-    { id: 60, text: "What's your favorite moment from streaming so far?" },
-    { id: 61, text: "Do you ever do viewer games or challenges?" },
-    { id: 62, text: "I appreciate how interactive you are with chat!" },
-    { id: 63, text: "Have you tried any other platforms besides Twitch?" },
-    { id: 64, text: "What makes streaming fulfilling for you?" },
-    { id: 65, text: "How long did it take you to get comfortable on stream?" },
-    { id: 66, text: "The stream quality is fantastic!" },
-    { id: 67, text: "Any chance you'll do a setup tour sometime?" },
-    { id: 68, text: "Your laugh is contagious!" },
-    { id: 69, text: "What's something you wish more viewers knew about streaming?" },
-    { id: 70, text: "What achievement are you most proud of?" },
-    { id: 71, text: "Do you have a favorite streamer that inspires you?" },
-    { id: 72, text: "Your overlay looks great! Did you design it yourself?" },
-    { id: 73, text: "That was a clutch play right there!" },
-    { id: 74, text: "How do you balance streaming with other responsibilities?" },
-    { id: 75, text: "Your stream always puts me in a good mood!" },
-    { id: 76, text: "What's something exciting happening in your life lately?" },
-    { id: 77, text: "Found you through Chadder - so happy I did!" },
-    { id: 78, text: "Good luck in this game/match!" },
-    { id: 79, text: "Your chat seems really friendly!" },
-    { id: 80, text: "Do you have merch or ways to support outside of Twitch?" },
-    { id: 81, text: "Would love to play with you sometime if you ever need teammates!" },
-    { id: 82, text: "What's been your biggest challenge growing your channel?" },
-    { id: 83, text: "Have you played [popular game] yet?" },
-    { id: 84, text: "You deserve way more viewers!" },
-    { id: 85, text: "How do you handle trolls in chat?" },
-    { id: 86, text: "The background music is perfect!" },
-    { id: 87, text: "Are you a full-time streamer or is this a side hobby?" },
-    { id: 88, text: "What's your opinion on current gaming trends?" },
-    { id: 89, text: "Will you be streaming any upcoming game releases?" },
-    { id: 90, text: "Popping in to say hi before I have to go - keep up the great work!" },
-    { id: 91, text: "How's your day going so far?" },
-    { id: 92, text: "Would you ever consider attending gaming/streaming conventions?" },
-    { id: 93, text: "What specs does your gaming computer have?" },
-    { id: 94, text: "Do you have a favorite game of all time?" },
-    { id: 95, text: "Your stream has such a chill atmosphere!" },
-    { id: 96, text: "What's the story behind your channel/branding?" },
-    { id: 97, text: "Impressive skills! How much practice did that take?" },
-    { id: 98, text: "Do you play any other games off-stream?" },
-    { id: 99, text: "Really enjoying the stream - it's made my day better!" },
-    { id: 100, text: "Wishing you all the best with your channel growth!" }
-  ];
-  
-  // Function to generate new quick message options
-  const generateNewMessageOptions = () => {
-    let messagePool = [...allQuickMessages];
-    
-    // Add game-specific messages if the streamer is playing a known game
-    if (currentChatStreamer && currentChatStreamer.game_name) {
-      const gameName = currentChatStreamer.game_name;
-      
-      // Add game-specific messages
-      const gameSpecificMessages = [
-        { id: 100, text: `I love watching ${gameName}! Great choice!` },
-        { id: 101, text: `How long have you been playing ${gameName}?` },
-        { id: 102, text: `Any tips for someone starting out in ${gameName}?` },
-        { id: 103, text: `What's your favorite thing about ${gameName}?` }
-      ];
-      
-      // Add them to the pool
-      messagePool = [...messagePool, ...gameSpecificMessages];
-    }
-    
-    // Get 3 random messages from the pool
-    const shuffled = [...messagePool].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 3);
-    setQuickMessages(selected);
-    
-    // Show toast notification
-    toast.success('New message options generated!', { duration: 1500 });
-  };
-  
-  // Preference selector state
-  const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
-  const [selectedPreferences, setSelectedPreferences] = useState([]);
-  const [hasSetPreferences, setHasSetPreferences] = useState(false);
-  
-  // Category definitions with icons
+  // Twitch categories
   const streamCategories = [
     { id: '509658', name: 'Just Chatting', icon: '💬' },
     { id: '26936', name: 'Music', icon: '🎵' },
@@ -186,393 +152,233 @@ const DigDeeperPage = () => {
     { id: '516575', name: 'VALORANT', icon: '🎯' },
     { id: '509659', name: 'Art', icon: '🎨' },
     { id: '518203', name: 'Sports', icon: '⚽' },
-    { id: '417752', name: 'Talk Shows', icon: '🎙️' },
-    { id: '518248', name: 'Indie Games', icon: '🎮' }
+    { id: '498506', name: 'ASMR', icon: '🎧' }
   ];
   
-  // Auto-preview timeout cleanup
-  useEffect(() => {
-    return () => {
-      if (previewTimeoutRef.current) {
-        clearTimeout(previewTimeoutRef.current);
-      }
-    };
+  // Simple function to go to next card
+  const nextCard = useCallback(() => {
+    if (previewPlaying) {
+      setPreviewPlaying(null);
+    }
+    
+    controls.set({ x: 0, rotateZ: 0 });
+    setCurrentIndex(prev => prev + 1);
+  }, [controls, previewPlaying]);
+  
+  // Handle swipe events
+  const handleSwipeRight = useCallback(() => {
+    const currentStreamer = streamers[currentIndex];
+    
+    if (!user) {
+      toast.info('Sign in to save favorites!');
+      setShowAuthModal(true);
+    } else if (currentStreamer) {
+      toast.success('Added to favorites!');
+    }
+    
+    nextCard();
+  }, [nextCard, currentIndex, streamers, user]);
+  
+  const handleSwipeLeft = useCallback(() => {
+    nextCard();
+  }, [nextCard]);
+  
+  // Handle drag events
+  const handleDragStart = useCallback((event, info) => {
+    setDragStart({ x: info.point.x, y: info.point.y });
   }, []);
   
-  // Auto-start preview for current streamer
+  const handleDragEnd = useCallback((event, info) => {
+    const dragEndX = info.point.x;
+    const deltaX = dragEndX - dragStart.x;
+    const threshold = isMobile ? viewportWidth * 0.15 : 100;
+    
+    if (deltaX > threshold) {
+      // Swiped right - favorite
+      controls.start({ 
+        x: viewportWidth, 
+        rotateZ: 10, 
+        transition: { duration: 0.3 } 
+      }).then(() => {
+        handleSwipeRight();
+      });
+    } else if (deltaX < -threshold) {
+      // Swiped left - pass
+      controls.start({ 
+        x: -viewportWidth, 
+        rotateZ: -10, 
+        transition: { duration: 0.3 } 
+      }).then(() => {
+        handleSwipeLeft();
+      });
+    } else {
+      // Reset if not swiped far enough
+      controls.start({ 
+        x: 0, 
+        rotateZ: 0, 
+        transition: { type: 'spring', stiffness: 300, damping: 20 } 
+      });
+    }
+  }, [controls, dragStart, handleSwipeLeft, handleSwipeRight, isMobile, viewportWidth]);
+  
+  // Auto-play with optimized timing based on preloaded status
   useEffect(() => {
-    if (streamers.length > 0 && currentIndex < streamers.length) {
-      const currentStreamer = streamers[currentIndex];
+    if (!streamers || streamers.length === 0 || currentIndex >= streamers.length) {
+      return;
+    }
+    
+    const currentStreamer = streamers[currentIndex];
+    
+    // Only auto-play if the streamer is live
+    if (currentStreamer && currentStreamer.is_live) {
+      // Use a shorter delay if already preloaded
+      const delay = preloadedStreamers.has(currentStreamer.twitch_id) ? 300 : autoPlayDelay;
       
-      if (currentStreamer?.is_live) {
-        // Preload the thumbnail image
-        if (currentStreamer.thumbnail_url || currentStreamer.profile_image_url) {
-          const img = new Image();
-          img.src = currentStreamer.thumbnail_url || currentStreamer.profile_image_url;
-        }
+      const autoPlayTimeout = setTimeout(() => {
+        setPreviewPlaying(currentStreamer.twitch_id);
+      }, delay);
+      
+      return () => clearTimeout(autoPlayTimeout);
+    }
+  }, [currentIndex, streamers, preloadedStreamers, autoPlayDelay]);
+  
+  // Enhanced preloading effect - mark streamers as preloaded
+  useEffect(() => {
+    if (!streamers || streamers.length === 0) return;
+    
+    // Preload thumbnails
+    const preloadCount = Math.min(5, streamers.length);
+    const newPreloadedStreamers = new Set(preloadedStreamers);
+    
+    for (let i = 0; i < preloadCount; i++) {
+      const streamer = streamers[i];
+      if (!streamer) continue;
+      
+      // Preload thumbnail
+      if (streamer.thumbnail_url || streamer.profile_image_url) {
+        const img = new Image();
+        img.src = streamer.thumbnail_url || streamer.profile_image_url;
         
-        // Auto-start preview after a short delay
-        previewTimeoutRef.current = setTimeout(() => {
-          setPreviewPlaying(currentStreamer.twitch_id);
-        }, 1500); // 1.5 second delay before auto-playing
+        // Mark as preloaded
+        newPreloadedStreamers.add(streamer.twitch_id);
       }
     }
     
-    return () => {
-      if (previewTimeoutRef.current) {
-        clearTimeout(previewTimeoutRef.current);
-      }
-    };
-  }, [currentIndex, streamers]);
-
-  // Reset preview when changing cards
-  useEffect(() => {
-    setPreviewPlaying(null);
-  }, [currentIndex]);
+    setPreloadedStreamers(newPreloadedStreamers);
+  }, [streamers]);
   
-  // Check if this is the first visit
-  useEffect(() => {
-    if (user) {
-      // Check localStorage for previously saved preferences
-      const savedPreferences = localStorage.getItem(`digdeeper_preferences_${user.id}`);
-      if (savedPreferences) {
-        try {
-          const parsedPreferences = JSON.parse(savedPreferences);
-          setSelectedPreferences(parsedPreferences);
-          setHasSetPreferences(true);
-        } catch (e) {
-          console.error('Error parsing saved preferences', e);
-          setShowPreferenceSelector(true);
-        }
-      } else {
-        // First time, show selector
-        setShowPreferenceSelector(true);
-      }
-    }
-  }, [user]);
-
-  // Only fetch streamers when user is authenticated
-  useEffect(() => {
-    if (user) {
-      const loadTwitchAuth = async () => {
-        try {
-          const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-          const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
-          
-          if (!clientId || !clientSecret) {
-            console.error('Twitch API credentials missing');
-            toast.error('Twitch API credentials are missing in environment variables');
-            return;
-          }
-          
-          const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
-          });
-          
-          if (!tokenResponse.ok) {
-            throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
-          }
-          
-          const tokenData = await tokenResponse.json();
-          const accessToken = tokenData.access_token;
-          
-          if (!accessToken) {
-            throw new Error('No access token received from Twitch');
-          }
-          
-          setTwitchAccessToken(accessToken);
-          
-          // Once we have the token, fetch low-viewer streamers directly from Twitch
-          await fetchLowViewerStreams(accessToken);
-        } catch (error) {
-          console.error('Error initializing Twitch auth:', error);
-          toast.error(`Error connecting to Twitch: ${error.message}`);
-        }
-      };
-      
-      loadTwitchAuth();
-    } else {
-      // Reset state if user logs out
-      setStreamers([]);
-      setLoading(false);
-    }
-  }, [user]);
-
-  const fetchLowViewerStreams = async (accessToken) => {
+  // Simplified fetch streamers function with immediate preloading
+  const fetchStreamers = useCallback(async () => {
+    if (loading || refreshing) return;
+    
+    setLoading(true);
+    setRefreshing(true);
+    
     try {
-      setLoading(true);
-      toast.loading('Looking for small streamers...', { id: 'loading' });
-      
+      // Get Twitch credentials
       const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
       
-      if (!clientId || !accessToken) {
-        throw new Error('Twitch API credentials or token missing');
+      if (!clientId || !clientSecret) {
+        throw new Error('Twitch API credentials missing');
       }
       
-      // Log to confirm we have valid credentials
-      console.log("Using Twitch API with:", { 
-        clientIdFirstFiveChars: clientId.substring(0, 5),
-        hasToken: !!accessToken 
-      });
+      // Get Twitch access token
+      let accessToken = twitchAccessToken;
       
-      // Determine which categories to use based on preferences
+      if (!accessToken) {
+        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+        });
+        
+        if (!tokenResponse.ok) {
+          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+        }
+        
+        const tokenData = await tokenResponse.json();
+        accessToken = tokenData.access_token;
+        
+        if (!accessToken) {
+          throw new Error('No access token received from Twitch');
+        }
+        
+        setTwitchAccessToken(accessToken);
+      }
+      
+      // Choose categories based on preferences or select randomly
       let categoriesToSearch = [];
-      
       if (selectedPreferences.length > 0) {
-        // User has preferences, prioritize those
         categoriesToSearch = selectedPreferences;
-        console.log(`Using user's ${selectedPreferences.length} preferred categories`);
       } else {
-        // No preferences - use a randomized selection of categories to provide variety
-        const shuffledCategories = [...streamCategories].sort(() => Math.random() - 0.5);
-        // Use all categories but in a random order to provide maximum diversity
-        categoriesToSearch = shuffledCategories.map(cat => cat.id);
-        console.log('No preferences set - using randomized categories for diversity');
+        // Filter out ASMR if not specifically selected
+        const categoriesWithoutASMR = streamCategories
+          .filter(cat => showASMR || cat.id !== '498506') // Filter out ASMR unless showASMR is true
+          .map(cat => cat.id);
+        
+        categoriesToSearch = [...categoriesWithoutASMR]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 5);
       }
       
       let allStreamers = [];
-      let apiCallsMade = 0;
-      
-      // Track how many streamers we've found per category to ensure diversity
-      const streamersPerCategory = {};
-      const MAX_PER_CATEGORY = 3; // Limit to 3 per category for better variety
       
       // Try different game categories to find small streamers
       for (const gameId of categoriesToSearch) {
         if (allStreamers.length >= 20) break; // Stop if we have enough
         
-        // Skip if we already have enough from this category
-        if (streamersPerCategory[gameId] >= MAX_PER_CATEGORY) continue;
-        
         try {
-          apiCallsMade++;
-          // Get streams for this game, sorted by viewers (low to high)
-          const queryParams = new URLSearchParams({
-            first: 100,
-            game_id: gameId,
-            language: 'en'
-          });
-          
-          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
+          // Get streams for this game
+          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?first=100&game_id=${gameId}&language=en`, {
             headers: {
               'Client-ID': clientId,
               'Authorization': `Bearer ${accessToken}`
             }
           });
           
-          if (!streamsResponse.ok) {
-            console.error(`Error fetching streams for game ${gameId}: ${streamsResponse.status}`);
-            continue; // Try next game
-          }
+          if (!streamsResponse.ok) continue;
           
           const streamsData = await streamsResponse.json();
-          console.log(`Got ${streamsData?.data?.length || 0} streams for game ${gameId}`);
           
           // Filter for small streams (5-50 viewers)
           if (streamsData?.data && Array.isArray(streamsData.data)) {
             // Sort by viewer count (lowest first)
-            const sortedStreams = [...streamsData.data].sort((a, b) => {
-              return (a.viewer_count || 999) - (b.viewer_count || 999);
-            });
-            
-            // Take streams with between 5-50 viewers
-            const smallStreams = sortedStreams.filter(stream => 
-              stream && 
-              typeof stream.viewer_count === 'number' && 
-              stream.viewer_count >= 5 && 
-              stream.viewer_count <= 50
-            );
-            
-            console.log(`Found ${smallStreams.length} streams with 5-50 viewers for game ${gameId}`);
-            
-            // Track how many we're taking from this category
-            streamersPerCategory[gameId] = (streamersPerCategory[gameId] || 0) + 
-              Math.min(smallStreams.length, MAX_PER_CATEGORY);
-            
-            // Map to our format, but limit how many we take from each category
-            const formattedStreams = smallStreams
-              .slice(0, MAX_PER_CATEGORY)
-              .map(stream => ({
-                id: stream.user_id,
-                twitch_id: stream.user_id,
-                username: stream.user_login,
-                display_name: stream.user_name,
-                is_live: true,
-                view_count: stream.viewer_count,
-                game_name: stream.game_name || "",
-                stream_title: stream.title || "",
-                thumbnail_url: stream.thumbnail_url ? 
-                  stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                  null,
-                votes: 0,
-                category_id: gameId,
-                isWildcard: false
-              }));
-            
-            // Add new streamers to our list
-            allStreamers = [...allStreamers, ...formattedStreams];
-          }
-        } catch (gameError) {
-          console.error(`Error processing game ${gameId}:`, gameError);
-          // Continue with next game
-        }
-      }
-      
-      console.log(`Made ${apiCallsMade} API calls, found ${allStreamers.length} total small streamers`);
-      
-      // If we're using preferences but still don't have enough streamers, try some random categories
-      if (selectedPreferences.length > 0 && allStreamers.length < 10) {
-        console.log("Not enough streamers from preferred categories, adding some variety");
-        
-        // Get categories that aren't in user preferences
-        const otherCategories = streamCategories
-          .filter(cat => !selectedPreferences.includes(cat.id))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 3)
-          .map(cat => cat.id);
-          
-        // Flag these as wildcard streamers
-        let wildcardStreamers = [];
-        
-        for (const gameId of otherCategories) {
-          if (allStreamers.length >= 20) break;
-          
-          try {
-            apiCallsMade++;
-            // Get streams for this game
-            const queryParams = new URLSearchParams({
-              first: 100,
-              game_id: gameId,
-              language: 'en'
-            });
-            
-            const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-              headers: {
-                'Client-ID': clientId,
-                'Authorization': `Bearer ${accessToken}`
-              }
-            });
-            
-            if (streamsResponse.ok) {
-              const streamsData = await streamsResponse.json();
-              
-              if (streamsData?.data && Array.isArray(streamsData.data)) {
-                // Sort by viewer count
-                const sortedStreams = [...streamsData.data].sort((a, b) => {
-                  return (a.viewer_count || 999) - (b.viewer_count || 999);
-                });
-                
-                // Take the smallest viewer streams
-                const smallStreams = sortedStreams
-                  .filter(stream => stream && typeof stream.viewer_count === 'number' && stream.viewer_count <= 20)
-                  .slice(0, 3); // Just take a few for diversity
-                  
-                // Map to our format with wildcard indicator
-                const formattedStreams = smallStreams.map(stream => ({
-                  id: stream.user_id,
-                  twitch_id: stream.user_id,
-                  username: stream.user_login,
-                  display_name: stream.user_name,
-                  is_live: true,
-                  view_count: stream.viewer_count,
-                  game_name: stream.game_name || "",
-                  stream_title: stream.title || "",
-                  thumbnail_url: stream.thumbnail_url ? 
-                    stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                    null,
-                  votes: 0,
-                  category_id: gameId,
-                  isWildcard: true
-                }));
-                
-                // Add to our wildcards list
-                wildcardStreamers.push(...formattedStreams);
-              }
-            }
-          } catch (error) {
-            console.error(`Error processing additional category ${gameId}:`, error);
-          }
-        }
-        
-        // Add these wildcards to our main list
-        allStreamers.push(...wildcardStreamers);
-        console.log(`Added ${wildcardStreamers.length} wildcard streamers from outside preferred categories`);
-      }
-      
-      // Final fallback - if we still have no streamers, try with higher viewer count
-      if (allStreamers.length === 0) {
-        try {
-          console.log("Last resort: Trying with higher viewer threshold");
-          
-          const queryParams = new URLSearchParams({
-            first: 100,
-            language: 'en'
-          });
-          
-          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-            headers: {
-              'Client-ID': clientId,
-              'Authorization': `Bearer ${accessToken}`
-            }
-          });
-          
-          if (streamsResponse.ok) {
-            const streamsData = await streamsResponse.json();
-            
-            if (streamsData?.data && Array.isArray(streamsData.data)) {
-              // Sort by viewer count (lowest first)
-              const sortedStreams = [...streamsData.data].sort((a, b) => {
-                return (a.viewer_count || 999) - (b.viewer_count || 999);
-              });
-              
-              // Take streams with between 5-50 viewers
-              const smallestStreams = sortedStreams.filter(stream =>
+            const sortedStreams = [...streamsData.data]
+              .sort((a, b) => (a.viewer_count || 999) - (b.viewer_count || 999))
+              .filter(stream => 
                 stream && 
                 typeof stream.viewer_count === 'number' && 
                 stream.viewer_count >= 5 && 
                 stream.viewer_count <= 50
-              ).slice(0, 20);
-              
-              // Map to our format
-              const formattedStreams = smallestStreams.map(stream => ({
-                id: stream.user_id,
-                twitch_id: stream.user_id,
-                username: stream.user_login,
-                display_name: stream.user_name,
-                is_live: true,
-                view_count: stream.viewer_count,
-                game_name: stream.game_name || "",
-                stream_title: stream.title || "",
-                thumbnail_url: stream.thumbnail_url ? 
-                  stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                  null,
-                votes: 0,
-                category_id: stream.game_id || 'unknown',
-                isWildcard: true // These are all wildcards as they're from the fallback
-              }));
-              
-              console.log(`Found ${formattedStreams.length} smallest streams from final fallback`);
-              
-              // Add new streamers to our list
-              allStreamers = [...allStreamers, ...formattedStreams];
-            }
+              )
+              .slice(0, 4); // Take just a few from each category
+            
+            // Map to our format
+            const formattedStreams = sortedStreams.map(stream => ({
+              id: stream.user_id,
+              twitch_id: stream.user_id,
+              username: stream.user_login,
+              display_name: stream.user_name,
+              is_live: true,
+              view_count: stream.viewer_count,
+              game_name: stream.game_name || "",
+              stream_title: stream.title || "",
+              thumbnail_url: stream.thumbnail_url ? 
+                stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+                null,
+              category_id: gameId
+            }));
+            
+            // Add new streamers to our list
+            allStreamers = [...allStreamers, ...formattedStreams];
           }
-        } catch (fallbackError) {
-          console.error("Error with fallback approach:", fallbackError);
+        } catch (error) {
+          console.error(`Error processing game ${gameId}:`, error);
         }
       }
       
-      // Make sure all streamers have required fields to prevent errors
-      allStreamers = allStreamers.filter(streamer => 
-        streamer && streamer.twitch_id && streamer.username
-      );
-      
-      // Sort by viewer count (lowest first)
-      allStreamers.sort((a, b) => (a.view_count || 0) - (b.view_count || 0));
-      
-      // Get only unique streamers
+      // Get unique streamers
       const uniqueStreamers = [];
       const seenIds = new Set();
       
@@ -583,29 +389,27 @@ const DigDeeperPage = () => {
         }
       }
       
-      // Limit to a reasonable number
-      allStreamers = uniqueStreamers.slice(0, 20);
+      // Filter out ASMR streamers based on title unless specifically chosen
+      let filteredStreamers = uniqueStreamers;
+      if (!showASMR) {
+        filteredStreamers = uniqueStreamers.filter(streamer => {
+          // Filter out streams with ASMR in the title or category
+          const hasASMRTitle = streamer.stream_title && 
+                             streamer.stream_title.toUpperCase().includes('ASMR');
+          const isASMRCategory = streamer.category_id === '498506';
+          return !(hasASMRTitle || isASMRCategory);
+        });
+      }
       
-      // If we have streamers, get their profile data
-      if (allStreamers.length > 0) {
+      // Get profile data
+      if (filteredStreamers.length > 0) {
         try {
-          // Extract unique user IDs for profile lookup
-          const userIds = [];
-          for (let i = 0; i < allStreamers.length; i++) {
-            if (allStreamers[i].twitch_id) {
-              userIds.push(allStreamers[i].twitch_id);
-            }
-          }
+          const userIds = filteredStreamers.map(streamer => streamer.twitch_id).filter(Boolean);
           
           if (userIds.length > 0) {
-            const userQueryParams = [];
-            for (let j = 0; j < userIds.length; j++) {
-              userQueryParams.push(`id=${userIds[j]}`);
-            }
+            const userQueryParams = userIds.map(id => `id=${id}`).join('&');
             
-            const userQueryString = userQueryParams.join('&');
-            
-            const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
+            const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryParams}`, {
               headers: {
                 'Client-ID': clientId,
                 'Authorization': `Bearer ${accessToken}`
@@ -615,19 +419,18 @@ const DigDeeperPage = () => {
             if (usersResponse.ok) {
               const userData = await usersResponse.json();
               
-              // Create a lookup map for easier access
+              // Create a lookup map
               const userDataMap = {};
-              if (userData && userData.data && Array.isArray(userData.data)) {
-                for (let j = 0; j < userData.data.length; j++) {
-                  const user = userData.data[j];
+              if (userData?.data && Array.isArray(userData.data)) {
+                userData.data.forEach(user => {
                   if (user && user.id) {
                     userDataMap[user.id] = user;
                   }
-                }
+                });
               }
               
-              // Enhance streamer data with profile information
-              allStreamers = allStreamers.map(streamer => {
+              // Add profile info
+              allStreamers = filteredStreamers.map(streamer => {
                 if (!streamer || !streamer.twitch_id) return streamer;
                 
                 const profile = userDataMap[streamer.twitch_id];
@@ -642,656 +445,183 @@ const DigDeeperPage = () => {
               });
             }
           }
-        } catch (profileError) {
-          console.error('Error fetching user profiles:', profileError);
-          // Continue with what we have
+        } catch (error) {
+          console.error('Error fetching user profiles:', error);
+          allStreamers = filteredStreamers;
         }
+      } else {
+        allStreamers = filteredStreamers;
       }
       
-      if (allStreamers.length === 0) {
-        toast.error('No small streamers found right now. Try again later.', { id: 'loading' });
-      } else {
-        // Update our component state
+      // When updating streamers, mark the first few as preloaded
+      if (allStreamers.length > 0) {
+        // Start preloading thumbnails immediately
+        const newPreloadedStreamers = new Set();
+        allStreamers.slice(0, 5).forEach(streamer => {
+          if (streamer.thumbnail_url) {
+            const img = new Image();
+            img.src = streamer.thumbnail_url;
+            newPreloadedStreamers.add(streamer.twitch_id);
+          }
+        });
+        
+        setPreloadedStreamers(newPreloadedStreamers);
         setStreamers(allStreamers);
         setCurrentIndex(0);
-        toast.success(`Found ${allStreamers.length} small streamers!`, { id: 'loading' });
+        toast.success(`Found ${allStreamers.length} small streamers!`);
+      } else {
+        toast.error('No small streamers found right now. Try again later.');
       }
     } catch (error) {
-      console.error('Error fetching low-viewer streams:', error);
-      toast.error(error.message || 'Failed to load streamers', { id: 'loading' });
+      console.error('Error fetching streamers:', error);
+      toast.error('Failed to load streamers: ' + (error.message || 'Unknown error'));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStreamers = async () => {
-    if (refreshing) return; // Prevent multiple clicks
-    
-    setRefreshing(true);
-    toast.loading('Finding small streamers...', { id: 'refresh' });
-    
-    try {
-      // Clear existing streamer data to avoid showing stale data
-      setStreamers([]);
-      
-      if (twitchAccessToken) {
-        // Use the existing token to refresh data from Twitch
-        await fetchLowViewerStreams(twitchAccessToken);
-      } else {
-        // Re-authenticate if token is missing
-        const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-        const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
-        
-        if (!clientId || !clientSecret) {
-          throw new Error('Twitch API credentials missing');
-        }
-        
-        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
-        });
-        
-        if (!tokenResponse.ok) {
-          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
-        }
-        
-        const tokenData = await tokenResponse.json();
-        const accessToken = tokenData.access_token;
-        
-        if (!accessToken) {
-          throw new Error('No access token received from Twitch');
-        }
-        
-        setTwitchAccessToken(accessToken);
-        await fetchLowViewerStreams(accessToken);
-      }
-      
-      toast.success('Found new small streamers!', { id: 'refresh' });
-    } catch (error) {
-      console.error('Error refreshing streamer data:', error);
-      toast.error(`Failed to refresh data: ${error.message}`, { id: 'refresh' });
-    } finally {
       setRefreshing(false);
     }
-  };
-
-  const handleSwipeRight = async () => {
-    // Keep track of the streamer before showing auth modal
-    const currentStreamer = streamers[currentIndex];
-    
-    if (!user) {
-      toast.info('Sign in to save favorites & view them later!');
-      setShowAuthModal(true);
-      return;
-    }
-
-    // Learn from user preference - they liked this streamer's category
-    if (currentStreamer?.category_id && hasSetPreferences) {
-      learnFromInteraction(currentStreamer.category_id, true);
-    }
-
-    // Move to next card first to prevent UI freeze
-    nextCard();
-
-    // Now handle the database operations if needed
-    if (currentStreamer?.twitch_id) {
-      try {
-        // First check if this streamer already exists in our database
-        const { data: existingStreamer } = await supabase
-          .from('twitch_streamers')
-          .select('id')
-          .eq('twitch_id', currentStreamer.twitch_id)
-          .single();
-          
-        let streamerId;
-        
-        if (existingStreamer) {
-          // Use existing record
-          streamerId = existingStreamer.id;
-          
-          // Update votes
-          await supabase
-            .from('twitch_streamers')
-            .update({ votes: currentStreamer.votes + 1 })
-            .eq('id', streamerId);
-        } else {
-          // Insert new streamer into database
-          const { data: newStreamer, error } = await supabase
-            .from('twitch_streamers')
-            .insert({
-              username: currentStreamer.username,
-              twitch_id: currentStreamer.twitch_id,
-              votes: 1
-            })
-            .select()
-            .single();
-            
-          if (error) throw error;
-          streamerId = newStreamer.id;
-        }
-        
-        // Save to favorites
-        await supabase
-          .from('user_favorites')
-          .upsert({ 
-            user_id: user.id, 
-            streamer_id: streamerId 
-          });
-          
-        // Record in history
-        await supabase
-          .from('user_history')
-          .upsert({
-            user_id: user.id,
-            streamer_id: streamerId,
-            interaction_type: 'swiped_right'
-          });
-          
-        toast.success('Added to favorites!');
-      } catch (error) {
-        console.error('Error saving favorite:', error);
-        toast.error('Failed to save favorite. Please try again.');
-      }
-    }
-  };
-
-  const handleSwipeLeft = async () => {
-    // Record in history that user swiped left if they're logged in
-    const currentStreamer = streamers[currentIndex];
-    
-    // Learn from user preference - they didn't like this streamer's category
-    if (currentStreamer?.category_id && hasSetPreferences) {
-      learnFromInteraction(currentStreamer.category_id, false);
-    }
-    
-    // Move to next card immediately to prevent UI freeze
-    nextCard();
-    
-    // Only record this if user is logged in and we have the streamer in our database
-    if (user && currentStreamer?.twitch_id) {
-      try {
-        // Check if streamer exists in our database
-        const { data: existingStreamer } = await supabase
-          .from('twitch_streamers')
-          .select('id')
-          .eq('twitch_id', currentStreamer.twitch_id)
-          .single();
-          
-        // Only record if we have this streamer in our database
-        if (existingStreamer) {
-          await supabase
-            .from('user_history')
-            .upsert({
-              user_id: user.id,
-              streamer_id: existingStreamer.id,
-              interaction_type: 'swiped_left'
-            });
-        }
-      } catch (error) {
-        console.error('Error recording swipe left:', error);
-        // Don't show error to user, just log it
-      }
-    }
-  };
-
-  const nextCard = () => {
-    // Reset animation
-    controls.start({ x: 0, rotateZ: 0 });
-    
-    // Go to next card
-    setCurrentIndex(prevIndex => prevIndex + 1);
-    
-    // Reorder remaining streamers to mix up categories
-    if (streamers.length > currentIndex + 2) { // Don't shuffle if we're on the last card
-      setStreamers(prev => {
-        // Keep the next card the same (at currentIndex + 1)
-        const nextCardStreamer = prev[currentIndex + 1];
-        
-        // Get all streamers after the next card
-        const remainingStreamers = prev.slice(currentIndex + 2);
-        
-        // Check if we just showed a wildcard
-        const wasWildcard = prev[currentIndex]?.isWildcard;
-        
-        // Group streamers by category and wildcard status for better shuffling
-        const streamersByCategory = {};
-        const preferredStreamers = [];
-        const wildcardStreamers = [];
-        
-        remainingStreamers.forEach(streamer => {
-          if (streamer.isWildcard) {
-            wildcardStreamers.push(streamer);
-          } else {
-            preferredStreamers.push(streamer);
-            
-            // Also group by category
-            const categoryId = streamer.category_id || 'unknown';
-            if (!streamersByCategory[categoryId]) {
-              streamersByCategory[categoryId] = [];
-            }
-            streamersByCategory[categoryId].push(streamer);
-          }
-        });
-        
-        // Flatten in a way that alternates categories
-        let shuffledStreamers = [];
-        
-        // If we just showed a wildcard, prioritize preferred streamers next
-        if (wasWildcard && preferredStreamers.length > 0) {
-          console.log("Just showed wildcard, prioritizing preferred streamers next");
-          
-          // First add all preferred streamers
-          const categories = Object.keys(streamersByCategory);
-          const shuffledCategories = [...categories].sort(() => Math.random() - 0.5);
-          
-          let categoryIndex = 0;
-          while (shuffledStreamers.length < preferredStreamers.length) {
-            const category = shuffledCategories[categoryIndex % shuffledCategories.length];
-            const streamersInCategory = streamersByCategory[category];
-            
-            if (streamersInCategory && streamersInCategory.length > 0) {
-              // Take the first streamer from this category
-              shuffledStreamers.push(streamersInCategory.shift());
-            }
-            
-            // Move to next category
-            categoryIndex++;
-            
-            // If we've gone through all categories, check if we need a second round
-            if (categoryIndex >= shuffledCategories.length) {
-              // Remove empty categories
-              for (let i = shuffledCategories.length - 1; i >= 0; i--) {
-                if (!streamersByCategory[shuffledCategories[i]] || 
-                    streamersByCategory[shuffledCategories[i]].length === 0) {
-                  shuffledCategories.splice(i, 1);
-                }
-              }
-              
-              // If no categories left, we're done
-              if (shuffledCategories.length === 0) break;
-            }
-          }
-          
-          // Then add wildcards at the end
-          shuffledStreamers = [...shuffledStreamers, ...wildcardStreamers.sort(() => Math.random() - 0.5)];
-        } else {
-          // Normal category-based shuffling, but still keeping wildcards proportionally distributed
-          const categories = Object.keys(streamersByCategory);
-          const shuffledCategories = [...categories].sort(() => Math.random() - 0.5);
-          
-          // Calculate how often to insert wildcards
-          const wildcardInterval = preferredStreamers.length > 0 ? 
-            Math.max(2, Math.floor(preferredStreamers.length / wildcardStreamers.length)) : 1;
-          
-          let categoryIndex = 0;
-          let wildcardIndex = 0;
-          
-          // Mix preferred and wildcard streamers
-          while (shuffledStreamers.length < remainingStreamers.length) {
-            // Insert a wildcard every few streamers
-            if (wildcardStreamers.length > 0 && 
-                shuffledStreamers.length > 0 && 
-                shuffledStreamers.length % wildcardInterval === 0 && 
-                wildcardIndex < wildcardStreamers.length) {
-              shuffledStreamers.push(wildcardStreamers[wildcardIndex++]);
-              continue;
-            }
-            
-            // Otherwise add from preferred categories
-            if (shuffledCategories.length > 0) {
-              const category = shuffledCategories[categoryIndex % shuffledCategories.length];
-              const streamersInCategory = streamersByCategory[category];
-              
-              if (streamersInCategory && streamersInCategory.length > 0) {
-                // Take the first streamer from this category
-                shuffledStreamers.push(streamersInCategory.shift());
-              }
-              
-              // Move to next category
-              categoryIndex++;
-              
-              // If we've gone through all categories, remove empty ones
-              if (categoryIndex >= shuffledCategories.length) {
-                for (let i = shuffledCategories.length - 1; i >= 0; i--) {
-                  if (!streamersByCategory[shuffledCategories[i]] || 
-                      streamersByCategory[shuffledCategories[i]].length === 0) {
-                    shuffledCategories.splice(i, 1);
-                  }
-                }
-              }
-            } else if (wildcardIndex < wildcardStreamers.length) {
-              // If we've gone through all preferred streamers, add remaining wildcards
-              shuffledStreamers.push(wildcardStreamers[wildcardIndex++]);
-            } else {
-              // No more streamers to add
-              break;
-            }
-          }
-        }
-        
-        // Return updated array: [current cards up to next card, then shuffled remaining]
-        return [...prev.slice(0, currentIndex + 2), ...shuffledStreamers];
-      });
-    }
-  };
-
-  const handleDragStart = (_, info) => {
-    setDragStart({ x: info.point.x, y: info.point.y });
-  };
-
-  const handleDragEnd = (_, info) => {
-    const dragEndX = info.point.x;
-    const deltaX = dragEndX - dragStart.x;
-    
-    if (deltaX > 100) {
-      // Swiped right
-      controls.start({ x: window.innerWidth, rotateZ: 10 }).then(handleSwipeRight);
-    } else if (deltaX < -100) {
-      // Swiped left
-      controls.start({ x: -window.innerWidth, rotateZ: -10 }).then(handleSwipeLeft);
-    } else {
-      // Reset if the swipe wasn't far enough
-      controls.start({ x: 0, rotateZ: 0 });
-    }
-  };
-
-  const toggleBio = (streamerId) => {
-    setExpandedBios(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(streamerId)) {
-        newSet.delete(streamerId);
-      } else {
-        newSet.add(streamerId);
-      }
-      return newSet;
-    });
-  };
-
-  const renderNoMoreCards = () => {
-    return (
-      <div className={styles.noMoreCardsContainer}>
-        <h2>Loading more streamers...</h2>
-        <div className={styles.spinner}></div>
-        <p>Finding more small streamers for you...</p>
-      </div>
-    );
-  };
-
-  // Auto-load more streamers when user reaches the end
+  }, [loading, refreshing, twitchAccessToken, streamCategories, selectedPreferences, showASMR]);
+  
+  // Load streamers on initial mount
   useEffect(() => {
-    if (currentIndex >= streamers.length && streamers.length > 0 && !loading) {
-      // We've reached the end of the current batch, load more
-      fetchMoreStreamers();
+    if (streamers.length === 0 && !loading) {
+      fetchStreamers();
     }
-  }, [currentIndex, streamers.length]);
-
-  const fetchMoreStreamers = async () => {
-    if (loading || !twitchAccessToken) return;
+  }, [fetchStreamers, streamers.length, loading]);
+  
+  // Render stream preview
+  const renderStreamPreview = useCallback((streamer) => {
+    if (!streamer || !streamer.is_live) return null;
     
-    try {
-      setLoading(true);
-      
-      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
-      
-      let newLowViewerStreams = [];
-      let paginationCursor = null;
-      const maxPagesToCheck = 3;
-      let currentPage = 0;
-      
-      // Avoid showing streamers we've already seen
-      const existingIds = new Set(streamers.map(s => s.twitch_id));
-      
-      // Randomize which categories to check
-      let categoriesToCheck = [];
-      if (selectedPreferences.length > 0) {
-        // User has preferences, prioritize those first
-        categoriesToCheck = [...selectedPreferences];
-      } else {
-        // No preferences - use a randomized selection of top categories
-        const shuffledCategories = [...streamCategories].sort(() => Math.random() - 0.5);
-        categoriesToCheck = shuffledCategories.map(cat => cat.id);
-      }
-      
-      // Limit categories to check to keep API calls reasonable
-      categoriesToCheck = categoriesToCheck.slice(0, 5);
-      
-      // Keep track of streamers per category for diversity
-      const streamersPerCategory = {};
-      const MAX_PER_CATEGORY = 3;
-      
-      // Try different game categories to find streamers
-      for (const gameId of categoriesToCheck) {
-        if (newLowViewerStreams.length >= 15) break; // Stop if we have enough
-        
-        // Skip if we already have enough from this category
-        if (streamersPerCategory[gameId] >= MAX_PER_CATEGORY) continue;
-        
-        try {
-          const queryParams = new URLSearchParams({
-            first: 100,
-            game_id: gameId,
-            language: 'en'
-          });
-          
-          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-            headers: {
-              'Client-ID': clientId,
-              'Authorization': `Bearer ${twitchAccessToken}`
-            }
-          });
-          
-          if (!streamsResponse.ok) {
-            console.error(`Error fetching streams for game ${gameId}: ${streamsResponse.status}`);
-            continue; // Try next game
-          }
-          
-          const streamsData = await streamsResponse.json();
-          
-          // Process the results
-          if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
-            // Sort by viewer count
-            const sortedStreams = [...streamsData.data].sort((a, b) => {
-              return (a.viewer_count || 999) - (b.viewer_count || 999);
-            });
-            
-            // Take streams with between 5-50 viewers
-            const eligibleStreams = sortedStreams.filter(stream =>
-              stream && 
-              typeof stream.viewer_count === 'number' && 
-              stream.viewer_count >= 5 && 
-              stream.viewer_count <= 50 &&
-              !existingIds.has(stream.user_id)
-            );
-            
-            // Track how many from this category
-            const countToTake = Math.min(eligibleStreams.length, MAX_PER_CATEGORY);
-            streamersPerCategory[gameId] = (streamersPerCategory[gameId] || 0) + countToTake;
-            
-            const selectedStreams = eligibleStreams.slice(0, countToTake);
-            
-            // Flag whether these are from preferred categories
-            const isPreferredCategory = !selectedPreferences.length || selectedPreferences.includes(gameId);
-            
-            // Map to our format with wildcard indicator
-            const formattedStreams = selectedStreams.map(stream => ({
-              id: stream.user_id,
-              twitch_id: stream.user_id,
-              username: stream.user_login,
-              display_name: stream.user_name,
-              is_live: true,
-              view_count: stream.viewer_count,
-              game_name: stream.game_name || "",
-              stream_title: stream.title || "",
-              thumbnail_url: stream.thumbnail_url ? 
-                stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                null,
-              votes: 0,
-              category_id: gameId,
-              isWildcard: !isPreferredCategory
-            }));
-            
-            // Add new streamers to our list
-            newLowViewerStreams.push(...formattedStreams);
-          }
-        } catch (error) {
-          console.error(`Error processing game ${gameId}:`, error);
-        }
-      }
-      
-      // If we don't have enough streamers yet, try the generic approach
-      if (newLowViewerStreams.length < 10) {
-        while (newLowViewerStreams.length < 10 && currentPage < maxPagesToCheck) {
-          currentPage++;
-          
-          // Use a different approach for each page to diversify results
-          const queryParams = new URLSearchParams({
-            first: 100,
-            language: 'en'
-          });
-          
-          if (paginationCursor) {
-            queryParams.append('after', paginationCursor);
-          }
-          
-          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${queryParams}`, {
-            headers: {
-              'Client-ID': clientId,
-              'Authorization': `Bearer ${twitchAccessToken}`
-            }
-          });
-          
-          if (!streamsResponse.ok) {
-            throw new Error(`Error fetching streams: ${streamsResponse.status}`);
-          }
-          
-          const streamsData = await streamsResponse.json();
-          
-          // Update pagination cursor for next page
-          paginationCursor = streamsData.pagination?.cursor;
-          
-          // Process the results
-          if (streamsData && streamsData.data && Array.isArray(streamsData.data)) {
-            for (let i = 0; i < streamsData.data.length; i++) {
-              const stream = streamsData.data[i];
-              if (stream && 
-                  typeof stream.viewer_count === 'number' && 
-                  stream.viewer_count >= 5 && 
-                  stream.viewer_count <= 50 &&
-                  !existingIds.has(stream.user_id)) { // Skip streamers we already have
-                
-                newLowViewerStreams.push({
-                  id: stream.user_id,
-                  twitch_id: stream.user_id,
-                  username: stream.user_login,
-                  display_name: stream.user_name,
-                  is_live: true,
-                  view_count: stream.viewer_count,
-                  game_name: stream.game_name || "",
-                  stream_title: stream.title || "",
-                  thumbnail_url: stream.thumbnail_url ? 
-                    stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
-                    null,
-                  votes: 0,
-                  category_id: stream.game_id || 'unknown',
-                  isWildcard: true
-                });
-                
-                // Only add up to 15 streamers
-                if (newLowViewerStreams.length >= 15) break;
-              }
-            }
-          }
-          
-          // Break if we can't get more pages
-          if (!paginationCursor) break;
-        }
-      }
-      
-      // Sort by viewer count (lowest first)
-      newLowViewerStreams.sort((a, b) => (a.view_count || 0) - (b.view_count || 0));
-      
-      if (newLowViewerStreams.length > 0) {
-        // Get profile data for new streamers
-        const userIds = [];
-        for (let i = 0; i < newLowViewerStreams.length; i++) {
-          if (newLowViewerStreams[i].twitch_id) {
-            userIds.push(newLowViewerStreams[i].twitch_id);
-          }
-        }
-        
-        // Remove duplicates
-        const uniqueUserIds = [...new Set(userIds)];
-        
-        if (uniqueUserIds.length > 0) {
-          try {
-            const userQueryParams = [];
-            for (let i = 0; i < uniqueUserIds.length; i++) {
-              userQueryParams.push(`id=${uniqueUserIds[i]}`);
-            }
-            
-            const userQueryString = userQueryParams.join('&');
-            
-            const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${userQueryString}`, {
-              headers: {
-                'Client-ID': clientId,
-                'Authorization': `Bearer ${twitchAccessToken}`
-              }
-            });
-            
-            if (usersResponse.ok) {
-              const userData = await usersResponse.json();
-              
-              // Create a lookup map
-              const userDataMap = {};
-              if (userData && userData.data && Array.isArray(userData.data)) {
-                for (let i = 0; i < userData.data.length; i++) {
-                  const user = userData.data[i];
-                  if (user && user.id) {
-                    userDataMap[user.id] = user;
-                  }
-                }
-              }
-              
-              // Add profile data
-              for (let i = 0; i < newLowViewerStreams.length; i++) {
-                const streamer = newLowViewerStreams[i];
-                if (streamer && streamer.twitch_id && userDataMap[streamer.twitch_id]) {
-                  const profile = userDataMap[streamer.twitch_id];
-                  newLowViewerStreams[i] = {
-                    ...streamer,
-                    profile_image_url: profile.profile_image_url || null,
-                    description: profile.description || null
-                  };
-                }
-              }
-            }
-          } catch (profileError) {
-            console.error('Error fetching profiles for new batch:', profileError);
-            // Continue with what we have
-          }
-        }
-        
-        // Append new streamers to the existing list
-        setStreamers(prev => [...prev, ...newLowViewerStreams]);
-        
-        // Don't advance the currentIndex, just add to the list
-        toast.success(`Found ${newLowViewerStreams.length} more streamers!`, { duration: 2000 });
-      } else {
-        // If no new streamers found, try again with different params later
-        toast.info('Looking for more small streamers...', { duration: 2000 });
-        setTimeout(() => fetchMoreStreamers(), 1000);
-      }
-    } catch (error) {
-      console.error('Error fetching more streamers:', error);
-      toast.error('Error loading more streamers', { duration: 3000 });
-    } finally {
-      setLoading(false);
+    if (previewPlaying === streamer.twitch_id) {
+      return <StreamPreview streamer={streamer} onClose={() => setPreviewPlaying(null)} />;
+    } else {
+      return (
+        <button 
+          className={styles.previewButton}
+          onClick={() => setPreviewPlaying(streamer.twitch_id)}
+        >
+          ▶️ Watch Preview
+        </button>
+      );
     }
-  };
-
-  const renderCards = () => {
-    if (loading) {
+  }, [previewPlaying]);
+  
+  // Function to generate new quick message options
+  const generateNewMessageOptions = useCallback(() => {
+    const allQuickMessages = [
+      { id: 1, text: "Hi there! Just discovered your stream!" },
+      { id: 2, text: "Love the content! How long have you been streaming?" },
+      { id: 3, text: "What game/content are you planning next?" },
+      { id: 4, text: "Your stream setup looks amazing!" },
+      { id: 5, text: "Just followed! Looking forward to more streams" },
+      { id: 6, text: "Any tips for someone new to this game?" },
+      { id: 7, text: "That was an awesome play!" },
+      { id: 8, text: "What's your streaming schedule like?" },
+      { id: 9, text: "Found you through the Dig Deeper feature - glad I did!" },
+      { id: 10, text: "How did you first get into streaming?" },
+      { id: 11, text: "What's been your favorite game to stream so far?" },
+      { id: 12, text: "Any game recommendations for someone who enjoys this type of content?" },
+      { id: 13, text: "Your community seems really cool!" },
+      { id: 14, text: "What's the story behind your username/channel name?" },
+      { id: 15, text: "Do you have any channel emotes in the works?" },
+      { id: 16, text: "Just raided in - excited to catch your stream!" },
+      { id: 17, text: "That was hilarious! Your reactions are the best" },
+      { id: 18, text: "I'm learning a lot watching your gameplay! Thanks for the tips" },
+      { id: 19, text: "What other streamers do you enjoy watching?" },
+      { id: 20, text: "How do you balance streaming with your other life commitments?" },
+      { id: 21, text: "Any memorable moments from your streams you'd like to share?" },
+      { id: 22, text: "Your overlay/alerts are super clean! Did you design them?" },
+      { id: 23, text: "Do you have a Discord community I can join?" },
+      { id: 24, text: "What made you choose this game/category?" },
+      { id: 25, text: "How long did it take you to get comfortable on camera?" },
+      { id: 26, text: "Your commentary is so entertaining!" },
+      { id: 27, text: "What's your go-to snack during long streams?" },
+      { id: 28, text: "Can I suggest a game/challenge for a future stream?" },
+      { id: 29, text: "What hardware/peripherals are you using? Your setup seems great" },
+      { id: 30, text: "Just gifted a sub - happy to support!" },
+      { id: 31, text: "Do you collab with other streamers often?" },
+      { id: 32, text: "First time here - what's your community like?" },
+      { id: 33, text: "What's been your most challenging moment while streaming?" },
+      { id: 34, text: "Your positive vibes are exactly what I needed today!" },
+      { id: 35, text: "Any plans for special events or charity streams?" },
+      { id: 36, text: "I appreciate how you interact with chat - makes it feel welcoming" },
+      { id: 37, text: "What's something you wish more viewers knew about streaming?" },
+      { id: 38, text: "Caught your VOD yesterday and had to come by live today!" },
+      { id: 39, text: "How do you handle stream snipers or trolls?" },
+      { id: 40, text: "What's your favorite emote on your channel?" },
+      { id: 41, text: "Greetings from [country/city]! Love seeing your content" },
+      { id: 42, text: "This song/playlist is fire! What are you listening to?" },
+      { id: 43, text: "What got you interested in this game/hobby initially?" },
+      { id: 44, text: "How has your approach to streaming evolved over time?" },
+      { id: 45, text: "Do you ever get streaming burnout? How do you handle it?" },
+      { id: 46, text: "Your editing/transitions are so smooth! What software do you use?" },
+      { id: 47, text: "Any pets that might make a cameo on stream?" },
+      { id: 48, text: "What's been your proudest achievement since you started streaming?" },
+      { id: 49, text: "I've been wanting to try this game - worth picking up?" },
+      { id: 50, text: "How did you come up with your channel's aesthetic/theme?" },
+      { id: 51, text: "Just shared your stream with some friends who'd love your content!" },
+      { id: 52, text: "What's your favorite part about the streaming community?" },
+      { id: 53, text: "This is so chill - perfect background while I work/study" },
+      { id: 54, text: "What's a game you'd love to stream but haven't yet?" },
+      { id: 55, text: "Any hidden talents you haven't shared on stream yet?" },
+      { id: 56, text: "Your voice is so calming/energetic - perfect for streams!" },
+      { id: 57, text: "Looking forward to becoming a regular here!" },
+      { id: 58, text: "If you could collab with any streamer, who would it be?" },
+      { id: 59, text: "How do you decide what games/content to stream?" },
+      { id: 60, text: "What's one thing that would instantly make your day better?" },
+      { id: 61, text: "Any stream goals you're working toward?" },
+      { id: 62, text: "Your mods seem awesome - shoutout to the team!" },
+      { id: 63, text: "Do you do viewer games/community days?" },
+      { id: 64, text: "What's your favorite meme right now?" },
+      { id: 65, text: "I appreciate how you explain your thought process while playing" },
+      { id: 66, text: "What's your most unpopular opinion about this game/genre?" },
+      { id: 67, text: "Your energy is contagious! Always puts me in a good mood" },
+      { id: 68, text: "How do you deal with the unexpected technical issues that pop up?" },
+      { id: 69, text: "What advice would you give to new streamers?" },
+      { id: 70, text: "The way you handled that situation was impressive!" },
+      { id: 71, text: "Do you plan your streams or go with the flow?" },
+      { id: 72, text: "What's a question you wish viewers would ask more often?" },
+      { id: 73, text: "Have any streamers inspired your style or approach?" },
+      { id: 74, text: "Just made it through a rough day - your stream is helping a lot" },
+      { id: 75, text: "If you weren't streaming this, what would you be doing instead?" },
+      { id: 76, text: "What's the weirdest thing that's happened on your stream?" },
+      { id: 77, text: "Your knowledge about this game/topic is impressive!" },
+      { id: 78, text: "What's the best interaction you've had with a viewer?" },
+      { id: 79, text: "Been watching for a bit without chatting - finally saying hi!" },
+      { id: 80, text: "What's your coffee/energy drink of choice during streams?" },
+      { id: 81, text: "If you could instantly master any game, which would it be?" },
+      { id: 82, text: "Thanks for creating such a positive stream environment" },
+      { id: 83, text: "Would you rather have more viewers or more active chatters?" },
+      { id: 84, text: "Any upcoming games you're excited to stream?" },
+      { id: 85, text: "How do you stay consistent with your streaming schedule?" },
+      { id: 86, text: "Your laugh is so infectious!" },
+      { id: 87, text: "What would be your dream streaming setup?" },
+      { id: 88, text: "How has streaming impacted other areas of your life?" },
+      { id: 89, text: "What's one thing you wish you knew when you started streaming?" },
+      { id: 90, text: "Your community is so supportive - love to see it!" },
+      { id: 91, text: "Do you have any pre-stream rituals or routines?" },
+      { id: 92, text: "That strategy is genius - hadn't thought of that approach!" },
+      { id: 93, text: "What's something not many people know about you?" },
+      { id: 94, text: "Do you have any catchphrases or inside jokes in your community?" },
+      { id: 95, text: "I can tell you really care about your viewers - it shows!" },
+      { id: 96, text: "What's one game mechanic you wish more games would implement?" },
+      { id: 97, text: "How do you find balance between entertaining and being yourself?" },
+      { id: 98, text: "This community has such good vibes - happy I found it!" },
+      { id: 99, text: "How would you describe your content to someone new?" },
+      { id: 100, text: "Good luck with the rest of your stream - you're killing it!" }
+    ];
+    
+    // Get 3 random messages
+    const shuffled = [...allQuickMessages].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 3);
+    setQuickMessages(selected);
+    
+    toast.success('New message options generated!', { duration: 1500 });
+  }, []);
+  
+  // Render content based on loading state
+  const renderContent = useCallback(() => {
+    if (loading && streamers.length === 0) {
       return (
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
@@ -1299,41 +629,39 @@ const DigDeeperPage = () => {
         </div>
       );
     }
-
-    if (!streamers.length) {
+    
+    if (streamers.length === 0) {
       return (
         <div className={styles.loadingContainer}>
           <p>No streamers found. Try refreshing.</p>
           <button 
             className={styles.refreshButton}
             onClick={fetchStreamers}
+            disabled={loading}
           >
             Refresh Streamers
           </button>
         </div>
       );
     }
-
-    if (currentIndex >= streamers.length) {
-      return renderNoMoreCards();
-    }
-
-    const streamer = streamers[currentIndex];
     
-    // Ensure streamer data is valid
-    if (!streamer) {
+    if (currentIndex >= streamers.length) {
       return (
-        <div className={styles.loadingContainer}>
-          <p>Streamer data is missing. Try refreshing.</p>
+        <div className={styles.noMoreCardsContainer}>
+          <h2>No more streamers to show</h2>
+          <p>Try refreshing for new streamers</p>
           <button 
-            className={styles.refreshButton}
+            className={styles.refreshButton} 
             onClick={fetchStreamers}
+            disabled={loading}
           >
-            Refresh Streamers
+            Find New Streamers
           </button>
         </div>
       );
     }
+    
+    const streamer = streamers[currentIndex];
     
     return (
       <motion.div 
@@ -1351,104 +679,74 @@ const DigDeeperPage = () => {
             backgroundImage: previewPlaying !== streamer.twitch_id ? 
               `url(${streamer.thumbnail_url || streamer.profile_image_url || 'https://via.placeholder.com/300'})` : 
               'none',
-            height: previewPlaying === streamer.twitch_id ? 'auto' : '60%'
+            height: previewPlaying === streamer.twitch_id ? 'auto' : '70%'
           }}
         >
           {previewPlaying === streamer.twitch_id ? (
             renderStreamPreview(streamer)
           ) : (
-            <>
+            <div className={styles.cardOverlayContent}>
               <div className={styles.streamerOverlay}>
                 <span className={styles.streamerNameOverlay}>{streamer.display_name || streamer.username}</span>
+                {streamer.is_live && (
+                  <span className={styles.viewerCountOverlay}>
+                    {(streamer.view_count || 0).toLocaleString()} viewers
+                  </span>
+                )}
               </div>
               
               {streamer.is_live === true && (
                 <div className={styles.liveIndicator}>
                   LIVE
-                  <div className={styles.viewerCount}>
-                    {(streamer.view_count || 0).toLocaleString()} viewers
-                  </div>
                 </div>
               )}
-              
-              {streamer.isWildcard && (
-                <div className={styles.wildcardIndicator}>
-                  WILDCARD
-                </div>
-              )}
-              
-              <div className={styles.swipeOverlay}>
-                <motion.div 
-                  className={styles.likeOverlay} 
-                  animate={{ opacity: controls.x > 50 ? 1 : 0 }}
-                >
-                  FAVORITE
-                </motion.div>
-                <motion.div 
-                  className={styles.dislikeOverlay} 
-                  animate={{ opacity: controls.x < -50 ? 1 : 0 }}
-                >
-                  PASS
-                </motion.div>
-              </div>
-            </>
+            </div>
           )}
         </div>
         
         <div className={styles.cardContent}>
-          <h2 className={styles.streamerName}>{streamer.display_name || streamer.username}</h2>
-          
-          <div className={styles.contentScroll}>
-            {streamer.stream_title && (
-              <p className={styles.streamTitle}>
-                {streamer.stream_title}
-              </p>
-            )}
+          <div className={styles.streamerInfoCompact}>
+            <h2>{streamer.display_name || streamer.username}</h2>
             
-            {streamer.game_name && (
-              <div className={styles.gameTag}>Playing: {streamer.game_name}</div>
-            )}
-            
-            {streamer.description && (
-              <div className={styles.bioSection}>
-                <button 
-                  className={styles.bioToggle}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleBio(streamer.id);
-                  }}
-                >
-                  {expandedBios.has(streamer.id) ? '▼ Hide Bio' : '▶ Show Bio'}
-                </button>
-                {expandedBios.has(streamer.id) && (
-                  <p className={styles.bio}>{streamer.description}</p>
-                )}
-              </div>
-            )}
-            
-            {/* Stream preview button (when not auto-playing) */}
-            {streamer.is_live && previewPlaying !== streamer.twitch_id && (
-              renderStreamPreview(streamer)
-            )}
-          </div>
-          
-          <div className={styles.cardFooter}>
-            <div className={styles.statsContainer}>
-              {streamer.is_live && streamer.view_count > 0 && (
-                <span className={styles.viewCount}>👁️ {streamer.view_count.toLocaleString()} viewers</span>
+            <div className={styles.streamerStats}>
+              {streamer.game_name && (
+                <div className={styles.categoryTag}>
+                  <span className={styles.categoryLabel}>
+                    {streamCategories.find(cat => cat.id === streamer.category_id)?.icon || '🎮'} {streamer.game_name}
+                  </span>
+                </div>
               )}
-              {streamer.votes > 0 && (
-                <span className={styles.voteCount}>❤️ {streamer.votes} votes</span>
+              
+              {streamer.is_live && (
+                <div className={styles.viewerTag}>
+                  <span className={styles.viewerLabel}>
+                    👁️ {(streamer.view_count || 0).toLocaleString()}
+                  </span>
+                </div>
               )}
             </div>
-            
+          </div>
+          
+          {streamer.stream_title && (
+            <div className={styles.streamTitle}>
+              {streamer.stream_title}
+            </div>
+          )}
+          
+          {streamer.is_live && previewPlaying !== streamer.twitch_id && renderStreamPreview(streamer)}
+          
+          <div className={styles.cardFooter}>
             <div className={styles.actionContainer}>
               {streamer.is_live && (
                 <button 
                   className={styles.quickChatButton}
-                  onClick={(e) => openQuickChat(streamer, e)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentChatStreamer(streamer);
+                    setChatOpen(true);
+                  }}
                 >
-                  💬 Say Hi
+                  💬 Chat Now
                 </button>
               )}
               
@@ -1461,565 +759,64 @@ const DigDeeperPage = () => {
                 </Link>
               )}
             </div>
+            
+            <div className={styles.extraActions}>
+              <button 
+                className={styles.followButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toast.success(`Following ${streamer.display_name || streamer.username}!`);
+                }}
+                title="Follow this streamer"
+              >
+                + Follow
+              </button>
+              
+              <button
+                className={styles.shareButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (navigator.share) {
+                    navigator.share({
+                      title: `Check out ${streamer.display_name} on Twitch!`,
+                      text: `I found an awesome small streamer: ${streamer.display_name}`,
+                      url: `https://twitch.tv/${streamer.username}`
+                    })
+                    .catch(err => {
+                      console.error('Error sharing:', err);
+                      navigator.clipboard.writeText(`https://twitch.tv/${streamer.username}`)
+                        .then(() => toast.success('Link copied to clipboard!'))
+                        .catch(() => toast.error('Could not copy link'));
+                    });
+                  } else {
+                    navigator.clipboard.writeText(`https://twitch.tv/${streamer.username}`)
+                      .then(() => toast.success('Link copied to clipboard!'))
+                      .catch(() => toast.error('Could not copy link'));
+                  }
+                }}
+                title="Share this streamer"
+              >
+                <span role="img" aria-label="Share">🔗</span>
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
     );
-  };
-
-  const renderButtons = () => {
-    if (currentIndex >= streamers.length) return null;
-    
-    return (
-      <div className={styles.actionButtons}>
-        <button 
-          className={`${styles.actionButton} ${styles.dislikeButton}`}
-          onClick={() => controls.start({ x: -window.innerWidth, rotateZ: -10 }).then(handleSwipeLeft)}
-        >
-          👎
-        </button>
-        <button 
-          className={`${styles.actionButton} ${styles.likeButton}`}
-          onClick={() => controls.start({ x: window.innerWidth, rotateZ: 10 }).then(handleSwipeRight)}
-        >
-          ❤️
-        </button>
-      </div>
-    );
-  };
-
-  const renderAuthSplash = () => {
-    return (
-      <div className={styles.authSplashContainer}>
-        <div className={styles.authSplashContent}>
-          <h1>Discover New Streamers</h1>
-          <div className={styles.splashImageContainer}>
-            <img 
-              src="/dig-deeper-preview.png" 
-              alt="Dig Deeper Preview"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "https://via.placeholder.com/500x300?text=Dig+Deeper";
-              }}
-              className={styles.splashImage}
-            />
-          </div>
-          <div className={styles.splashDescription}>
-            <h2>Find Your Next Favorite Streamer</h2>
-            <p>Browse through trending and up-and-coming streamers on Twitch.</p>
-            <ul className={styles.featureList}>
-              <li>See who's currently live</li>
-              <li>Discover streamers based on popularity</li>
-              <li>Save your favorites to watch later</li>
-              <li>Support streamers with your votes</li>
-            </ul>
-          </div>
-          
-          <div className={styles.authButtons}>
-            <button 
-              onClick={() => navigate('/login')}
-              className={styles.authButton}
-            >
-              Login to Continue
-            </button>
-            <button 
-              onClick={() => navigate('/signup')}
-              className={styles.authButtonSecondary}
-            >
-              Sign Up
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Check if user is authenticated, if not show splash screen
-  if (!user) {
-    return renderAuthSplash();
-  }
-
-  // Preference handling functions
-  const togglePreference = (categoryId) => {
-    setSelectedPreferences(prev => {
-      if (prev.includes(categoryId)) {
-        return prev.filter(id => id !== categoryId);
-      } else {
-        // Limit to 3 selections
-        if (prev.length >= 3) {
-          return [...prev.slice(1), categoryId]; // Remove oldest, add new
-        }
-        return [...prev, categoryId];
-      }
-    });
-  };
+  }, [controls, currentIndex, fetchStreamers, handleDragEnd, handleDragStart, loading, previewPlaying, renderStreamPreview, streamers]);
   
-  const savePreferences = () => {
-    if (user) {
-      localStorage.setItem(`digdeeper_preferences_${user.id}`, JSON.stringify(selectedPreferences));
-    }
-    setHasSetPreferences(true);
-    setShowPreferenceSelector(false);
-    // Now fetch streamers with new preferences
-    if (twitchAccessToken) {
-      fetchLowViewerStreams(twitchAccessToken);
-    }
-  };
-  
-  const skipPreferences = () => {
-    // If user has already set preferences before, this is a cancel action
-    if (hasSetPreferences) {
-      // Just close the modal without changing preferences
-      setShowPreferenceSelector(false);
-      
-      // Reset to their previous preferences
-      if (user) {
-        const savedPreferences = localStorage.getItem(`digdeeper_preferences_${user.id}`);
-        if (savedPreferences) {
-          try {
-            const parsedPreferences = JSON.parse(savedPreferences);
-            setSelectedPreferences(parsedPreferences);
-          } catch (e) {
-            console.error('Error parsing saved preferences', e);
-          }
-        }
-      }
-      return;
-    }
-    
-    // This is initial setup - user is skipping preference selection
-    setSelectedPreferences([]); // Empty preferences = show all
-    setHasSetPreferences(true);
-    setShowPreferenceSelector(false);
-    // Fetch streamers with default settings
-    if (twitchAccessToken) {
-      fetchLowViewerStreams(twitchAccessToken);
-    }
-  };
-  
-  // Render the preference selector
-  const renderPreferenceSelector = () => {
-    const isUpdate = hasSetPreferences;
-    
-    // Handle clicking the overlay (outside the modal)
-    const handleOverlayClick = (e) => {
-      // Only close if clicking the actual overlay, not its children
-      if (e.target === e.currentTarget) {
-        skipPreferences();
-      }
-    };
-    
-    // Handle choosing a category with event propagation control
-    const handleCategoryClick = (categoryId, event) => {
-      if (event) event.stopPropagation();
-      togglePreference(categoryId);
-    };
-    
-    return (
-      <div 
-        className={styles.preferenceSelectorOverlay}
-        onClick={handleOverlayClick}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backdropFilter: 'blur(5px)',
-          WebkitBackdropFilter: 'blur(5px)',
-          touchAction: 'none'
-        }}
-      >
-        <div 
-          className={styles.preferenceSelector}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            backgroundColor: '#2d2d2d',
-            borderRadius: '12px',
-            padding: '1rem',
-            width: '90%',
-            maxWidth: '400px',
-            maxHeight: '80vh',
-            overflowY: 'auto',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
-            color: 'white',
-            textAlign: 'center',
-            position: 'relative',
-            touchAction: 'auto'
-          }}
-        >
-          {/* Close button for easy dismissal */}
-          <button
-            onClick={skipPreferences}
-            style={{
-              position: 'absolute',
-              top: '10px',
-              right: '10px',
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              background: 'rgba(80, 80, 80, 0.6)',
-              border: 'none',
-              color: 'white',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              zIndex: 11
-            }}
-          >
-            ✕
-          </button>
-          
-          <h2 style={{
-            fontSize: '1.3rem',
-            marginBottom: '0.5rem',
-            marginTop: '0.5rem',
-            paddingRight: '25px',
-            color: '#a970ff'
-          }}>
-            {isUpdate ? 'Update Preferences' : 'Choose Categories'}
-          </h2>
-          
-          <p style={{
-            fontSize: '0.85rem',
-            marginBottom: '1rem',
-            color: 'rgba(255, 255, 255, 0.7)'
-          }}>
-            Select up to 3 categories
-          </p>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '0.6rem',
-            marginBottom: '1.2rem'
-          }}>
-            {streamCategories.map(category => {
-              const isSelected = selectedPreferences.includes(category.id);
-              return (
-                <div
-                  key={category.id}
-                  onClick={(event) => handleCategoryClick(category.id, event)}
-                  style={{
-                    backgroundColor: isSelected ? 'rgba(169, 112, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                    border: isSelected ? '2px solid #a970ff' : '2px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '0.6rem 0.3rem',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    touchAction: 'manipulation'
-                  }}
-                >
-                  <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>
-                    {category.icon}
-                  </div>
-                  <div style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: isSelected ? '500' : '400',
-                    lineHeight: '1.1'
-                  }}>
-                    {category.name}
-                  </div>
-                  {isSelected && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '4px',
-                      right: '4px',
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      backgroundColor: '#a970ff',
-                      color: 'white',
-                      fontSize: '0.6rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      ✓
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: '0.8rem',
-            flexDirection: 'column'
-          }}>
-            {/* Primary button - save preferences */}
-            {selectedPreferences.length > 0 ? (
-              <button
-                onClick={savePreferences}
-                style={{
-                  backgroundColor: '#a970ff',
-                  border: 'none',
-                  padding: '0.7rem',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: '100%',
-                  touchAction: 'manipulation'
-                }}
-              >
-                {isUpdate ? 'Update' : 'Save'} ({selectedPreferences.length}/3)
-              </button>
-            ) : (
-              <button
-                onClick={skipPreferences}
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '0.7rem',
-                  borderRadius: '8px',
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: '100%',
-                  touchAction: 'manipulation'
-                }}
-              >
-                Skip
-              </button>
-            )}
-            
-            {/* Secondary button - cancel/skip */}
-            {selectedPreferences.length > 0 && (
-              <button
-                onClick={skipPreferences}
-                style={{
-                  backgroundColor: 'transparent',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '0.7rem',
-                  borderRadius: '8px',
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: '100%',
-                  touchAction: 'manipulation'
-                }}
-              >
-                {isUpdate ? 'Cancel' : 'Skip'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Learning algorithm to refine preferences based on user interactions
-  const learnFromInteraction = (categoryId, isLiked) => {
-    if (!user) return; // Only learn for logged-in users
-    
-    // Get the current category preferences
-    const categoryPreferences = JSON.parse(localStorage.getItem(`digdeeper_category_stats_${user.id}`) || '{}');
-    
-    // Update the preference stats for this category
-    if (!categoryPreferences[categoryId]) {
-      categoryPreferences[categoryId] = { likes: 0, dislikes: 0 };
-    }
-    
-    if (isLiked) {
-      categoryPreferences[categoryId].likes += 1;
-    } else {
-      categoryPreferences[categoryId].dislikes += 1;
-    }
-    
-    // Save the updated stats
-    localStorage.setItem(`digdeeper_category_stats_${user.id}`, JSON.stringify(categoryPreferences));
-    
-    // Every 5 interactions, consider updating user preferences
-    const totalInteractions = Object.values(categoryPreferences).reduce(
-      (sum, stats) => sum + stats.likes + stats.dislikes, 0
-    );
-    
-    if (totalInteractions % 5 === 0 && totalInteractions >= 10) {
-      recalculatePreferences(categoryPreferences);
-    }
-  };
-  
-  // Automatically update preferences based on interaction history
-  const recalculatePreferences = (categoryStats) => {
-    // Calculate a score for each category based on like/dislike ratio
-    const categoryScores = {};
-    
-    Object.entries(categoryStats).forEach(([categoryId, stats]) => {
-      const total = stats.likes + stats.dislikes;
-      if (total >= 3) { // Only consider categories with enough interactions
-        const score = (stats.likes / total) * 100; // Score as percentage of likes
-        categoryScores[categoryId] = score;
-      }
-    });
-    
-    // Sort categories by score
-    const rankedCategories = Object.entries(categoryScores)
-      .sort((a, b) => b[1] - a[1]) // Sort by score desc
-      .map(([id]) => id); // Just keep the IDs
-    
-    // Select top 3 categories with score > 60%
-    const recommendedCategories = rankedCategories
-      .filter(id => categoryScores[id] >= 60)
-      .slice(0, 3);
-    
-    // If user has manually selected preferences, and our recommendations are different,
-    // show a notification suggesting new preferences
-    if (recommendedCategories.length > 0 && 
-        !arraysEqual(recommendedCategories, selectedPreferences) &&
-        selectedPreferences.length > 0) {
-      
-      const categoryNames = recommendedCategories.map(id => {
-        const category = streamCategories.find(c => c.id === id);
-        return category ? category.name : 'Unknown';
-      });
-      
-      toast((t) => (
-        <div onClick={() => { 
-          updatePreferences(recommendedCategories); 
-          toast.dismiss(t.id);
-        }}>
-          <b>Update your preferences?</b>
-          <p>Based on your likes, we suggest: {categoryNames.join(', ')}</p>
-          <small>(Tap to update)</small>
-        </div>
-      ), { duration: 8000 });
-    }
-  };
-  
-  // Update preferences based on learned preferences
-  const updatePreferences = (newPreferences) => {
-    setSelectedPreferences(newPreferences);
-    if (user) {
-      localStorage.setItem(`digdeeper_preferences_${user.id}`, JSON.stringify(newPreferences));
-    }
-    toast.success('Preferences updated! Pull to refresh for new recommendations.', { duration: 3000 });
-  };
-  
-  // Helper function to compare arrays
-  const arraysEqual = (a, b) => {
-    if (a.length !== b.length) return false;
-    const sortedA = [...a].sort();
-    const sortedB = [...b].sort();
-    return sortedA.every((val, idx) => val === sortedB[idx]);
-  };
-
-  // Quick chat functions
-  const openQuickChat = (streamer, e) => {
-    if (e) e.stopPropagation();
-    setCurrentChatStreamer(streamer);
-    setChatOpen(true);
-    
-    // Prepare message pool with generic messages
-    let messagePool = [...allQuickMessages];
-    
-    // Add game-specific messages if the streamer is playing a known game
-    if (streamer.game_name) {
-      const gameName = streamer.game_name;
-      
-      // Add game-specific messages
-      const gameSpecificMessages = [
-        { id: 100, text: `I love watching ${gameName}! Great choice!` },
-        { id: 101, text: `How long have you been playing ${gameName}?` },
-        { id: 102, text: `Any tips for someone starting out in ${gameName}?` },
-        { id: 103, text: `What's your favorite thing about ${gameName}?` }
-      ];
-      
-      // Add them to the pool
-      messagePool = [...messagePool, ...gameSpecificMessages];
-    }
-    
-    // Get 3 random messages from the pool
-    const shuffled = [...messagePool].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 3);
-    setQuickMessages(selected);
-    
-    // Stop auto-preview if it's playing
-    if (previewPlaying === streamer.twitch_id) {
-      setPreviewPlaying(null);
-    }
-  };
-  
-  const closeQuickChat = () => {
-    setChatOpen(false);
-    setCurrentChatStreamer(null);
-  };
-  
-  const sendQuickMessage = (message) => {
-    if (!currentChatStreamer) return;
-    
-    // Since we can't directly inject text into the Twitch iframe due to cross-origin restrictions,
-    // we'll copy the message to clipboard and guide the user
-    try {
-      // Copy the message to clipboard
-      navigator.clipboard.writeText(message);
-      
-      // Show success toast
-      toast.success('Message copied to clipboard!', { duration: 2000 });
-      
-      // Show instructions to the user
-      toast.info('Click on the chat input and press Ctrl+V to paste, then Enter to send', {
-        duration: 5000,
-        icon: '💬'
-      });
-      
-      // Attempt to focus the iframe (may not work due to security restrictions)
-      const chatIframe = document.querySelector('iframe[title*="chat"]');
-      if (chatIframe) {
-        chatIframe.focus();
-      }
-    } catch (error) {
-      console.error('Error copying message:', error);
-      toast.error('Unable to copy message. Please type it manually in chat.');
-    }
-  };
-  
-  // Render stream preview
-  const renderStreamPreview = (streamer) => {
-    if (!streamer.is_live) return null;
-    
-    if (previewPlaying === streamer.twitch_id) {
-      return <StreamPreview streamer={streamer} onClose={() => setPreviewPlaying(null)} />;
-    } else {
-      return (
-        <button 
-          className={styles.previewButton}
-          onClick={() => setPreviewPlaying(streamer.twitch_id)}
-        >
-          ▶️ Watch Preview
-        </button>
-      );
-    }
-  };
-  
-  // Quick chat modal
-  const renderQuickChatModal = () => {
+  // Render quick chat modal
+  const renderQuickChatModal = useCallback(() => {
     if (!chatOpen || !currentChatStreamer) return null;
     
     const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
     
     return (
-      <div className={styles.chatModalOverlay} onClick={closeQuickChat}>
+      <div className={styles.chatModalOverlay} onClick={() => setChatOpen(false)}>
         <div className={styles.chatModalContent} onClick={(e) => e.stopPropagation()}>
           <div className={styles.chatModalHeader}>
             <h3>Chat with {currentChatStreamer.display_name}</h3>
-            <button className={styles.closeButton} onClick={closeQuickChat}>✕</button>
+            <button className={styles.closeButton} onClick={() => setChatOpen(false)}>✕</button>
           </div>
           
           <div className={styles.chatStreamPreview}>
@@ -2047,7 +844,6 @@ const DigDeeperPage = () => {
               <button 
                 className={styles.refreshMessagesButton}
                 onClick={generateNewMessageOptions}
-                title="Generate new message options"
               >
                 🔄 New Options
               </button>
@@ -2057,119 +853,78 @@ const DigDeeperPage = () => {
               <button 
                 key={msg.id}
                 className={styles.quickMessageButton}
-                onClick={() => sendQuickMessage(msg.text)}
+                onClick={() => {
+                  navigator.clipboard.writeText(msg.text);
+                  toast.success('Message copied to clipboard!', { duration: 2000 });
+                }}
               >
                 {msg.text}
               </button>
             ))}
-            <div className={styles.quickMessageHelper}>
-              Click a message above to copy it to your clipboard. Then click in the Twitch chat and paste (Ctrl+V) to send.
-            </div>
           </div>
         </div>
       </div>
     );
-  };
-
-  // Preload next streamer images
-  useEffect(() => {
-    if (streamers.length > 0 && currentIndex < streamers.length) {
-      // Preload the next 2-3 streamer images if available
-      for (let i = 1; i <= 3; i++) {
-        const nextIndex = currentIndex + i;
-        if (nextIndex < streamers.length) {
-          const nextStreamer = streamers[nextIndex];
-          if (nextStreamer.thumbnail_url || nextStreamer.profile_image_url) {
-            const img = new Image();
-            img.src = nextStreamer.thumbnail_url || nextStreamer.profile_image_url;
-          }
-        }
-      }
-    }
-  }, [currentIndex, streamers]);
-
-  // Create a component for stream preview (defined inside main component to avoid hook errors)
-  const StreamPreview = ({ streamer, onClose }) => {
-    const [iframeLoading, setIframeLoading] = useState(true);
-    const [iframeError, setIframeError] = useState(false);
-    const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
-    
-    // Handle iframe load error
-    const handleIframeError = () => {
-      setIframeError(true);
-      setIframeLoading(false);
-    };
-    
-    // Add a timeout in case the iframe takes too long to load
-    useEffect(() => {
-      const timeoutId = setTimeout(() => {
-        if (iframeLoading) {
-          console.log('Iframe loading timeout - forcing completion');
-          setIframeLoading(false);
-        }
-      }, 8000); // 8 second maximum loading time
-      
-      return () => clearTimeout(timeoutId);
-    }, [iframeLoading]);
+  }, [chatOpen, currentChatStreamer, generateNewMessageOptions, quickMessages]);
+  
+  // Render preference selector
+  const renderPreferenceSelector = useCallback(() => {
+    if (!showPreferenceSelector) return null;
     
     return (
-      <div className={styles.previewContainer}>
-        <div className={styles.previewHeader}>
-          <span>🔴 LIVE PREVIEW</span>
-          <button 
-            className={styles.previewCloseButton}
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
-        
-        {(iframeLoading || iframeError) && (
-          <div className={styles.previewLoading}>
-            {!iframeError ? (
-              <>
-                <div className={styles.previewLoadingSpinner}></div>
-                <div className={styles.previewLoadingText}>Loading stream...</div>
-              </>
-            ) : (
-              <div className={styles.previewLoadingText}>Unable to load stream preview</div>
-            )}
-            <img 
-              src={streamer.thumbnail_url || streamer.profile_image_url} 
-              alt={`${streamer.display_name} thumbnail`}
-              className={styles.previewPlaceholder}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "https://via.placeholder.com/320x180/0e0e10/FFFFFF?text=Loading+Stream";
-              }}
-            />
-            {iframeError && (
-              <a 
-                href={`https://twitch.tv/${streamer.username}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className={styles.previewExternalLink}
+      <div className={styles.preferenceOverlay} onClick={() => setShowPreferenceSelector(false)}>
+        <div className={styles.preferenceContent} onClick={e => e.stopPropagation()}>
+          <h2>Select Your Stream Preferences</h2>
+          <div className={styles.preferenceCategories}>
+            {streamCategories.map(category => (
+              <button 
+                key={category.id}
+                className={`${styles.categoryButton} ${selectedPreferences.includes(category.id) ? styles.categorySelected : ''}`}
+                onClick={() => {
+                  setSelectedPreferences(prev => {
+                    if (prev.includes(category.id)) {
+                      return prev.filter(id => id !== category.id);
+                    } else {
+                      return [...prev, category.id];
+                    }
+                  });
+                  
+                  // If ASMR is selected, set showASMR to true
+                  if (category.id === '498506') {
+                    setShowASMR(prev => !prev);
+                  }
+                }}
               >
-                Watch on Twitch
-              </a>
-            )}
+                <span className={styles.categoryIcon}>{category.icon}</span> {category.name}
+              </button>
+            ))}
           </div>
-        )}
-        
-        <iframe
-          src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
-          height="100%"
-          width="100%"
-          allowFullScreen={false}
-          title={`${streamer.display_name} stream preview`}
-          className={`${styles.previewFrame} ${iframeLoading ? styles.previewFrameLoading : ''}`}
-          onLoad={() => setIframeLoading(false)}
-          onError={handleIframeError}
-        ></iframe>
+          <div className={styles.preferenceControls}>
+            <button 
+              className={styles.preferenceButton}
+              onClick={() => {
+                setShowPreferenceSelector(false);
+                fetchStreamers();
+              }}
+            >
+              Apply Preferences
+            </button>
+            <button 
+              className={styles.secondaryButton}
+              onClick={() => {
+                setSelectedPreferences([]);
+                setShowASMR(false);
+                setShowPreferenceSelector(false);
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
     );
-  };
-
+  }, [showPreferenceSelector, selectedPreferences, streamCategories, fetchStreamers]);
+  
   return (
     <div className={styles.container}>
       <AuthModal 
@@ -2180,46 +935,21 @@ const DigDeeperPage = () => {
         onSignup={() => window.location.href = '/signup'}
       />
       
-      {/* Quick Chat Modal */}
-      {renderQuickChatModal()}
-      
       <div className={styles.header}>
         <h1>Dig Deeper</h1>
         <p>Discover and vote for your favorite Twitch streamers</p>
         
         <div className={styles.headerButtons}>
-          <Link to="/leaderboard" className={styles.leaderboardLink}>
-            View Leaderboard
-          </Link>
-          
-          {user ? (
-            <Link to="/favorites" className={styles.favoritesLink}>
-              <span className={styles.heartIcon}>❤️</span> My Favorites
-            </Link>
-          ) : (
-            <button 
-              onClick={() => {
-                toast.info('Sign in to access your saved favorites!');
-                setShowAuthModal(true);
-              }}
-              className={styles.favoritesLink}
-            >
-              <span className={styles.heartIcon}>❤️</span> My Favorites
-            </button>
-          )}
-          
           <button
             onClick={() => setShowPreferenceSelector(true)}
             className={styles.preferencesButton}
-            title="Update your content preferences"
+            title="Select stream preferences"
           >
-            <span className={styles.prefIcon}>⚙️</span> Preferences
+            <span>🎮</span> Preferences
           </button>
-          
           <button
             onClick={fetchStreamers}
             className={`${styles.refreshButton} ${refreshing ? styles.refreshing : ''}`}
-            title="Refresh real-time data from Twitch"
             disabled={refreshing}
           >
             <span className={styles.refreshIcon}>🔄</span> 
@@ -2240,12 +970,60 @@ const DigDeeperPage = () => {
       </div>
       
       <div className={styles.cardsContainer}>
-        {renderCards()}
+        {renderContent()}
+        
+        {/* Render action buttons below the card instead of fixed position */}
+        {streamers.length > 0 && currentIndex < streamers.length && (
+          <div className={styles.actionButtons}>
+            <button 
+              onClick={() => {
+                controls.start({ 
+                  x: -viewportWidth, 
+                  rotateZ: -10, 
+                  transition: { duration: 0.3 } 
+                }).then(() => {
+                  handleSwipeLeft();
+                });
+              }}
+              aria-label="Dislike"
+              className={styles.actionButton}
+              style={{
+                background: 'linear-gradient(135deg, #ff5252, #ff7676)',
+                width: isMobile ? '3.2rem' : '4rem',
+                height: isMobile ? '3.2rem' : '4rem',
+                fontSize: isMobile ? '1.3rem' : '1.5rem'
+              }}
+            >
+              👎
+            </button>
+            <button 
+              onClick={() => {
+                controls.start({ 
+                  x: viewportWidth, 
+                  rotateZ: 10, 
+                  transition: { duration: 0.3 } 
+                }).then(() => {
+                  handleSwipeRight();
+                });
+              }}
+              aria-label="Like"
+              className={styles.actionButton}
+              style={{
+                background: 'linear-gradient(135deg, #9147ff, #b347ff)',
+                width: isMobile ? '3.2rem' : '4rem',
+                height: isMobile ? '3.2rem' : '4rem',
+                fontSize: isMobile ? '1.3rem' : '1.5rem'
+              }}
+            >
+              ❤️
+            </button>
+          </div>
+        )}
       </div>
       
-      {renderButtons()}
-      
-      {showPreferenceSelector && renderPreferenceSelector()}
+      {renderQuickChatModal()}
+      {renderPreferenceSelector()}
+      <AdvancedStreamerPreloader streamers={streamers} currentIndex={currentIndex} />
     </div>
   );
 };
