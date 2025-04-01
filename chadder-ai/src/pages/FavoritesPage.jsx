@@ -326,20 +326,12 @@ const FavoritesPage = () => {
             
             return (
               <div key={streamer.favoriteId} className={styles.favoriteCard}>
-                <div 
-                  className={styles.favoriteImage}
-                  style={{ 
-                    backgroundColor: '#1a1a1a',
-                    backgroundImage: `url(${
-                      streamer.profile_image_url 
-                        ? streamer.profile_image_url
-                        : 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-300x300.png'
-                    })`,
-                    backgroundSize: 'contain',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                  }}
-                >
+                <div className={styles.favoriteImage}>
+                  <img 
+                    src={streamer.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-300x300.png'} 
+                    alt={`${streamer.display_name}'s profile`}
+                    className={styles.profileImg}
+                  />
                   {streamer.is_live && (
                     <div className={styles.liveIndicator}>
                       LIVE
