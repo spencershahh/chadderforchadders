@@ -301,9 +301,13 @@ const Discover = () => {
   const [timeUntilPayout, setTimeUntilPayout] = useState('');
   const [nominationUrl, setNominationUrl] = useState('');
   const [nominationStatus, setNominationStatus] = useState('');
+  const [trendingStreamers, setTrendingStreamers] = useState([]);
+  const [isTrendingLoading, setIsTrendingLoading] = useState(false);
+  const [trendingError, setTrendingError] = useState(null);
   const navigate = useNavigate();
   const nominationSectionRef = useRef(null);
   const streamersGridRef = useRef(null);
+  const trendingRefreshInterval = useRef(null);
 
   const FREE_STREAMER_LIMIT = 5;
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -509,15 +513,136 @@ const Discover = () => {
 
       if (error) throw error;
 
-      return votes.reduce((acc, vote) => {
+      // Convert votes to a map of streamer -> total votes
+      const votesMap = votes.reduce((acc, vote) => {
         acc[vote.streamer] = (acc[vote.streamer] || 0) + vote.amount;
         return acc;
       }, {});
+      
+      setStreamerVotes(votesMap);
+      return votesMap;
     } catch (error) {
       console.error("Error fetching votes:", error);
       return {};
     }
   };
+
+  // New function to fetch trending streamers based on votes
+  const fetchTrendingStreamers = async () => {
+    try {
+      setIsTrendingLoading(true);
+      setTrendingError(null);
+      
+      // Fetch votes to get the top voted streamers
+      const votesMap = await fetchVotes();
+      
+      // Convert votes map to an array and sort by vote count
+      const sortedStreamers = Object.entries(votesMap)
+        .map(([streamer, votes]) => ({ streamer, votes }))
+        .filter(item => item.votes > 0) // Only include streamers with votes
+        .sort((a, b) => b.votes - a.votes)
+        .slice(0, 10); // Get top 10
+      
+      if (sortedStreamers.length === 0) {
+        console.log('No trending streamers found');
+        setTrendingStreamers([]);
+        setIsTrendingLoading(false);
+        return;
+      }
+      
+      // Get the streamer usernames
+      const streamerUsernames = sortedStreamers.map(s => s.streamer);
+      
+      // Fetch the streamer details
+      const { data: streamerDetails, error } = await supabase
+        .from('streamers')
+        .select('*')
+        .in('username', streamerUsernames);
+      
+      if (error) {
+        console.error('Error fetching trending streamer details:', error);
+        setTrendingError('Failed to load trending streamers');
+        setIsTrendingLoading(false);
+        return;
+      }
+      
+      if (!streamerDetails || streamerDetails.length === 0) {
+        console.log('No trending streamer details found');
+        setTrendingStreamers([]);
+        setIsTrendingLoading(false);
+        return;
+      }
+      
+      // Map votes to streamer details
+      const trendingStreamersWithVotes = streamerDetails.map(streamer => {
+        const votes = votesMap[streamer.username] || 0;
+        return {
+          ...streamer,
+          votes
+        };
+      }).sort((a, b) => b.votes - a.votes);
+      
+      setTrendingStreamers(trendingStreamersWithVotes);
+      
+      // If we have a top streamer, set it
+      if (trendingStreamersWithVotes.length > 0) {
+        const topStreamerData = trendingStreamersWithVotes[0];
+        setTopStreamer({
+          ...topStreamerData,
+          user_name: topStreamerData.display_name || topStreamerData.username,
+          user_login: topStreamerData.username,
+          weeklyVotes: topStreamerData.votes,
+          profile_image_url: topStreamerData.profile_image_url
+        });
+      }
+      
+      setIsTrendingLoading(false);
+    } catch (error) {
+      console.error('Error fetching trending streamers:', error);
+      setTrendingError('Failed to load trending streamers');
+      setIsTrendingLoading(false);
+    }
+  };
+
+  // Load streamers and trending streamers on initial mount
+  useEffect(() => {
+    loadStreamers();
+    fetchTrendingStreamers();
+    
+    // Set up a refresh interval for trending streamers (every 2 minutes)
+    trendingRefreshInterval.current = setInterval(() => {
+      fetchTrendingStreamers();
+    }, 2 * 60 * 1000);
+    
+    return () => {
+      if (trendingRefreshInterval.current) {
+        clearInterval(trendingRefreshInterval.current);
+      }
+    };
+  }, []);
+  
+  // Listen for votes table changes to update trending
+  useEffect(() => {
+    const votesSubscription = supabase
+      .channel('votes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'votes'
+        },
+        (payload) => {
+          console.log('Votes update received:', payload);
+          fetchTrendingStreamers();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(votesSubscription);
+    };
+  }, []);
 
   const handleCardClick = (username) => {
     navigate(`/stream/${username.toLowerCase()}`);
@@ -688,16 +813,75 @@ const Discover = () => {
     streamersGridRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const renderStreamerCard = (streamer, index) => {
+  // New component to render trending streamers section
+  const renderTrendingStreamers = () => {
+    if (isTrendingLoading && trendingStreamers.length === 0) {
+      return (
+        <div className={styles.trendingSection}>
+          <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
+          <p className={styles.trendingSectionSubtitle}>Loading top voted streamers...</p>
+          <div className={styles.trendingLoading}>
+            <div className={styles.spinner}></div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (trendingError) {
+      return (
+        <div className={styles.trendingSection}>
+          <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
+          <p className={styles.trendingSectionSubtitle}>
+            There was an error loading trending streamers
+          </p>
+          <button 
+            className={styles.retryButton}
+            onClick={fetchTrendingStreamers}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    
+    if (trendingStreamers.length === 0) {
+      return (
+        <div className={styles.trendingSection}>
+          <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
+          <p className={styles.trendingSectionSubtitle}>
+            No trending streamers yet. Check out our Dig Deeper page to discover and vote for small streamers!
+          </p>
+          <div className={styles.trendingEmpty}>
+            <a href="/dig-deeper" className={styles.digDeeperLink}>
+              Try Dig Deeper
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.trendingSection}>
+        <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
+        <p className={styles.trendingSectionSubtitle}>Top voted streamers from our community</p>
+        <div className={styles.trendingStreamerGrid}>
+          {trendingStreamers.map((streamer, index) => renderStreamerCard(streamer, index, true))}
+        </div>
+      </div>
+    );
+  };
+
+  // Modify renderStreamerCard to handle trending streamers
+  const renderStreamerCard = (streamer, index, isTrending = false) => {
     // Early return if streamer data is invalid
     if (!streamer || !streamer.user_name) {
       console.error('Invalid streamer data:', streamer);
       return null;
     }
     
-    // Only lock cards if user is not logged in AND index is beyond the free limit
-    const isLocked = !user && index >= FREE_STREAMER_LIMIT;
-    const votes = streamerVotes[streamer.user_login] || 0;
+    // Only lock cards if user is not logged in AND index is beyond the free limit AND it's not a trending card
+    const isLocked = !user && index >= FREE_STREAMER_LIMIT && !isTrending;
+    const votes = isTrending ? streamer.votes : (streamerVotes[streamer.user_login] || 0);
 
     // Use a standard placeholder image for missing profile images
     const getProfileImagePlaceholder = () => {
@@ -716,33 +900,34 @@ const Discover = () => {
     return (
       <div 
         key={streamer.user_id || `streamer-${index}`}
-        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''}`}
-        onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(streamer.user_login)}
+        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''} ${isTrending ? styles.trendingCard : ''}`}
+        onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(streamer.user_login || streamer.username)}
       >
         <div className={styles.thumbnailWrapper}>
           <img
             className={styles.streamerThumbnail}
             src={getThumbnail()}
-            alt={`${streamer.user_name}'s stream`}
+            alt={`${streamer.user_name || streamer.display_name || streamer.username}'s stream`}
             onError={(e) => {
-              console.log(`Failed to load thumbnail for ${streamer.user_name}, using fallback`);
+              console.log(`Failed to load thumbnail for ${streamer.user_name || streamer.username}, using fallback`);
               e.target.src = "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Stream+Unavailable";
             }}
           />
           {streamer.type === "live" && <span className={styles.liveBadge}>LIVE</span>}
+          {isTrending && <span className={styles.trendingBadge}>TRENDING</span>}
         </div>
         <div className={styles.streamerCardContent}>
           <img
             className={styles.streamerProfileImage}
             src={streamer.profile_image_url || getProfileImagePlaceholder()}
-            alt={`${streamer.user_name}'s profile`}
+            alt={`${streamer.user_name || streamer.display_name || streamer.username}'s profile`}
             onError={(e) => {
-              console.log(`Failed to load profile image for ${streamer.user_name}, using fallback`);
+              console.log(`Failed to load profile image for ${streamer.user_name || streamer.username}, using fallback`);
               e.target.src = getProfileImagePlaceholder();
             }}
           />
           <div className={styles.streamerInfo}>
-            <h3 className={styles.streamerName}>{streamer.user_name}</h3>
+            <h3 className={styles.streamerName}>{streamer.user_name || streamer.display_name || streamer.username}</h3>
             {streamer.type === "live" && (
               <span className={styles.viewerCount}>{streamer.viewer_count || 0} viewers</span>
             )}
@@ -930,6 +1115,9 @@ const Discover = () => {
           </button>
         </div>
       </div>
+
+      {/* Add the trending streamers section */}
+      {renderTrendingStreamers()}
 
       <div className={styles.streamersSection}>
         <h2 className={styles.streamersTitle}>

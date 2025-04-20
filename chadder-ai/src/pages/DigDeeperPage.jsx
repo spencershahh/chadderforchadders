@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -119,6 +119,10 @@ const DigDeeperPage = () => {
   const [selectedPreferences, setSelectedPreferences] = useState([]);
   const [showASMR, setShowASMR] = useState(false);
   
+  // State for dynamic categories
+  const [dynamicCategories, setDynamicCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  
   // Set up animation controls
   const controls = useAnimation();
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -134,6 +138,153 @@ const DigDeeperPage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
+  // Track user's swipe history
+  const getSwiped = useCallback(() => {
+    try {
+      const swipedHistory = localStorage.getItem('swipedStreamers');
+      return swipedHistory ? JSON.parse(swipedHistory) : { left: {}, right: {} };
+    } catch (error) {
+      console.error('Error getting swiped history:', error);
+      return { left: {}, right: {} };
+    }
+  }, []);
+  
+  const addToSwiped = useCallback((streamerId, direction) => {
+    try {
+      const swiped = getSwiped();
+      swiped[direction][streamerId] = Date.now();
+      localStorage.setItem('swipedStreamers', JSON.stringify(swiped));
+    } catch (error) {
+      console.error('Error adding to swiped history:', error);
+    }
+  }, [getSwiped]);
+  
+  // Fetch streamers with existing votes from database
+  const fetchVotedStreamers = useCallback(async (twitchToken, clientId) => {
+    try {
+      // Get streamers sorted by vote count (highest first)
+      const { data: votedData, error: votedError } = await supabase
+        .from('votes')
+        .select('streamer, count(*)')
+        .group('streamer')
+        .order('count', { ascending: false })
+        .limit(20);
+      
+      if (votedError) {
+        console.error('Error fetching voted streamers:', votedError);
+        return [];
+      }
+      
+      if (!votedData || votedData.length === 0) {
+        return [];
+      }
+      
+      // Extract unique streamer usernames
+      const uniqueStreamers = Array.from(new Set(votedData.map(item => item.streamer)))
+        .filter(streamer => Boolean(streamer));
+      
+      if (uniqueStreamers.length === 0) {
+        return [];
+      }
+      
+      // Create a map for quick lookup of vote counts
+      const voteCountMap = {};
+      votedData.forEach(item => {
+        if (item.streamer) {
+          voteCountMap[item.streamer] = item.count;
+        }
+      });
+      
+      // Get streamer data from Twitch API
+      const streamerQueryParams = uniqueStreamers.map(login => `login=${login}`).join('&');
+      const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${streamerQueryParams}`, {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${twitchToken}`
+        }
+      });
+      
+      if (!usersResponse.ok) {
+        console.error('Error fetching user data from Twitch:', usersResponse.status);
+        return [];
+      }
+      
+      const userData = await usersResponse.json();
+      
+      if (!userData?.data || !Array.isArray(userData.data)) {
+        return [];
+      }
+      
+      // Get live status for these streamers
+      const userIds = userData.data.map(user => user.id).filter(Boolean);
+      
+      if (userIds.length === 0) {
+        return [];
+      }
+      
+      const streamsQueryParams = userIds.map(id => `user_id=${id}`).join('&');
+      const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${streamsQueryParams}`, {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${twitchToken}`
+        }
+      });
+      
+      let liveStreams = [];
+      
+      if (streamsResponse.ok) {
+        const streamsData = await streamsResponse.json();
+        liveStreams = streamsData?.data || [];
+      }
+      
+      // Create a map for live stream data
+      const liveStreamMap = {};
+      liveStreams.forEach(stream => {
+        if (stream.user_id) {
+          liveStreamMap[stream.user_id] = stream;
+        }
+      });
+      
+      // Format streamer data
+      const formattedStreamers = userData.data.map(user => {
+        const liveStream = liveStreamMap[user.id];
+        const voteCount = voteCountMap[user.login] || 0;
+        
+        return {
+          id: user.id,
+          twitch_id: user.id,
+          username: user.login,
+          display_name: user.display_name,
+          is_live: Boolean(liveStream),
+          view_count: liveStream ? liveStream.viewer_count : 0,
+          game_name: liveStream ? liveStream.game_name : "",
+          stream_title: liveStream ? liveStream.title : "",
+          thumbnail_url: liveStream ? 
+            liveStream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
+            null,
+          profile_image_url: user.profile_image_url,
+          description: user.description,
+          vote_count: voteCount,
+          category_id: liveStream ? liveStream.game_id : null
+        };
+      });
+      
+      // Filter for small streamers (5-50 viewers) who are live
+      return formattedStreamers
+        .filter(streamer => 
+          streamer.is_live && 
+          typeof streamer.view_count === 'number' && 
+          streamer.view_count >= 5 && 
+          streamer.view_count <= 50
+        )
+        .sort((a, b) => b.vote_count - a.vote_count);
+        
+    } catch (error) {
+      console.error('Error in fetchVotedStreamers:', error);
+      return [];
+    }
+  }, []);
+  
   // Define some quick chat messages
   const [quickMessages, setQuickMessages] = useState([
     { id: 1, text: "Hi there! Just discovered your stream!" },
@@ -141,7 +292,7 @@ const DigDeeperPage = () => {
     { id: 3, text: "What game/content are you planning next?" }
   ]);
   
-  // Twitch categories
+  // Stream categories with icons (fallback/default)
   const streamCategories = [
     { id: '509658', name: 'Just Chatting', icon: '💬' },
     { id: '26936', name: 'Music', icon: '🎵' },
@@ -155,7 +306,172 @@ const DigDeeperPage = () => {
     { id: '498506', name: 'ASMR', icon: '🎧' }
   ];
   
-  // Simple function to go to next card
+  // Get active categories - either dynamic or fallback
+  const activeCategories = useMemo(() => {
+    return dynamicCategories.length > 0 ? dynamicCategories : streamCategories;
+  }, [dynamicCategories, streamCategories]);
+  
+  // Fetch top game categories from Twitch
+  const fetchTopCategories = useCallback(async () => {
+    if (loadingCategories) return;
+    
+    try {
+      setLoadingCategories(true);
+      
+      // Check localStorage cache first (cache for 24 hours)
+      const cachedData = localStorage.getItem('twitch_top_categories');
+      const cacheTimestamp = localStorage.getItem('twitch_top_categories_timestamp');
+      const cacheAge = cacheTimestamp ? Date.now() - parseInt(cacheTimestamp) : null;
+      const cacheValid = cachedData && cacheAge && cacheAge < 24 * 60 * 60 * 1000;
+      
+      if (cacheValid) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log('Using cached top categories', parsed.length);
+            setDynamicCategories(parsed);
+            setLoadingCategories(false);
+            return;
+          }
+        } catch (e) {
+          console.error('Error parsing cached categories', e);
+        }
+      }
+      
+      // Get Twitch credentials
+      const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+      const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        throw new Error('Twitch API credentials missing');
+      }
+      
+      // Get Twitch access token if needed
+      let accessToken = twitchAccessToken;
+      
+      if (!accessToken) {
+        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+        });
+        
+        if (!tokenResponse.ok) {
+          throw new Error(`Error getting Twitch token: ${tokenResponse.status}`);
+        }
+        
+        const tokenData = await tokenResponse.json();
+        accessToken = tokenData.access_token;
+        
+        if (!accessToken) {
+          throw new Error('No access token received from Twitch');
+        }
+        
+        setTwitchAccessToken(accessToken);
+      }
+      
+      // Fetch top games from Twitch
+      const gamesResponse = await fetch('https://api.twitch.tv/helix/games/top?first=15', {
+        headers: {
+          'Client-ID': clientId,
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!gamesResponse.ok) {
+        throw new Error(`Error fetching top games: ${gamesResponse.status}`);
+      }
+      
+      const gamesData = await gamesResponse.json();
+      
+      if (!gamesData?.data || !Array.isArray(gamesData.data)) {
+        throw new Error('Invalid response format for top games');
+      }
+      
+      // Map to our format and assign emojis
+      const categoryEmojis = {
+        'Just Chatting': '💬',
+        'Music': '🎵',
+        'Art': '🎨',
+        'Sports': '⚽',
+        'ASMR': '🎧',
+        'IRL': '📱',
+        'Fortnite': '🔫',
+        'VALORANT': '🎯',
+        'Minecraft': '⛏️',
+        'League of Legends': '🧙',
+        'Grand Theft Auto V': '🚗',
+        'Call of Duty': '🎖️',
+        'Apex Legends': '🦊',
+        'Counter-Strike': '🔫',
+        'Dota 2': '🧙‍♂️',
+        'Overwatch': '🦸',
+        'Slots': '🎰',
+        'World of Warcraft': '⚔️',
+        'Dead by Daylight': '🔪',
+        'Escape from Tarkov': '🧪'
+      };
+      
+      // Generic emojis for games without specific ones
+      const genericEmojis = ['🎮', '🕹️', '👾', '🎯', '⚔️', '🏆', '🎲', '🔥'];
+      
+      // Helper to get an emoji for a game
+      const getEmojiForGame = (gameName) => {
+        // Try exact match first
+        if (categoryEmojis[gameName]) return categoryEmojis[gameName];
+        
+        // Try partial match
+        for (const [key, emoji] of Object.entries(categoryEmojis)) {
+          if (gameName.includes(key) || key.includes(gameName)) {
+            return emoji;
+          }
+        }
+        
+        // Use generic emoji based on game name length as a consistent hash
+        return genericEmojis[gameName.length % genericEmojis.length];
+      };
+      
+      const mappedCategories = gamesData.data.map(game => ({
+        id: game.id,
+        name: game.name,
+        icon: getEmojiForGame(game.name)
+      }));
+      
+      // Always include Just Chatting, IRL & ASMR if not already in the list
+      const justChatting = { id: '509658', name: 'Just Chatting', icon: '💬' };
+      const irl = { id: '509673', name: 'IRL', icon: '📱' };
+      const asmr = { id: '498506', name: 'ASMR', icon: '🎧' };
+      
+      const hasJustChatting = mappedCategories.some(cat => cat.id === justChatting.id);
+      const hasIRL = mappedCategories.some(cat => cat.id === irl.id);
+      const hasASMR = mappedCategories.some(cat => cat.id === asmr.id);
+      
+      if (!hasJustChatting) mappedCategories.unshift(justChatting);
+      if (!hasIRL) mappedCategories.push(irl);
+      if (!hasASMR) mappedCategories.push(asmr);
+      
+      // Set the dynamic categories
+      setDynamicCategories(mappedCategories);
+      
+      // Cache the results
+      localStorage.setItem('twitch_top_categories', JSON.stringify(mappedCategories));
+      localStorage.setItem('twitch_top_categories_timestamp', Date.now().toString());
+      
+    } catch (error) {
+      console.error('Error fetching top categories:', error);
+      // Fallback to static categories
+      setDynamicCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, [twitchAccessToken, loadingCategories]);
+  
+  // Fetch top categories when component mounts
+  useEffect(() => {
+    fetchTopCategories();
+  }, [fetchTopCategories]);
+  
+  // Function to go to next card
   const nextCard = useCallback(() => {
     if (previewPlaying) {
       setPreviewPlaying(null);
@@ -165,8 +481,35 @@ const DigDeeperPage = () => {
     setCurrentIndex(prev => prev + 1);
   }, [controls, previewPlaying]);
   
+  // Save vote to database
+  const saveVote = useCallback(async (streamer) => {
+    if (!user) return;
+    
+    try {
+      // Save vote to database
+      const { error } = await supabase
+        .from('votes')
+        .insert([
+          { 
+            streamer: streamer.username,
+            user_id: user.id,
+            amount: 1
+          }
+        ]);
+      
+      if (error) {
+        console.error('Error saving vote:', error);
+        toast.error('Failed to save your vote.');
+      } else {
+        console.log('Vote saved successfully for', streamer.username);
+      }
+    } catch (err) {
+      console.error('Exception saving vote:', err);
+    }
+  }, [user]);
+  
   // Handle swipe events
-  const handleSwipeRight = useCallback(() => {
+  const handleSwipeRight = useCallback((streamer) => {
     const currentStreamer = streamers[currentIndex];
     
     if (!user) {
@@ -174,14 +517,23 @@ const DigDeeperPage = () => {
       setShowAuthModal(true);
     } else if (currentStreamer) {
       toast.success('Added to favorites!');
+      // Save vote to database
+      saveVote(currentStreamer);
+      // Track this swipe in history
+      addToSwiped(currentStreamer.twitch_id, 'right');
     }
     
     nextCard();
-  }, [nextCard, currentIndex, streamers, user]);
+  }, [nextCard, currentIndex, streamers, user, saveVote, addToSwiped]);
   
   const handleSwipeLeft = useCallback(() => {
+    // Track this swipe in history
+    const currentStreamer = streamers[currentIndex];
+    if (currentStreamer) {
+      addToSwiped(currentStreamer.twitch_id, 'left');
+    }
     nextCard();
-  }, [nextCard]);
+  }, [nextCard, streamers, currentIndex, addToSwiped]);
   
   // Handle drag events
   const handleDragStart = useCallback((event, info) => {
@@ -200,7 +552,8 @@ const DigDeeperPage = () => {
         rotateZ: 10, 
         transition: { duration: 0.3 } 
       }).then(() => {
-        handleSwipeRight();
+        const currentStreamer = streamers[currentIndex];
+        handleSwipeRight(currentStreamer);
       });
     } else if (deltaX < -threshold) {
       // Swiped left - pass
@@ -219,7 +572,7 @@ const DigDeeperPage = () => {
         transition: { type: 'spring', stiffness: 300, damping: 20 } 
       });
     }
-  }, [controls, dragStart, handleSwipeLeft, handleSwipeRight, isMobile, viewportWidth]);
+  }, [controls, dragStart, handleSwipeLeft, handleSwipeRight, isMobile, viewportWidth, streamers, currentIndex]);
   
   // Auto-play with optimized timing based on preloaded status
   useEffect(() => {
@@ -307,13 +660,23 @@ const DigDeeperPage = () => {
         setTwitchAccessToken(accessToken);
       }
       
+      // Get swipe history to avoid showing streamers the user has already seen
+      const swipeHistory = getSwiped();
+      const alreadySeen = new Set([
+        ...Object.keys(swipeHistory.left),
+        ...Object.keys(swipeHistory.right)
+      ]);
+      
+      // 1. First fetch streamers with existing votes (30-40% of total)
+      const votedStreamers = await fetchVotedStreamers(accessToken, clientId);
+      
       // Choose categories based on preferences or select randomly
       let categoriesToSearch = [];
       if (selectedPreferences.length > 0) {
         categoriesToSearch = selectedPreferences;
       } else {
         // Filter out ASMR if not specifically selected
-        const categoriesWithoutASMR = streamCategories
+        const categoriesWithoutASMR = activeCategories
           .filter(cat => showASMR || cat.id !== '498506') // Filter out ASMR unless showASMR is true
           .map(cat => cat.id);
         
@@ -322,11 +685,11 @@ const DigDeeperPage = () => {
           .slice(0, 5);
       }
       
-      let allStreamers = [];
+      let randomStreamers = [];
       
       // Try different game categories to find small streamers
       for (const gameId of categoriesToSearch) {
-        if (allStreamers.length >= 20) break; // Stop if we have enough
+        if (randomStreamers.length >= 20) break; // Stop if we have enough
         
         try {
           // Get streams for this game
@@ -367,16 +730,39 @@ const DigDeeperPage = () => {
               thumbnail_url: stream.thumbnail_url ? 
                 stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180') : 
                 null,
-              category_id: gameId
+              category_id: gameId,
+              vote_count: 0
             }));
             
             // Add new streamers to our list
-            allStreamers = [...allStreamers, ...formattedStreams];
+            randomStreamers = [...randomStreamers, ...formattedStreams];
           }
         } catch (error) {
           console.error(`Error processing game ${gameId}:`, error);
         }
       }
+      
+      // Combine voted and random streamers, with a cap on percentage of voted streamers
+      // Filter out streamers the user has already seen
+      const filteredVotedStreamers = votedStreamers
+        .filter(streamer => streamer && streamer.twitch_id && !alreadySeen.has(streamer.twitch_id));
+      
+      const filteredRandomStreamers = randomStreamers
+        .filter(streamer => streamer && streamer.twitch_id && !alreadySeen.has(streamer.twitch_id));
+      
+      // Calculate how many voted streamers to include (aim for 30-40% of total)
+      const totalStreamers = 20; // Target total number of streamers
+      const maxVotedStreamers = Math.floor(totalStreamers * 0.4); // 40% max
+      
+      // Take only the number needed from voted streamers
+      const selectedVotedStreamers = filteredVotedStreamers.slice(0, maxVotedStreamers);
+      
+      // Fill the rest with random streamers
+      const remainingSlots = totalStreamers - selectedVotedStreamers.length;
+      const selectedRandomStreamers = filteredRandomStreamers.slice(0, remainingSlots);
+      
+      // Combine lists with voted streamers first
+      let allStreamers = [...selectedVotedStreamers, ...selectedRandomStreamers];
       
       // Get unique streamers
       const uniqueStreamers = [];
@@ -401,10 +787,14 @@ const DigDeeperPage = () => {
         });
       }
       
-      // Get profile data
-      if (filteredStreamers.length > 0) {
+      // Get profile data for streamers that need it
+      const streamersNeedingProfiles = filteredStreamers.filter(
+        streamer => !streamer.profile_image_url && streamer.twitch_id
+      );
+      
+      if (streamersNeedingProfiles.length > 0) {
         try {
-          const userIds = filteredStreamers.map(streamer => streamer.twitch_id).filter(Boolean);
+          const userIds = streamersNeedingProfiles.map(streamer => streamer.twitch_id).filter(Boolean);
           
           if (userIds.length > 0) {
             const userQueryParams = userIds.map(id => `id=${id}`).join('&');
@@ -431,7 +821,7 @@ const DigDeeperPage = () => {
               
               // Add profile info
               allStreamers = filteredStreamers.map(streamer => {
-                if (!streamer || !streamer.twitch_id) return streamer;
+                if (!streamer || !streamer.twitch_id || streamer.profile_image_url) return streamer;
                 
                 const profile = userDataMap[streamer.twitch_id];
                 if (profile) {
@@ -479,7 +869,7 @@ const DigDeeperPage = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loading, refreshing, twitchAccessToken, streamCategories, selectedPreferences, showASMR]);
+  }, [loading, refreshing, twitchAccessToken, activeCategories, selectedPreferences, showASMR, fetchVotedStreamers, getSwiped]);
   
   // Load streamers on initial mount
   useEffect(() => {
@@ -700,6 +1090,12 @@ const DigDeeperPage = () => {
                   LIVE
                 </div>
               )}
+              
+              {streamer.vote_count > 0 && (
+                <div className={styles.trendingIndicator}>
+                  TRENDING
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -712,7 +1108,7 @@ const DigDeeperPage = () => {
               {streamer.game_name && (
                 <div className={styles.categoryTag}>
                   <span className={styles.categoryLabel}>
-                    {streamCategories.find(cat => cat.id === streamer.category_id)?.icon || '🎮'} {streamer.game_name}
+                    {activeCategories.find(cat => cat.id === streamer.category_id)?.icon || '🎮'} {streamer.game_name}
                   </span>
                 </div>
               )}
@@ -721,6 +1117,14 @@ const DigDeeperPage = () => {
                 <div className={styles.viewerTag}>
                   <span className={styles.viewerLabel}>
                     👁️ {(streamer.view_count || 0).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              
+              {streamer.vote_count > 0 && (
+                <div className={styles.voteTag}>
+                  <span className={styles.voteLabel}>
+                    🔥 {streamer.vote_count} votes
                   </span>
                 </div>
               )}
@@ -803,7 +1207,7 @@ const DigDeeperPage = () => {
         </div>
       </motion.div>
     );
-  }, [controls, currentIndex, fetchStreamers, handleDragEnd, handleDragStart, loading, previewPlaying, renderStreamPreview, streamers]);
+  }, [controls, currentIndex, fetchStreamers, handleDragEnd, handleDragStart, loading, previewPlaying, renderStreamPreview, streamers, activeCategories]);
   
   // Render quick chat modal
   const renderQuickChatModal = useCallback(() => {
@@ -875,30 +1279,56 @@ const DigDeeperPage = () => {
       <div className={styles.preferenceOverlay} onClick={() => setShowPreferenceSelector(false)}>
         <div className={styles.preferenceContent} onClick={e => e.stopPropagation()}>
           <h2>Select Your Stream Preferences</h2>
-          <div className={styles.preferenceCategories}>
-            {streamCategories.map(category => (
-              <button 
-                key={category.id}
-                className={`${styles.categoryButton} ${selectedPreferences.includes(category.id) ? styles.categorySelected : ''}`}
-                onClick={() => {
-                  setSelectedPreferences(prev => {
-                    if (prev.includes(category.id)) {
-                      return prev.filter(id => id !== category.id);
-                    } else {
-                      return [...prev, category.id];
-                    }
-                  });
-                  
-                  // If ASMR is selected, set showASMR to true
-                  if (category.id === '498506') {
-                    setShowASMR(prev => !prev);
-                  }
-                }}
-              >
-                <span className={styles.categoryIcon}>{category.icon}</span> {category.name}
-              </button>
-            ))}
-          </div>
+          <p>Choose the content you'd like to see in your stream</p>
+          
+          {loadingCategories ? (
+            <div className={styles.loadingContainer}>
+              <div className={styles.spinner}></div>
+              <p>Loading categories...</p>
+            </div>
+          ) : (
+            <>
+              <div className={styles.categoryActions}>
+                <button 
+                  className={styles.refreshCategoriesButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fetchTopCategories();
+                  }}
+                  disabled={loadingCategories}
+                >
+                  🔄 Refresh Categories
+                </button>
+              </div>
+              
+              <div className={styles.preferenceCategories}>
+                {activeCategories.map(category => (
+                  <button 
+                    key={category.id}
+                    className={`${styles.categoryButton} ${selectedPreferences.includes(category.id) ? styles.categorySelected : ''}`}
+                    onClick={() => {
+                      setSelectedPreferences(prev => {
+                        if (prev.includes(category.id)) {
+                          return prev.filter(id => id !== category.id);
+                        } else {
+                          return [...prev, category.id];
+                        }
+                      });
+                      
+                      // If ASMR is selected, set showASMR to true
+                      if (category.id === '498506') {
+                        setShowASMR(prev => !prev);
+                      }
+                    }}
+                  >
+                    <div className={styles.categoryIcon}>{category.icon}</div>
+                    <div className={styles.categoryName}>{category.name}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          
           <div className={styles.preferenceControls}>
             <button 
               className={styles.preferenceButton}
@@ -906,6 +1336,7 @@ const DigDeeperPage = () => {
                 setShowPreferenceSelector(false);
                 fetchStreamers();
               }}
+              disabled={loadingCategories}
             >
               Apply Preferences
             </button>
@@ -916,6 +1347,7 @@ const DigDeeperPage = () => {
                 setShowASMR(false);
                 setShowPreferenceSelector(false);
               }}
+              disabled={loadingCategories}
             >
               Reset
             </button>
@@ -923,7 +1355,7 @@ const DigDeeperPage = () => {
         </div>
       </div>
     );
-  }, [showPreferenceSelector, selectedPreferences, streamCategories, fetchStreamers]);
+  }, [showPreferenceSelector, selectedPreferences, activeCategories, fetchStreamers, loadingCategories, fetchTopCategories]);
   
   return (
     <div className={styles.container}>
@@ -1010,7 +1442,7 @@ const DigDeeperPage = () => {
                   rotateZ: 10, 
                   transition: { duration: 0.3 } 
                 }).then(() => {
-                  handleSwipeRight();
+                  handleSwipeRight(streamers[currentIndex]);
                 });
               }}
               aria-label="Like"

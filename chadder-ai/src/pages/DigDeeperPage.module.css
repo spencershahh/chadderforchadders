@@ -169,14 +169,35 @@
 .liveIndicator {
   position: absolute;
   top: 10px;
-  right: 10px;
-  background-color: rgba(255, 0, 0, 0.8);
+  left: 10px;
   color: white;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  background-color: #ff3e3e;
+  font-size: 0.7rem;
   font-weight: bold;
+  padding: 2px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.05rem;
+  text-transform: uppercase;
+  opacity: 0.9;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.trendingIndicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: white;
+  background-color: #ff6b00;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 2px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.05rem;
+  text-transform: uppercase;
+  opacity: 0.9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
 }
 
 .gameTag {
@@ -1351,7 +1372,7 @@
   margin: 0 0 8px;
 }
 
-.categoryTag, .viewerTag {
+.categoryTag, .viewerTag, .voteTag {
   background-color: rgba(145, 71, 255, 0.2);
   border-radius: 8px;
   padding: 3px 8px;
@@ -1363,10 +1384,28 @@
   background-color: rgba(255, 69, 58, 0.2);
 }
 
-.categoryLabel, .viewerLabel {
+.categoryLabel, .viewerLabel, .voteLabel {
   font-size: 0.75rem;
   color: #fff;
   font-weight: 500;
+}
+
+/* Add specific styles for vote tag if needed */
+.voteTag {
+  background-color: rgba(255, 107, 0, 0.15);
+  border-radius: 20px;
+  padding: 0.2rem 0.6rem;
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  height: 1.6rem;
+}
+
+.voteLabel {
+  color: #ff6b00;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* Enhanced footer and buttons */
@@ -1453,67 +1492,104 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: rgba(0, 0, 0, 0.9);
   z-index: 1000;
   display: flex;
   justify-content: center;
   align-items: center;
+  backdrop-filter: blur(5px);
 }
 
 .preferenceContent {
-  background-color: #1f1f23;
-  border-radius: 16px;
-  padding: 20px;
+  background-color: #18181b;
+  border-radius: 20px;
+  padding: 30px;
   width: 90%;
-  max-width: 500px;
+  max-width: 580px;
   max-height: 80vh;
   overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.preferenceContent h2 {
+  color: white;
+  margin-bottom: 20px;
+  font-size: 1.6rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.preferenceContent p {
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.categoryActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.refreshCategoriesButton {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.refreshCategoriesButton:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.refreshCategoriesButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 0;
+  gap: 15px;
+}
+
+.loadingContainer p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #9147ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .preferenceCategories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 20px 0;
-}
-
-.categoryButton {
-  background-color: #2c2c35;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 15px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.categorySelected {
-  background-color: #9147ff;
-}
-
-.preferenceControls {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-.preferenceButton, .secondaryButton {
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.preferenceButton {
-  background-color: #9147ff;
-  color: white;
-  border: none;
-}
-
-.secondaryButton {
-  background-color: transparent;
-  border: 1px solid #9147ff;
-  color: #9147ff;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 25px 0;
 }
 
 /* Add styling for the streamer info compact layout */
@@ -1531,4 +1607,140 @@
   font-weight: normal;
   display: block;
   margin-top: 2px;
+}
+
+.categoryButton {
+  background-color: #23232a;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 110px;
+}
+
+.categoryButton:hover {
+  transform: translateY(-2px);
+  border-color: rgba(145, 71, 255, 0.5);
+  background-color: #2a2a35;
+}
+
+.categorySelected {
+  background-color: rgba(145, 71, 255, 0.25);
+  border-color: #9147ff;
+  position: relative;
+}
+
+.categorySelected:after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #9147ff;
+  color: white;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.categoryIcon {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.categoryName {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.preferenceControls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.preferenceButton, .secondaryButton {
+  padding: 12px 25px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.preferenceButton {
+  background-color: #9147ff;
+  color: white;
+  border: none;
+  flex: 1;
+  max-width: 200px;
+}
+
+.preferenceButton:hover {
+  background-color: #7a2de0;
+  transform: translateY(-2px);
+}
+
+.preferenceButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondaryButton {
+  background-color: transparent;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex: 0.7;
+  max-width: 120px;
+}
+
+.secondaryButton:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .preferenceCategories {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .categoryButton {
+    height: 100px;
+    padding: 10px 5px;
+  }
+  
+  .categoryIcon {
+    font-size: 24px;
+  }
+  
+  .preferenceContent {
+    padding: 20px;
+  }
+  
+  .categoryActions {
+    margin-bottom: 10px;
+  }
+  
+  .refreshCategoriesButton {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
 }
