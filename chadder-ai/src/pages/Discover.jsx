@@ -573,12 +573,16 @@ const Discover = () => {
         return;
       }
       
-      // Map votes to streamer details
+      // Map votes to streamer details and normalize the data
       const trendingStreamersWithVotes = streamerDetails.map(streamer => {
         const votes = votesMap[streamer.username] || 0;
+        // Normalize data structure to match what renderStreamerCard expects
         return {
           ...streamer,
-          votes
+          votes,
+          user_name: streamer.display_name || streamer.username,
+          user_login: streamer.username,
+          display_name: streamer.display_name || streamer.username
         };
       }).sort((a, b) => b.votes - a.votes);
       
@@ -592,7 +596,7 @@ const Discover = () => {
           user_name: topStreamerData.display_name || topStreamerData.username,
           user_login: topStreamerData.username,
           weeklyVotes: topStreamerData.votes,
-          profile_image_url: topStreamerData.profile_image_url
+          profile_image_url: topStreamerData.profile_image_url || DEFAULT_PROFILE_IMAGE
         });
       }
       
@@ -874,14 +878,25 @@ const Discover = () => {
   // Modify renderStreamerCard to handle trending streamers
   const renderStreamerCard = (streamer, index, isTrending = false) => {
     // Early return if streamer data is invalid
-    if (!streamer || !streamer.user_name) {
+    if (!streamer) {
       console.error('Invalid streamer data:', streamer);
+      return null;
+    }
+    
+    // Handle different data structures between trending and regular streamers
+    const userName = streamer.user_name || streamer.display_name || streamer.username || streamer.name;
+    const userLogin = streamer.user_login || streamer.username || streamer.login || '';
+    const userId = streamer.user_id || streamer.id || `streamer-${index}`;
+    
+    // Skip rendering if we don't have at least a name
+    if (!userName) {
+      console.error('Invalid streamer data (missing name):', streamer);
       return null;
     }
     
     // Only lock cards if user is not logged in AND index is beyond the free limit AND it's not a trending card
     const isLocked = !user && index >= FREE_STREAMER_LIMIT && !isTrending;
-    const votes = isTrending ? streamer.votes : (streamerVotes[streamer.user_login] || 0);
+    const votes = isTrending ? streamer.votes : (streamerVotes[userLogin] || 0);
 
     // Use a standard placeholder image for missing profile images
     const getProfileImagePlaceholder = () => {
@@ -899,17 +914,17 @@ const Discover = () => {
 
     return (
       <div 
-        key={streamer.user_id || `streamer-${index}`}
+        key={userId}
         className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''} ${isTrending ? styles.trendingCard : ''}`}
-        onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(streamer.user_login || streamer.username)}
+        onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(userLogin || userName)}
       >
         <div className={styles.thumbnailWrapper}>
           <img
             className={styles.streamerThumbnail}
             src={getThumbnail()}
-            alt={`${streamer.user_name || streamer.display_name || streamer.username}'s stream`}
+            alt={`${userName}'s stream`}
             onError={(e) => {
-              console.log(`Failed to load thumbnail for ${streamer.user_name || streamer.username}, using fallback`);
+              console.log(`Failed to load thumbnail for ${userName}, using fallback`);
               e.target.src = "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Stream+Unavailable";
             }}
           />
@@ -920,14 +935,14 @@ const Discover = () => {
           <img
             className={styles.streamerProfileImage}
             src={streamer.profile_image_url || getProfileImagePlaceholder()}
-            alt={`${streamer.user_name || streamer.display_name || streamer.username}'s profile`}
+            alt={`${userName}'s profile`}
             onError={(e) => {
-              console.log(`Failed to load profile image for ${streamer.user_name || streamer.username}, using fallback`);
+              console.log(`Failed to load profile image for ${userName}, using fallback`);
               e.target.src = getProfileImagePlaceholder();
             }}
           />
           <div className={styles.streamerInfo}>
-            <h3 className={styles.streamerName}>{streamer.user_name || streamer.display_name || streamer.username}</h3>
+            <h3 className={styles.streamerName}>{userName}</h3>
             {streamer.type === "live" && (
               <span className={styles.viewerCount}>{streamer.viewer_count || 0} viewers</span>
             )}

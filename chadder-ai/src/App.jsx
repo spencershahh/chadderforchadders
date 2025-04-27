@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -60,7 +60,7 @@ const App = () => {
                     <Route path="/stream/:username" element={<StreamPage />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/login" element={<Login />} />
-                    <Route path="/gems" element={<GemsPage />} />
+                    <Route path="/gems" element={<Navigate to="/credits" replace />} />
                     <Route path="/credits" element={<CreditsPage />} />
                     <Route path="/dig-deeper" element={<DigDeeperPage />} />
                     <Route path="/favorites" element={<FavoritesPage />} />

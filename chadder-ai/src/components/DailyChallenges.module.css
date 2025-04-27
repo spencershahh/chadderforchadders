@@ -1,11 +1,11 @@
 .dailyChallengesContainer {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  left: 20px;
   z-index: 100;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .toggleButton {
@@ -195,7 +195,7 @@
 @media (max-width: 768px) {
   .dailyChallengesContainer {
     bottom: 70px; /* Above bottom nav if present */
-    right: 10px;
+    left: 10px;
   }
   
   .challengesPanel {
