@@ -159,6 +159,27 @@
   background-position: center;
   transition: height 0.3s ease;
   height: 70%;
+  overflow: hidden;
+}
+
+.cardStreamVideo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  z-index: 1;
+}
+
+.cardOverlayContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .card .cardImageContainer[style*="height: auto"] {
@@ -1743,4 +1764,160 @@
     padding: 6px 10px;
     font-size: 0.8rem;
   }
+}
+
+/* Larger card with chat */
+.cardWithChat {
+  width: 100% !important;
+  max-width: 680px !important;
+  height: 90vh !important;
+  max-height: 800px !important;
+  transform-origin: center center;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Integrated card chat container */
+.cardChatContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background-color: #1f1f23;
+  padding: 0;
+  overflow: hidden;
+}
+
+.cardChatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #9147ff;
+  color: white;
+  border-bottom: 1px solid #7d3ddb;
+  flex-shrink: 0;
+}
+
+.cardChatHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.closeChatButton {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+/* Stream preview within chat view */
+.cardStreamPreview {
+  width: 100%;
+  height: 240px;
+  background-color: #000;
+  border: none;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-bottom: 1px solid #2c2c35;
+}
+
+.cardStreamPreview iframe {
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+.cardChatFrame {
+  flex: 1;
+  min-height: 250px;
+  height: 300px; 
+  overflow: hidden;
+  background-color: #0e0e10;
+  border: none;
+  display: block;
+  border-bottom: 1px solid #2c2c35;
+}
+
+.cardChatFrame iframe {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.quickMessageButtons {
+  padding: 10px 15px;
+  background-color: #18181b;
+  border-top: 1px solid #2c2c35;
+  flex-shrink: 0;
+}
+
+.quickMessageList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 5px;
+  margin-top: 10px;
+}
+
+/* Card with chat on mobile */
+@media (max-width: 768px) {
+  .cardWithChat {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    max-height: none !important;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  
+  .cardStreamPreview {
+    height: 220px;
+  }
+  
+  .cardChatFrame {
+    height: 260px;
+    min-height: 200px;
+  }
+  
+  .quickMessageList {
+    max-height: 120px;
+  }
+}
+
+/* Chat controls */
+.chatControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.viewToggleButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.viewToggleButton:hover {
+  background: rgba(255, 255, 255, 0.3);
 }

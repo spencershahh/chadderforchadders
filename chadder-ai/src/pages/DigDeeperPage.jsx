@@ -113,6 +113,21 @@ const DigDeeperPage = () => {
   const [currentChatStreamer, setCurrentChatStreamer] = useState(null);
   const [preloadedStreamers, setPreloadedStreamers] = useState(new Set());
   const [autoPlayDelay, setAutoPlayDelay] = useState(500);
+  const [authChecked, setAuthChecked] = useState(false);
+  
+  // Authentication check - only run when user state changes
+  useEffect(() => {
+    // Only show auth modal if we've confirmed user is null (not logged in)
+    // This prevents the modal from showing during initial loading
+    if (user === null) {
+      setShowAuthModal(true);
+    } else if (user) {
+      setShowAuthModal(false);
+    }
+    
+    // Mark that we've checked auth status
+    setAuthChecked(true);
+  }, [user]);
   
   // Preference selector state
   const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
@@ -508,6 +523,55 @@ const DigDeeperPage = () => {
     }
   }, [user]);
   
+  // Save favorite to database
+  const saveFavorite = useCallback(async (streamer) => {
+    if (!user) return;
+    
+    try {
+      // Check if already favorited
+      const { data: existingFavorite, error: checkError } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('streamer_id', streamer.twitch_id);
+      
+      if (checkError) {
+        console.error('Error checking for existing favorite:', checkError);
+        return;
+      }
+      
+      // If already favorited, don't add again
+      if (existingFavorite && existingFavorite.length > 0) {
+        console.log('Streamer already in favorites');
+        return;
+      }
+      
+      // Save to favorites table
+      const { error } = await supabase
+        .from('favorites')
+        .insert([
+          { 
+            user_id: user.id,
+            streamer_id: streamer.twitch_id,
+            streamer_username: streamer.username,
+            streamer_display_name: streamer.display_name || streamer.username,
+            profile_image_url: streamer.profile_image_url,
+            added_at: new Date().toISOString()
+          }
+        ]);
+      
+      if (error) {
+        console.error('Error saving favorite:', error);
+        toast.error('Failed to add to favorites.');
+      } else {
+        console.log('Favorite saved successfully for', streamer.username);
+        toast.success('Added to favorites!');
+      }
+    } catch (err) {
+      console.error('Exception saving favorite:', err);
+    }
+  }, [user]);
+  
   // Handle swipe events
   const handleSwipeRight = useCallback((streamer) => {
     const currentStreamer = streamers[currentIndex];
@@ -516,15 +580,18 @@ const DigDeeperPage = () => {
       toast.info('Sign in to save favorites!');
       setShowAuthModal(true);
     } else if (currentStreamer) {
-      toast.success('Added to favorites!');
       // Save vote to database
       saveVote(currentStreamer);
+      
+      // Save to favorites
+      saveFavorite(currentStreamer);
+      
       // Track this swipe in history
       addToSwiped(currentStreamer.twitch_id, 'right');
     }
     
     nextCard();
-  }, [nextCard, currentIndex, streamers, user, saveVote, addToSwiped]);
+  }, [nextCard, currentIndex, streamers, user, saveVote, addToSwiped, saveFavorite]);
   
   const handleSwipeLeft = useCallback(() => {
     // Track this swipe in history
@@ -1052,10 +1119,13 @@ const DigDeeperPage = () => {
     }
     
     const streamer = streamers[currentIndex];
+    const isChatActive = chatOpen && currentChatStreamer && currentChatStreamer.twitch_id === streamer.twitch_id;
+    const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+    const showPreviewButton = streamer.is_live && !isChatActive;
     
     return (
       <motion.div 
-        className={styles.card}
+        className={`${styles.card} ${isChatActive ? styles.cardWithChat : ''}`}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         onDragStart={handleDragStart}
@@ -1063,18 +1133,24 @@ const DigDeeperPage = () => {
         animate={controls}
         whileTap={{ scale: 0.98 }}
       >
-        <div 
-          className={styles.cardImageContainer}
-          style={{ 
-            backgroundImage: previewPlaying !== streamer.twitch_id ? 
-              `url(${streamer.thumbnail_url || streamer.profile_image_url || 'https://via.placeholder.com/300'})` : 
-              'none',
-            height: previewPlaying === streamer.twitch_id ? 'auto' : '70%'
-          }}
-        >
-          {previewPlaying === streamer.twitch_id ? (
-            renderStreamPreview(streamer)
-          ) : (
+        {!isChatActive && (
+          <div 
+            className={styles.cardImageContainer}
+            style={{ 
+              height: '70%',
+              backgroundImage: 'none'
+            }}
+          >
+            {/* Auto-play video instead of thumbnail */}
+            <iframe
+              src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true&autoplay=true`}
+              height="100%"
+              width="100%"
+              allowFullScreen={true}
+              title={`${streamer.display_name} stream preview`}
+              className={styles.cardStreamVideo}
+            ></iframe>
+            
             <div className={styles.cardOverlayContent}>
               <div className={styles.streamerOverlay}>
                 <span className={styles.streamerNameOverlay}>{streamer.display_name || streamer.username}</span>
@@ -1097,179 +1173,201 @@ const DigDeeperPage = () => {
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
         
-        <div className={styles.cardContent}>
-          <div className={styles.streamerInfoCompact}>
-            <h2>{streamer.display_name || streamer.username}</h2>
+        {isChatActive && (
+          <div className={styles.cardChatContainer}>
+            <div className={styles.cardChatHeader}>
+              <h3>Chat with {streamer.display_name}</h3>
+              <button className={styles.closeChatButton} onClick={() => setChatOpen(false)}>✕</button>
+            </div>
             
-            <div className={styles.streamerStats}>
-              {streamer.game_name && (
-                <div className={styles.categoryTag}>
-                  <span className={styles.categoryLabel}>
-                    {activeCategories.find(cat => cat.id === streamer.category_id)?.icon || '🎮'} {streamer.game_name}
-                  </span>
-                </div>
-              )}
+            {/* Always show stream at the top when chat is open */}
+            <div className={styles.cardStreamPreview}>
+              <iframe
+                src={`https://player.twitch.tv/?channel=${streamer.username}&parent=${hostname}&muted=true`}
+                height="100%"
+                width="100%"
+                allowFullScreen={true}
+                title={`${streamer.display_name} stream preview`}
+              ></iframe>
+            </div>
+            
+            <div className={styles.cardChatFrame}>
+              <iframe
+                key={`chat-${streamer.username}`}
+                src={`https://www.twitch.tv/embed/${streamer.username}/chat?parent=${hostname}&darkpopout`}
+                height="100%"
+                width="100%"
+                title={`${streamer.display_name} chat`}
+              ></iframe>
+            </div>
+            
+            <div className={styles.quickMessageButtons}>
+              <div className={styles.quickMessageHeader}>
+                <h4>Quick Messages</h4>
+                <button 
+                  className={styles.refreshMessagesButton}
+                  onClick={generateNewMessageOptions}
+                >
+                  🔄 New Options
+                </button>
+              </div>
               
-              {streamer.is_live && (
-                <div className={styles.viewerTag}>
-                  <span className={styles.viewerLabel}>
-                    👁️ {(streamer.view_count || 0).toLocaleString()}
-                  </span>
-                </div>
-              )}
-              
-              {streamer.vote_count > 0 && (
-                <div className={styles.voteTag}>
-                  <span className={styles.voteLabel}>
-                    🔥 {streamer.vote_count} votes
-                  </span>
-                </div>
-              )}
+              <div className={styles.quickMessageList}>
+                {quickMessages.map(msg => (
+                  <button 
+                    key={msg.id}
+                    className={styles.quickMessageButton}
+                    onClick={() => {
+                      navigator.clipboard.writeText(msg.text);
+                      toast.success('Message copied to clipboard!', { duration: 2000 });
+                    }}
+                  >
+                    {msg.text}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          
-          {streamer.stream_title && (
-            <div className={styles.streamTitle}>
-              {streamer.stream_title}
-            </div>
-          )}
-          
-          {streamer.is_live && previewPlaying !== streamer.twitch_id && renderStreamPreview(streamer)}
-          
-          <div className={styles.cardFooter}>
-            <div className={styles.actionContainer}>
-              {streamer.is_live && (
-                <button 
-                  className={styles.quickChatButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentChatStreamer(streamer);
-                    setChatOpen(true);
-                  }}
-                >
-                  💬 Chat Now
-                </button>
-              )}
+        )}
+        
+        {!isChatActive && (
+          <div className={styles.cardContent}>
+            <div className={styles.streamerInfoCompact}>
+              <h2>{streamer.display_name || streamer.username}</h2>
               
-              {streamer.is_live && (
-                <Link 
-                  to={`/stream/${streamer.username}`} 
-                  className={styles.watchButton}
-                >
-                  🔴 Watch Live
-                </Link>
-              )}
+              <div className={styles.streamerStats}>
+                {streamer.game_name && (
+                  <div className={styles.categoryTag}>
+                    <span className={styles.categoryLabel}>
+                      {activeCategories.find(cat => cat.id === streamer.category_id)?.icon || '🎮'} {streamer.game_name}
+                    </span>
+                  </div>
+                )}
+                
+                {streamer.is_live && (
+                  <div className={styles.viewerTag}>
+                    <span className={styles.viewerLabel}>
+                      👁️ {(streamer.view_count || 0).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                
+                {streamer.vote_count > 0 && (
+                  <div className={styles.voteTag}>
+                    <span className={styles.voteLabel}>
+                      🔥 {streamer.vote_count} votes
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             
-            <div className={styles.extraActions}>
+            {streamer.stream_title && (
+              <div className={styles.streamTitle}>
+                {streamer.stream_title}
+              </div>
+            )}
+            
+            {showPreviewButton && (
               <button 
-                className={styles.followButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toast.success(`Following ${streamer.display_name || streamer.username}!`);
+                className={styles.previewButton}
+                onClick={() => {
+                  setCurrentChatStreamer(streamer);
+                  setChatOpen(true);
                 }}
-                title="Follow this streamer"
               >
-                + Follow
+                ▶️ Watch & Chat
               </button>
+            )}
+            
+            <div className={styles.cardFooter}>
+              <div className={styles.actionContainer}>
+                {streamer.is_live && (
+                  <button 
+                    className={styles.quickChatButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentChatStreamer(streamer);
+                      setChatOpen(true);
+                    }}
+                  >
+                    💬 Chat Now
+                  </button>
+                )}
+                
+                {streamer.is_live && (
+                  <Link 
+                    to={`/stream/${streamer.username}`} 
+                    className={styles.watchButton}
+                  >
+                    🔴 Watch Live
+                  </Link>
+                )}
+              </div>
               
-              <button
-                className={styles.shareButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (navigator.share) {
-                    navigator.share({
-                      title: `Check out ${streamer.display_name} on Twitch!`,
-                      text: `I found an awesome small streamer: ${streamer.display_name}`,
-                      url: `https://twitch.tv/${streamer.username}`
-                    })
-                    .catch(err => {
-                      console.error('Error sharing:', err);
+              <div className={styles.extraActions}>
+                <button 
+                  className={styles.followButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    
+                    if (!user) {
+                      toast.info('Sign in to save favorites!');
+                      setShowAuthModal(true);
+                      return;
+                    }
+                    
+                    // Save to favorites
+                    saveFavorite(streamer);
+                    toast.success(`Added ${streamer.display_name || streamer.username} to favorites!`);
+                  }}
+                  title="Add to favorites"
+                >
+                  + Favorite
+                </button>
+                
+                <button
+                  className={styles.shareButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (navigator.share) {
+                      navigator.share({
+                        title: `Check out ${streamer.display_name} on Twitch!`,
+                        text: `I found an awesome small streamer: ${streamer.display_name}`,
+                        url: `https://twitch.tv/${streamer.username}`
+                      })
+                      .catch(err => {
+                        console.error('Error sharing:', err);
+                        navigator.clipboard.writeText(`https://twitch.tv/${streamer.username}`)
+                          .then(() => toast.success('Link copied to clipboard!'))
+                          .catch(() => toast.error('Could not copy link'));
+                      });
+                    } else {
                       navigator.clipboard.writeText(`https://twitch.tv/${streamer.username}`)
                         .then(() => toast.success('Link copied to clipboard!'))
                         .catch(() => toast.error('Could not copy link'));
-                    });
-                  } else {
-                    navigator.clipboard.writeText(`https://twitch.tv/${streamer.username}`)
-                      .then(() => toast.success('Link copied to clipboard!'))
-                      .catch(() => toast.error('Could not copy link'));
-                  }
-                }}
-                title="Share this streamer"
-              >
-                <span role="img" aria-label="Share">🔗</span>
-              </button>
+                    }
+                  }}
+                  title="Share this streamer"
+                >
+                  <span role="img" aria-label="Share">🔗</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </motion.div>
     );
-  }, [controls, currentIndex, fetchStreamers, handleDragEnd, handleDragStart, loading, previewPlaying, renderStreamPreview, streamers, activeCategories]);
+  }, [controls, currentIndex, fetchStreamers, handleDragEnd, handleDragStart, loading, renderStreamPreview, streamers, activeCategories, chatOpen, currentChatStreamer, quickMessages, generateNewMessageOptions, saveFavorite]);
   
   // Render quick chat modal
   const renderQuickChatModal = useCallback(() => {
-    if (!chatOpen || !currentChatStreamer) return null;
-    
-    const hostname = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
-    
-    return (
-      <div className={styles.chatModalOverlay} onClick={() => setChatOpen(false)}>
-        <div className={styles.chatModalContent} onClick={(e) => e.stopPropagation()}>
-          <div className={styles.chatModalHeader}>
-            <h3>Chat with {currentChatStreamer.display_name}</h3>
-            <button className={styles.closeButton} onClick={() => setChatOpen(false)}>✕</button>
-          </div>
-          
-          <div className={styles.chatStreamPreview}>
-            <iframe
-              src={`https://player.twitch.tv/?channel=${currentChatStreamer.username}&parent=${hostname}&muted=false`}
-              height="200px"
-              width="100%"
-              allowFullScreen={true}
-              title={`${currentChatStreamer.display_name} stream`}
-            ></iframe>
-          </div>
-          
-          <div className={styles.chatContainer}>
-            <iframe
-              src={`https://www.twitch.tv/embed/${currentChatStreamer.username}/chat?parent=${hostname}`}
-              height="300px"
-              width="100%"
-              title={`${currentChatStreamer.display_name} chat`}
-            ></iframe>
-          </div>
-          
-          <div className={styles.quickMessageButtons}>
-            <div className={styles.quickMessageHeader}>
-              <h4>Quick Messages</h4>
-              <button 
-                className={styles.refreshMessagesButton}
-                onClick={generateNewMessageOptions}
-              >
-                🔄 New Options
-              </button>
-            </div>
-            
-            {quickMessages.map(msg => (
-              <button 
-                key={msg.id}
-                className={styles.quickMessageButton}
-                onClick={() => {
-                  navigator.clipboard.writeText(msg.text);
-                  toast.success('Message copied to clipboard!', { duration: 2000 });
-                }}
-              >
-                {msg.text}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }, [chatOpen, currentChatStreamer, generateNewMessageOptions, quickMessages]);
+    // Return null because we're showing chat directly in the card now
+    return null;
+  }, []);
   
   // Render preference selector
   const renderPreferenceSelector = useCallback(() => {
@@ -1362,107 +1460,123 @@ const DigDeeperPage = () => {
       <AuthModal 
         show={showAuthModal} 
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)} 
+        onClose={() => {
+          // If user is not authenticated, don't allow closing the modal
+          if (user) {
+            setShowAuthModal(false);
+          } else {
+            navigate('/');
+          }
+        }} 
         onLogin={() => window.location.href = '/login'}
         onSignup={() => window.location.href = '/signup'}
       />
       
-      <div className={styles.header}>
-        <h1>Dig Deeper</h1>
-        <p>Discover and vote for your favorite Twitch streamers</p>
-        
-        <div className={styles.headerButtons}>
-          <button
-            onClick={() => navigate('/favorites')}
-            className={styles.preferencesButton}
-            title="View your favorited streamers"
-          >
-            <span>❤️</span> Favorites
-          </button>
-          <button
-            onClick={() => setShowPreferenceSelector(true)}
-            className={styles.preferencesButton}
-            title="Select stream preferences"
-          >
-            <span>🎮</span> Preferences
-          </button>
-          <button
-            onClick={fetchStreamers}
-            className={`${styles.refreshButton} ${refreshing ? styles.refreshing : ''}`}
-            disabled={refreshing}
-          >
-            <span className={styles.refreshIcon}>🔄</span> 
-            {refreshing ? 'Refreshing...' : 'Refresh Data'}
-          </button>
+      {authChecked && !user ? (
+        <div className={styles.authRequiredContainer}>
+          <h2>Authentication Required</h2>
+          <p>Please sign in to access the Dig Deeper feature</p>
         </div>
-      </div>
-      
-      <div className={styles.instructionsContainer}>
-        <div className={styles.instruction}>
-          <span>👈</span>
-          <p>Swipe left to pass</p>
-        </div>
-        <div className={styles.instruction}>
-          <span>👉</span>
-          <p>Swipe right to favorite</p>
-        </div>
-      </div>
-      
-      <div className={styles.cardsContainer}>
-        {renderContent()}
-        
-        {/* Render action buttons below the card instead of fixed position */}
-        {streamers.length > 0 && currentIndex < streamers.length && (
-          <div className={styles.actionButtons}>
-            <button 
-              onClick={() => {
-                controls.start({ 
-                  x: -viewportWidth, 
-                  rotateZ: -10, 
-                  transition: { duration: 0.3 } 
-                }).then(() => {
-                  handleSwipeLeft();
-                });
-              }}
-              aria-label="Dislike"
-              className={styles.actionButton}
-              style={{
-                background: 'linear-gradient(135deg, #ff5252, #ff7676)',
-                width: isMobile ? '3.2rem' : '4rem',
-                height: isMobile ? '3.2rem' : '4rem',
-                fontSize: isMobile ? '1.3rem' : '1.5rem'
-              }}
-            >
-              👎
-            </button>
-            <button 
-              onClick={() => {
-                controls.start({ 
-                  x: viewportWidth, 
-                  rotateZ: 10, 
-                  transition: { duration: 0.3 } 
-                }).then(() => {
-                  handleSwipeRight(streamers[currentIndex]);
-                });
-              }}
-              aria-label="Like"
-              className={styles.actionButton}
-              style={{
-                background: 'linear-gradient(135deg, #9147ff, #b347ff)',
-                width: isMobile ? '3.2rem' : '4rem',
-                height: isMobile ? '3.2rem' : '4rem',
-                fontSize: isMobile ? '1.3rem' : '1.5rem'
-              }}
-            >
-              ❤️
-            </button>
+      ) : (
+        <>
+          <div className={styles.header}>
+            <h1>Dig Deeper</h1>
+            <p>Discover and vote for your favorite Twitch streamers</p>
+            
+            <div className={styles.headerButtons}>
+              <button
+                onClick={() => navigate('/favorites')}
+                className={styles.preferencesButton}
+                title="View your favorited streamers"
+              >
+                <span>❤️</span> Favorites
+              </button>
+              <button
+                onClick={() => setShowPreferenceSelector(true)}
+                className={styles.preferencesButton}
+                title="Select stream preferences"
+              >
+                <span>🎮</span> Preferences
+              </button>
+              <button
+                onClick={fetchStreamers}
+                className={`${styles.refreshButton} ${refreshing ? styles.refreshing : ''}`}
+                disabled={refreshing}
+              >
+                <span className={styles.refreshIcon}>🔄</span> 
+                {refreshing ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-      
-      {renderQuickChatModal()}
-      {renderPreferenceSelector()}
-      <AdvancedStreamerPreloader streamers={streamers} currentIndex={currentIndex} />
+          
+          <div className={styles.instructionsContainer}>
+            <div className={styles.instruction}>
+              <span>👈</span>
+              <p>Swipe left to pass</p>
+            </div>
+            <div className={styles.instruction}>
+              <span>👉</span>
+              <p>Swipe right to favorite</p>
+            </div>
+          </div>
+          
+          <div className={styles.cardsContainer}>
+            {renderContent()}
+            
+            {/* Render action buttons below the card instead of fixed position */}
+            {streamers.length > 0 && currentIndex < streamers.length && (
+              <div className={styles.actionButtons}>
+                <button 
+                  onClick={() => {
+                    controls.start({ 
+                      x: -viewportWidth, 
+                      rotateZ: -10, 
+                      transition: { duration: 0.3 } 
+                    }).then(() => {
+                      handleSwipeLeft();
+                    });
+                  }}
+                  aria-label="Dislike"
+                  className={styles.actionButton}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff5252, #ff7676)',
+                    width: isMobile ? '3.2rem' : '4rem',
+                    height: isMobile ? '3.2rem' : '4rem',
+                    fontSize: isMobile ? '1.3rem' : '1.5rem'
+                  }}
+                >
+                  👎
+                </button>
+                <button 
+                  onClick={() => {
+                    controls.start({ 
+                      x: viewportWidth, 
+                      rotateZ: 10, 
+                      transition: { duration: 0.3 } 
+                    }).then(() => {
+                      handleSwipeRight(streamers[currentIndex]);
+                    });
+                  }}
+                  aria-label="Like"
+                  className={styles.actionButton}
+                  style={{
+                    background: 'linear-gradient(135deg, #9147ff, #b347ff)',
+                    width: isMobile ? '3.2rem' : '4rem',
+                    height: isMobile ? '3.2rem' : '4rem',
+                    fontSize: isMobile ? '1.3rem' : '1.5rem'
+                  }}
+                >
+                  ❤️
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {renderQuickChatModal()}
+          {renderPreferenceSelector()}
+          <AdvancedStreamerPreloader streamers={streamers} currentIndex={currentIndex} />
+        </>
+      )}
     </div>
   );
 };
