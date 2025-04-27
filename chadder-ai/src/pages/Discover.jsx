@@ -572,32 +572,97 @@ const Discover = () => {
         setIsTrendingLoading(false);
         return;
       }
+
+      // Find the top voted streamer
+      const topVotedStreamerUsername = sortedStreamers[0]?.streamer;
       
-      // Map votes to streamer details and normalize the data
-      const trendingStreamersWithVotes = streamerDetails.map(streamer => {
-        const votes = votesMap[streamer.username] || 0;
-        // Normalize data structure to match what renderStreamerCard expects
-        return {
-          ...streamer,
-          votes,
-          user_name: streamer.display_name || streamer.username,
-          user_login: streamer.username,
-          display_name: streamer.display_name || streamer.username
-        };
-      }).sort((a, b) => b.votes - a.votes);
-      
-      setTrendingStreamers(trendingStreamersWithVotes);
-      
-      // If we have a top streamer, set it
-      if (trendingStreamersWithVotes.length > 0) {
-        const topStreamerData = trendingStreamersWithVotes[0];
-        setTopStreamer({
-          ...topStreamerData,
-          user_name: topStreamerData.display_name || topStreamerData.username,
-          user_login: topStreamerData.username,
-          weeklyVotes: topStreamerData.votes,
-          profile_image_url: topStreamerData.profile_image_url || DEFAULT_PROFILE_IMAGE
-        });
+      // Try to enrich the streamer data with Twitch API data
+      try {
+        // Fetch enriched data from API if available
+        const enrichedStreamerData = await fetchStreamers(streamerUsernames.join(','));
+        console.log('Enriched streamer data from API:', enrichedStreamerData);
+        
+        // Create a map of username to enriched data for easy lookup
+        const enrichedDataMap = {};
+        if (Array.isArray(enrichedStreamerData)) {
+          enrichedStreamerData.forEach(streamer => {
+            const username = streamer.user_login?.toLowerCase();
+            if (username) {
+              enrichedDataMap[username] = streamer;
+            }
+          });
+        }
+        
+        // Map votes to streamer details and normalize the data
+        const trendingStreamersWithVotes = streamerDetails.map(streamer => {
+          const votes = votesMap[streamer.username] || 0;
+          const username = streamer.username?.toLowerCase();
+          const enrichedData = username ? enrichedDataMap[username] : null;
+          
+          // Use enriched data if available, otherwise fallback to database data
+          const profileImageUrl = enrichedData?.profile_image_url || streamer.profile_image_url;
+          
+          console.log(`Streamer ${streamer.username} profile image:`, profileImageUrl);
+          
+          // Normalize data structure to match what renderStreamerCard expects
+          return {
+            ...streamer,
+            ...enrichedData, // Merge in any enriched data available
+            votes,
+            user_name: streamer.display_name || streamer.username,
+            user_login: streamer.username,
+            display_name: streamer.display_name || streamer.username,
+            profile_image_url: profileImageUrl
+          };
+        }).sort((a, b) => b.votes - a.votes);
+        
+        setTrendingStreamers(trendingStreamersWithVotes);
+        
+        // If we have a top streamer, set it
+        if (trendingStreamersWithVotes.length > 0) {
+          const topStreamerData = trendingStreamersWithVotes.find(
+            s => s.username?.toLowerCase() === topVotedStreamerUsername?.toLowerCase()
+          ) || trendingStreamersWithVotes[0];
+          
+          console.log('Setting top streamer data:', topStreamerData);
+          console.log('Top streamer profile image URL:', topStreamerData.profile_image_url);
+          
+          setTopStreamer({
+            ...topStreamerData,
+            user_name: topStreamerData.display_name || topStreamerData.username,
+            user_login: topStreamerData.username,
+            weeklyVotes: topStreamerData.votes,
+            profile_image_url: topStreamerData.profile_image_url || DEFAULT_PROFILE_IMAGE
+          });
+        }
+      } catch (enrichError) {
+        console.error('Error enriching streamer data:', enrichError);
+        
+        // Fallback to just using the database data without enrichment
+        const trendingStreamersWithVotes = streamerDetails.map(streamer => {
+          const votes = votesMap[streamer.username] || 0;
+          return {
+            ...streamer,
+            votes,
+            user_name: streamer.display_name || streamer.username,
+            user_login: streamer.username,
+            display_name: streamer.display_name || streamer.username
+          };
+        }).sort((a, b) => b.votes - a.votes);
+        
+        setTrendingStreamers(trendingStreamersWithVotes);
+        
+        // If we have a top streamer, set it
+        if (trendingStreamersWithVotes.length > 0) {
+          const topStreamerData = trendingStreamersWithVotes[0];
+          setTopStreamer({
+            ...topStreamerData,
+            user_name: topStreamerData.display_name || topStreamerData.username,
+            user_login: topStreamerData.username,
+            weeklyVotes: topStreamerData.votes,
+            profile_image_url: topStreamerData.profile_image_url || DEFAULT_PROFILE_IMAGE
+          });
+        }
       }
       
       setIsTrendingLoading(false);
@@ -901,15 +966,29 @@ const Discover = () => {
     // Use a standard placeholder image for missing profile images
     const getProfileImagePlaceholder = () => {
       // Use Twitch's default profile image or a placeholder that clearly indicates it's not real data
-      return DEFAULT_PROFILE_IMAGE || "https://via.placeholder.com/70x70/6441a5/FFFFFF?text=No+Profile";
+      return DEFAULT_PROFILE_IMAGE || "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png";
     };
     
     // Get appropriate thumbnail - always use real thumbnails from Twitch
     const getThumbnail = () => {
       if (streamer.type === "live" && streamer.thumbnail_url) {
-        return streamer.thumbnail_url;
+        return streamer.thumbnail_url.replace('{width}', '320').replace('{height}', '180');
       }
       return streamer.offline_image_url || OFFLINE_THUMBNAIL;
+    };
+
+    // Get proper profile image - check multiple properties
+    const getProfileImage = () => {
+      if (streamer.profile_image_url) {
+        return streamer.profile_image_url;
+      }
+      
+      // Check for profile_image property from Twitch API
+      if (streamer.profile_image) {
+        return streamer.profile_image;
+      }
+      
+      return getProfileImagePlaceholder();
     };
 
     return (
@@ -934,7 +1013,7 @@ const Discover = () => {
         <div className={styles.streamerCardContent}>
           <img
             className={styles.streamerProfileImage}
-            src={streamer.profile_image_url || getProfileImagePlaceholder()}
+            src={getProfileImage()}
             alt={`${userName}'s profile`}
             onError={(e) => {
               console.log(`Failed to load profile image for ${userName}, using fallback`);
@@ -1042,10 +1121,14 @@ const Discover = () => {
             </div>
 
             <img 
-              src={topStreamer.profile_image_url} 
+              src={topStreamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
               alt={`${topStreamer.user_name} profile`} 
               className={styles.topStreamerProfileImage}
               loading="lazy"
+              onError={(e) => {
+                console.log('Failed to load top streamer profile image, using fallback');
+                e.target.src = DEFAULT_PROFILE_IMAGE;
+              }}
             />
             
             <div className={styles.topStreamerInfo}>
