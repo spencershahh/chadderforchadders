@@ -29,7 +29,6 @@ const XpProgressBar = () => {
     return null;
   }
   
-  const level = progression.level || 1;
   const currentXp = progression.xp || 0;
   const nextLevelXp = getNextLevelXp;
   const xpNeeded = nextLevelXp - currentXp;
@@ -48,10 +47,6 @@ const XpProgressBar = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      <div className={styles.levelBadge}>
-        <span>{level}</span>
-      </div>
       
       <div className={styles.progressBarWrapper}>
         <motion.div 
