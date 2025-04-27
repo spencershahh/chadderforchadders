@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import XpProgressBar from './XpProgressBar';
+import GemBalanceDisplay from './GemBalanceDisplay';
+import AchievementDisplay from './AchievementDisplay';
+import DailyChallenges from './DailyChallenges';
+import { useAuth } from '../hooks/AuthProvider';
 import './Navbar.css';
 
-const Navbar = ({ user }) => {
+const Navbar = () => {
+  const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const menuRef = useRef(null);
@@ -38,10 +44,8 @@ const Navbar = ({ user }) => {
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await logout();
       navigate('/');
-      window.location.reload(); // Force reload to clear all states
     } catch (error) {
       console.error('Error logging out:', error);
     }
@@ -112,39 +116,61 @@ const Navbar = ({ user }) => {
   );
 
   return (
-    <nav className="navbar">
-      <div className="navbar-brand">
-        <Link to="/" className="logo" onClick={() => setIsOpen(false)}>
-          chadder.<span>ai</span>
-        </Link>
-      </div>
+    <>
+      <nav className="navbar">
+        <div className="navbar-brand">
+          <Link to="/" className="logo" onClick={() => setIsOpen(false)}>
+            chadder.<span>ai</span>
+          </Link>
+        </div>
 
-      {/* Desktop Navigation */}
-      <div className="nav-links">
-        {navLinks}
-      </div>
+        {/* XP and Gems Display - Only show when logged in */}
+        {user && (
+          <div className="nav-gamification">
+            <XpProgressBar />
+            <GemBalanceDisplay />
+          </div>
+        )}
 
-      {/* Mobile Navigation */}
-      <button 
-        ref={hamburgerRef}
-        className={`hamburger ${isOpen ? 'active' : ''}`} 
-        onClick={toggleMenu}
-        aria-label="Toggle navigation menu"
-        aria-expanded={isOpen}
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
+        {/* Desktop Navigation */}
+        <div className="nav-links">
+          {navLinks}
+        </div>
 
-      <div 
-        ref={menuRef}
-        className={`navbar-menu ${isOpen ? 'active' : ''}`}
-        aria-hidden={!isOpen}
-      >
-        {navLinks}
-      </div>
-    </nav>
+        {/* Mobile Navigation */}
+        <button 
+          ref={hamburgerRef}
+          className={`hamburger ${isOpen ? 'active' : ''}`} 
+          onClick={toggleMenu}
+          aria-label="Toggle navigation menu"
+          aria-expanded={isOpen}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <div 
+          ref={menuRef}
+          className={`navbar-menu ${isOpen ? 'active' : ''}`}
+          aria-hidden={!isOpen}
+        >
+          {user && (
+            <div className="mobile-gamification">
+              <XpProgressBar />
+              <GemBalanceDisplay />
+            </div>
+          )}
+          {navLinks}
+        </div>
+      </nav>
+      
+      {/* Achievement popups system */}
+      {user && <AchievementDisplay />}
+      
+      {/* Daily challenges floating panel */}
+      {user && <DailyChallenges />}
+    </>
   );
 };
 

@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { motion, useAnimation } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import { useActivityTracker } from '../hooks/useActivityTracker';
 import styles from './DigDeeperPage.module.css';
 import AuthModal from '../components/AuthModal';
 
@@ -114,6 +115,9 @@ const DigDeeperPage = () => {
   const [preloadedStreamers, setPreloadedStreamers] = useState(new Set());
   const [autoPlayDelay, setAutoPlayDelay] = useState(500);
   const [authChecked, setAuthChecked] = useState(false);
+  
+  // Activity tracking
+  const { trackDigDeeper } = useActivityTracker();
   
   // Authentication check - only run when user state changes
   useEffect(() => {
@@ -1454,6 +1458,20 @@ const DigDeeperPage = () => {
       </div>
     );
   }, [showPreferenceSelector, selectedPreferences, activeCategories, fetchStreamers, loadingCategories, fetchTopCategories]);
+  
+  // Track when user swipes left or right
+  const handleSwipe = async (direction) => {
+    if (!currentStreamer) return;
+    
+    try {
+      // Track Dig Deeper usage
+      trackDigDeeper(1);
+      
+      // ... rest of existing handleSwipe logic ...
+    } catch (error) {
+      console.error('Error handling swipe:', error);
+    }
+  };
   
   return (
     <div className={styles.container}>

@@ -1,0 +1,99 @@
+.progressContainer {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 0 8px;
+  cursor: pointer;
+  max-width: 200px;
+  transition: all 0.2s ease;
+}
+
+.progressContainer:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.levelBadge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+  color: white;
+  margin-right: 8px;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+  flex-shrink: 0;
+}
+
+.progressBarWrapper {
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border-radius: 3px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.progressInfo {
+  position: absolute;
+  top: -14px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.currentXp, .nextLevelXp {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+.xpNeeded {
+  position: absolute;
+  bottom: -16px;
+  left: 32px;
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.levelUpAnimation {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .progressContainer {
+    max-width: 150px;
+  }
+  
+  .xpNeeded {
+    display: none;
+  }
+} 

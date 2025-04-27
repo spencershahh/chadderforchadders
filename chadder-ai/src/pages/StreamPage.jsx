@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import InsufficientGemsModal from '../components/InsufficientGemsModal';
 import WatchAdButton from '../components/WatchAdButton';
 import GemBalanceDisplay from '../components/GemBalanceDisplay';
+import { useActivityTracker } from '../hooks/useActivityTracker';
 import './StreamPage.css';
 import './MobileStreamPage.css';
 
@@ -40,6 +41,10 @@ const StreamPage = () => {
   const [showMobileVotePanel, setShowMobileVotePanel] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
+
+  // Activity tracking
+  const { trackStreamWatch, trackChatMessage, trackVote } = useActivityTracker();
+  const [hasTrackedView, setHasTrackedView] = useState(false);
 
   // Simplified debug logging
   useEffect(() => {
@@ -297,6 +302,19 @@ const StreamPage = () => {
     }
   }, [isMobile]);
 
+  // Track stream view
+  useEffect(() => {
+    if (normalizedUsername && !hasTrackedView) {
+      // Don't track view until the stream is actually loaded and visible
+      const timer = setTimeout(() => {
+        trackStreamWatch(normalizedUsername, normalizedUsername);
+        setHasTrackedView(true);
+      }, 10000); // Track after 10 seconds to ensure actual engagement
+      
+      return () => clearTimeout(timer);
+    }
+  }, [normalizedUsername, hasTrackedView, trackStreamWatch]);
+
   const calculateDonationBomb = (votes) => {
     const WACP = 0.0725; // Fixed WACP value
     const totalCredits = votes.reduce((sum, vote) => sum + vote.vote_amount, 0);
@@ -407,6 +425,30 @@ const StreamPage = () => {
       chatIframe.classList.add("chat-iframe");
       
       chatContainer.appendChild(chatIframe);
+
+      // Add event listener to track chat messages
+      // Note: This is a simple implementation. A more robust approach would require
+      // integrating with Twitch API to track actual chat messages
+      const observer = new MutationObserver((mutations) => {
+        if (mutations.some(m => m.addedNodes.length > 0)) {
+          // If the user is actually typing in the chat
+          if (document.activeElement && 
+              document.activeElement.tagName === 'TEXTAREA' && 
+              chatContainer.contains(document.activeElement)) {
+            // Track chat message when the user sends one
+            // We would ideally track this more accurately with Twitch API
+            chatContainer.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                trackChatMessage(normalizedUsername);
+              }
+            });
+          }
+        }
+      });
+      
+      observer.observe(chatContainer, { childList: true, subtree: true });
+      
+      return () => observer.disconnect();
     } catch (error) {
       console.error("Error in setupTwitchChatEmbed:", error);
     }
@@ -623,6 +665,9 @@ const StreamPage = () => {
       
       // Reset vote success message after a delay
       setTimeout(() => setVoteSuccess(false), 2000);
+      
+      // On successful vote, track the activity
+      trackVote(normalizedUsername, selectedAmount);
       
       return true; // Return successful result
     } catch (err) {

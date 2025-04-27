@@ -256,4 +256,33 @@
     transform: rotate(-45deg);
     top: -8px;
   }
+}
+
+/* Gamification elements */
+.nav-gamification {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: 24px;
+  gap: 16px;
+}
+
+.mobile-gamification {
+  display: none;
+}
+
+@media screen and (max-width: 1024px) {
+  .nav-gamification {
+    display: none;
+  }
+  
+  .mobile-gamification {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+  }
 } 

@@ -1,0 +1,395 @@
+.profileContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: #6366f1;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.profileHeader {
+  background: linear-gradient(135deg, #1f2937, #111827);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.profileHeader h1 {
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0 0 24px 0;
+  color: white;
+}
+
+.profileStats {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.statCard {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  flex-grow: 1;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.statCard:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px);
+}
+
+.statValue {
+  font-size: 36px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.statLabel {
+  font-size: 14px;
+  color: #d1d5db;
+}
+
+.xpProgressContainer {
+  margin-top: 16px;
+}
+
+.xpProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  color: #d1d5db;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.xpProgressBar {
+  height: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.xpProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border-radius: 6px;
+}
+
+.profileNav {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid #374151;
+  padding-bottom: 16px;
+}
+
+.navButton {
+  background: none;
+  border: none;
+  color: #d1d5db;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.navButton:hover {
+  color: white;
+}
+
+.navButton.active {
+  color: #6366f1;
+}
+
+.navButton.active::after {
+  content: '';
+  position: absolute;
+  bottom: -17px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #6366f1;
+  border-radius: 3px 3px 0 0;
+}
+
+.profileContent {
+  min-height: 60vh;
+}
+
+/* Overview section styling */
+.overviewSection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.overviewCard {
+  background-color: #1f2937;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.overviewCard h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  color: white;
+  border-bottom: 1px solid #374151;
+  padding-bottom: 12px;
+}
+
+.streakDisplay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.streakValue {
+  font-size: 64px;
+  font-weight: bold;
+  color: #6366f1;
+  line-height: 1;
+}
+
+.streakLabel {
+  font-size: 16px;
+  color: #d1d5db;
+  letter-spacing: 2px;
+}
+
+.streakInfo {
+  text-align: center;
+  color: #d1d5db;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.streakRewardInfo h3 {
+  font-size: 16px;
+  color: white;
+  margin: 24px 0 16px 0;
+}
+
+.rewardsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rewardsList li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background-color: #374151;
+  color: #d1d5db;
+  font-size: 14px;
+}
+
+.rewardsList li.achieved {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: white;
+  position: relative;
+}
+
+.rewardsList li.achieved::after {
+  content: '✓';
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  background-color: #10b981;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.resourceButtons {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.resourceButton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  background-color: #374151;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: white;
+}
+
+.resourceButton:hover {
+  transform: translateY(-4px);
+  background-color: #4b5563;
+}
+
+.resourceIcon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.recentAchievements {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recentAchievement {
+  display: flex;
+  gap: 16px;
+  background-color: #374151;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.achievementIcon {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.achievementDetails {
+  flex: 1;
+}
+
+.achievementDetails h3 {
+  margin: 0;
+  font-size: 16px;
+  color: white;
+}
+
+.achievementDetails p {
+  margin: 4px 0 8px 0;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.achievementDate {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.noAchievements {
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px 0;
+}
+
+.viewAllButton {
+  background-color: transparent;
+  border: 1px solid #6366f1;
+  color: #6366f1;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 16px auto 0;
+  display: block;
+}
+
+.viewAllButton:hover {
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+/* Stats section styling */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.statBlock {
+  background-color: #1f2937;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.statBlock:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.statBlockIcon {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.statBlockValue {
+  font-size: 32px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.statBlockLabel {
+  font-size: 14px;
+  color: #d1d5db;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .profileHeader {
+    padding: 20px;
+  }
+  
+  .profileStats {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .overviewSection {
+    grid-template-columns: 1fr;
+  }
+  
+  .resourceButtons {
+    flex-direction: column;
+  }
+  
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+} 
