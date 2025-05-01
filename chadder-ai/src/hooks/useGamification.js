@@ -297,35 +297,58 @@ export function useGamification() {
     }
   };
 
+  // Track when user levels up to trigger level_reached achievements
+  const checkLevelAchievements = async (newLevel) => {
+    try {
+      const { data, error } = await supabase
+        .from('achievements')
+        .select('*')
+        .eq('achievement_type', 'level_reached')
+        .lte('requirement_count', newLevel);
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        for (const achievement of data) {
+          await awardAchievement(achievement.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking level achievements:', error);
+    }
+  };
+
   // Award XP to the user
   const awardXp = async (amount, reason = '') => {
     if (!user || !progression) return;
 
     try {
-      const currentXp = progression.xp || 0;
-      const currentLevel = progression.level || 1;
-      const newXp = currentXp + amount;
+      const newXp = progression.xp + amount;
+      let newLevel = progression.level;
+      let didLevelUp = false;
       
-      // Check if this XP will cause a level up
-      const xpForNextLevel = getXpForLevel(currentLevel + 1);
-      const willLevelUp = newXp >= xpForNextLevel;
-      
-      let newLevel = currentLevel;
-      if (willLevelUp) {
-        // Find the new level based on XP
-        while (newLevel < 100 && newXp >= getXpForLevel(newLevel + 1)) {
-          newLevel++;
-        }
+      // Check if user leveled up
+      const nextLevelXp = getXpForLevel(newLevel + 1);
+      if (newXp >= nextLevelXp) {
+        newLevel++;
+        didLevelUp = true;
         
-        // Show level up animation
-        setLevelUpAnimation(true);
-        setTimeout(() => setLevelUpAnimation(false), 3000);
+        // Award gems for leveling up
+        await awardGems(5, `Level up to level ${newLevel}`);
         
-        // Award gems for leveling up (Level × 10)
-        const gemsAwarded = newLevel * 10;
-        await awardGems(gemsAwarded, `Level up to level ${newLevel}`);
+        // Set level up animation
+        setLevelUpAnimation({ 
+          show: true, 
+          level: newLevel 
+        });
         
-        toast.success(`🎉 Level Up! You are now level ${newLevel} and earned ${gemsAwarded} gems!`);
+        // Hide animation after 3 seconds
+        setTimeout(() => {
+          setLevelUpAnimation({ show: false, level: 0 });
+        }, 3000);
+
+        // Check for level-based achievements
+        await checkLevelAchievements(newLevel);
       }
       
       // Update user progression
@@ -338,7 +361,7 @@ export function useGamification() {
         toast.success(`+${amount} XP: ${reason}`);
       }
       
-      return { xp: newXp, level: newLevel, leveledUp: willLevelUp };
+      return { xp: newXp, level: newLevel, leveledUp: didLevelUp };
     } catch (error) {
       console.error('Error awarding XP:', error);
       return null;
@@ -384,19 +407,28 @@ export function useGamification() {
   // Update user progression
   const updateProgression = async (updates) => {
     if (!user) return;
-
+    
     try {
+      // Add the update timestamp
+      updates.updated_at = new Date().toISOString();
+      
       const { error } = await supabase
         .from('user_progression')
         .update(updates)
         .eq('user_id', user.id);
-
+        
       if (error) throw error;
-
+      
       // Update local state
-      setProgression(prev => ({ ...prev, ...updates }));
+      setProgression(prev => ({
+        ...prev,
+        ...updates
+      }));
+      
+      return true;
     } catch (error) {
       console.error('Error updating progression:', error);
+      return false;
     }
   };
 
@@ -571,6 +603,25 @@ export function useGamification() {
       
       if (challenge.gem_reward > 0) {
         await awardGems(challenge.gem_reward, `Challenge: ${challenge.title}`);
+      }
+      
+      // Update challenges_completed count in progression
+      const updatedCount = (progression?.total_challenges_completed || 0) + 1;
+      await updateProgression({ total_challenges_completed: updatedCount });
+      
+      // Check for challenge completion achievements
+      const { data: challengeAchievements, error: achError } = await supabase
+        .from('achievements')
+        .select('*')
+        .eq('achievement_type', 'challenges_completed')
+        .lte('requirement_count', updatedCount);
+        
+      if (achError) throw achError;
+      
+      if (challengeAchievements && challengeAchievements.length > 0) {
+        for (const achievement of challengeAchievements) {
+          await awardAchievement(achievement.id);
+        }
       }
       
       // Refresh challenges

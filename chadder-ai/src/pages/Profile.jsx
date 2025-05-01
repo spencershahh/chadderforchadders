@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import styles from './Profile.module.css';
 
 const Profile = () => {
-  const { progression, loading, xpProgress } = useGamification();
+  const { progression, achievements, loading, xpProgress } = useGamification();
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'achievements', 'stats'
   
   if (loading) {
@@ -131,19 +131,19 @@ const Profile = () => {
             <div className={styles.overviewCard}>
               <h2>Recent Achievements</h2>
               <div className={styles.recentAchievements}>
-                {progression && progression.achievements && progression.achievements.length > 0 ? (
-                  progression.achievements
+                {achievements && achievements.length > 0 && achievements.some(a => a.completed) ? (
+                  achievements
                     .filter(a => a.completed)
                     .sort((a, b) => new Date(b.earned_at) - new Date(a.earned_at))
                     .slice(0, 3)
-                    .map(achievement => (
-                      <div key={achievement.id} className={styles.recentAchievement}>
+                    .map(achievementData => (
+                      <div key={achievementData.achievement.id} className={styles.recentAchievement}>
                         <div className={styles.achievementIcon}>🏆</div>
                         <div className={styles.achievementDetails}>
-                          <h3>{achievement.title}</h3>
-                          <p>{achievement.description}</p>
+                          <h3>{achievementData.achievement.title}</h3>
+                          <p>{achievementData.achievement.description}</p>
                           <span className={styles.achievementDate}>
-                            {new Date(achievement.earned_at).toLocaleDateString()}
+                            {new Date(achievementData.earned_at).toLocaleDateString()}
                           </span>
                         </div>
                       </div>

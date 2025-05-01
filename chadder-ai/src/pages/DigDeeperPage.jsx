@@ -119,19 +119,42 @@ const DigDeeperPage = () => {
   // Activity tracking
   const { trackDigDeeper } = useActivityTracker();
   
+  // Debug auth state
+  useEffect(() => {
+    console.log('Auth state:', { user, authChecked, showAuthModal });
+  }, [user, authChecked, showAuthModal]);
+  
   // Authentication check - only run when user state changes
   useEffect(() => {
-    // Only show auth modal if we've confirmed user is null (not logged in)
-    // This prevents the modal from showing during initial loading
-    if (user === null) {
-      setShowAuthModal(true);
-    } else if (user) {
-      setShowAuthModal(false);
-    }
+    const checkAuth = () => {
+      // If we have a user, ensure auth modal is closed
+      if (user) {
+        setShowAuthModal(false);
+        setAuthChecked(true);
+        return;
+      }
+      
+      // If we've confirmed there's no user, show auth modal
+      if (user === null) {
+        setShowAuthModal(true);
+        setAuthChecked(true);
+        return;
+      }
+      
+      // If we're still loading auth state (user is undefined), don't show modal yet
+      setAuthChecked(false);
+    };
     
-    // Mark that we've checked auth status
-    setAuthChecked(true);
+    checkAuth();
   }, [user]);
+
+  // Ensure auth modal state is reset when component unmounts
+  useEffect(() => {
+    return () => {
+      setShowAuthModal(false);
+      setAuthChecked(false);
+    };
+  }, []);
   
   // Preference selector state
   const [showPreferenceSelector, setShowPreferenceSelector] = useState(false);
@@ -1475,11 +1498,11 @@ const DigDeeperPage = () => {
   
   return (
     <div className={styles.container}>
+      {/* Only show auth modal if we've confirmed no user AND auth is checked */}
       <AuthModal 
-        show={showAuthModal} 
-        isOpen={showAuthModal}
+        show={showAuthModal && authChecked} 
+        isOpen={showAuthModal && authChecked}
         onClose={() => {
-          // If user is not authenticated, don't allow closing the modal
           if (user) {
             setShowAuthModal(false);
           } else {
@@ -1490,6 +1513,7 @@ const DigDeeperPage = () => {
         onSignup={() => window.location.href = '/signup'}
       />
       
+      {/* Only show auth required if we've checked auth and have no user */}
       {authChecked && !user ? (
         <div className={styles.authRequiredContainer}>
           <h2>Authentication Required</h2>
