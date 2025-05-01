@@ -1288,6 +1288,19 @@ const Discover = () => {
         </form>
       </div>
 
+      <footer className={styles.footer}>
+        <div className={styles.footerContent}>
+          <div className={styles.footerLinks}>
+            <a href="https://www.chadder.ai/Terms" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>Terms of Service</a>
+            <span className={styles.footerSeparator}>|</span>
+            <a href="https://www.chadder.ai/Privacy" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>Privacy Policy</a>
+          </div>
+          <div className={styles.footerCopyright}>
+            © {new Date().getFullYear()} Chadder.ai. All rights reserved.
+          </div>
+        </div>
+      </footer>
+
       <DebugInfo 
         isLoading={isLoading} 
         loadError={loadError} 

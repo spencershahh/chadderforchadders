@@ -1607,4 +1607,65 @@
 .retryButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 10px rgba(145, 71, 255, 0.3);
+}
+
+/* Footer Styles */
+.footer {
+  margin-top: 3rem;
+  padding: 2rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.footerContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footerLinks {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footerLink {
+  color: #a0a0c0;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.footerLink:hover {
+  color: #8a6aff;
+  text-decoration: underline;
+}
+
+.footerSeparator {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.footerCopyright {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .footer {
+    padding: 1.5rem 1rem;
+    margin-top: 2rem;
+  }
+  
+  .footerLinks {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .footerSeparator {
+    display: none;
+  }
 } 
