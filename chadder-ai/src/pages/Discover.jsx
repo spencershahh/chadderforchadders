@@ -544,6 +544,8 @@ const Discover = () => {
       
       // Fetch votes to get the top voted streamers for the current week
       // This ensures the "Community Favorites" section matches the leaderboard's "This Week" column
+      // IMPORTANT: The top streamer is determined solely by weekly vote count to ensure
+      // consistency across all parts of the app (leaderboard, featured sections, etc.)
       const votesMap = await fetchVotes();
       
       // Convert votes map to an array and sort by vote count
@@ -553,7 +555,7 @@ const Discover = () => {
         .sort((a, b) => b.votes - a.votes)
         .slice(0, 10); // Get top 10
       
-      console.log('Top weekly streamers by votes:', sortedStreamers);
+      console.log('Top weekly streamers by votes (sorted):', JSON.stringify(sortedStreamers, null, 2));
       
       if (sortedStreamers.length === 0) {
         console.log('No trending streamers found');
@@ -614,8 +616,6 @@ const Discover = () => {
           // Use enriched data if available, otherwise fallback to database data
           const profileImageUrl = enrichedData?.profile_image_url || streamer.profile_image_url;
           
-          console.log(`Streamer ${streamer.username} profile image:`, profileImageUrl);
-          
           // Normalize data structure to match what renderStreamerCard expects
           return {
             ...streamer,
@@ -626,18 +626,26 @@ const Discover = () => {
             display_name: streamer.display_name || streamer.username,
             profile_image_url: profileImageUrl
           };
-        }).sort((a, b) => b.votes - a.votes);
+        }).sort((a, b) => b.votes - a.votes); // Sort by votes so highest votes is first
+        
+        console.log('Trending streamers with votes (sorted):', 
+          trendingStreamersWithVotes.map(s => ({ 
+            username: s.username, 
+            votes: s.votes 
+          }))
+        );
         
         setTrendingStreamers(trendingStreamersWithVotes);
         
-        // If we have a top streamer, set it
+        // If we have any streamers, always set the one with highest votes as top streamer
         if (trendingStreamersWithVotes.length > 0) {
-          const topStreamerData = trendingStreamersWithVotes.find(
-            s => s.username?.toLowerCase() === topVotedStreamerUsername?.toLowerCase()
-          ) || trendingStreamersWithVotes[0];
+          // Always use the first streamer which has the highest votes due to our sort
+          const topStreamerData = trendingStreamersWithVotes[0];
           
-          console.log('Setting top streamer data:', topStreamerData);
-          console.log('Top streamer profile image URL:', topStreamerData.profile_image_url);
+          console.log('Selected top streamer data:', {
+            username: topStreamerData.username || topStreamerData.user_login,
+            votes: topStreamerData.votes
+          });
           
           setTopStreamer({
             ...topStreamerData,
@@ -664,9 +672,16 @@ const Discover = () => {
         
         setTrendingStreamers(trendingStreamersWithVotes);
         
-        // If we have a top streamer, set it
+        // If we have any streamers, always set the one with highest votes as top streamer
         if (trendingStreamersWithVotes.length > 0) {
+          // Always use the first streamer which has the highest votes due to our sort
           const topStreamerData = trendingStreamersWithVotes[0];
+          
+          console.log('Selected top streamer data:', {
+            username: topStreamerData.username || topStreamerData.user_login,
+            votes: topStreamerData.votes
+          });
+          
           setTopStreamer({
             ...topStreamerData,
             user_name: topStreamerData.display_name || topStreamerData.username,
@@ -688,12 +703,15 @@ const Discover = () => {
   // Load streamers and trending streamers on initial mount
   useEffect(() => {
     loadStreamers();
+    // Force an immediate refresh of trending streamers to ensure we have the latest data
+    console.log('Initial trending streamers fetch');
     fetchTrendingStreamers();
     
-    // Set up a refresh interval for trending streamers (every 2 minutes)
+    // Set up a refresh interval for trending streamers (every 30 seconds instead of 2 minutes)
     trendingRefreshInterval.current = setInterval(() => {
+      console.log('Interval-based trending streamers refresh');
       fetchTrendingStreamers();
-    }, 2 * 60 * 1000);
+    }, 30 * 1000); // Reduced from 2 minutes to 30 seconds for more frequent updates
     
     return () => {
       if (trendingRefreshInterval.current) {
