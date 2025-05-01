@@ -994,4 +994,308 @@ const Discover = () => {
             src={getThumbnail()}
             alt={`${userName}'s stream`}
             onError={(e) => {
-              console.log(`
+              console.log(`Failed to load thumbnail for ${userName}, using fallback`);
+              e.target.src = "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=Stream+Unavailable";
+            }}
+          />
+          {streamer.type === "live" && <span className={styles.liveBadge}>LIVE</span>}
+          {isTrending && <span className={styles.trendingBadge}>TRENDING</span>}
+        </div>
+        <div className={styles.streamerCardContent}>
+          <img
+            className={styles.streamerProfileImage}
+            src={getProfileImage()}
+            alt={`${userName}'s profile`}
+            onError={(e) => {
+              console.log(`Failed to load profile image for ${userName}, using fallback`);
+              e.target.src = getProfileImagePlaceholder();
+            }}
+          />
+          <div className={styles.streamerInfo}>
+            <h3 className={styles.streamerName}>{userName}</h3>
+            {streamer.type === "live" && (
+              <span className={styles.viewerCount}>{streamer.viewer_count || 0} viewers</span>
+            )}
+            <span className={styles.gameName}>{streamer.game_name || 'N/A'}</span>
+            {votes > 0 && <span className={styles.votesBadge}>{votes} votes this week</span>}
+          </div>
+        </div>
+        {isLocked && (
+          <div className={styles.lockOverlay} onClick={handleAuthPrompt}>
+            <FaLock className={styles.lockIcon} />
+            <p className={styles.lockMessage}>Create an account to view more streamers</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Add glow effect
+  useEffect(() => {
+    const container = document.querySelector(`.${styles.discoverContainer}`);
+    const handleMouseMove = (e) => {
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        container.style.setProperty('--mouse-x', `${x}px`);
+        container.style.setProperty('--mouse-y', `${y}px`);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  const handleRetry = () => {
+    loadStreamers();
+  };
+
+  return (
+    <div className={styles.discoverContainer}>
+      <div className="glow-effect"></div>
+      <div className={styles.discoverHeader}>
+        <h1 className={styles.discoverTitle}>
+          Discover Streamers
+        </h1>
+        <p className={styles.discoverSubtitle}>
+          Find Hidden Gems, One Stream at a Time.
+        </p>
+
+        <div className={styles.statsContainer}>
+          <div className={styles.statsGrid}>
+            <div 
+              className={`${styles.statItem} ${styles.clickable}`}
+              onClick={handleLiveNowClick}
+              role="button"
+              tabIndex={0}
+            >
+              <span className={styles.statNumber}>
+                {streamers.filter(s => s.type === "live").length}
+              </span>
+              <span className={styles.statLabel}>LIVE NOW</span>
+            </div>
+            <div 
+              className={`${styles.statItem} ${styles.clickable}`}
+              onClick={handleTotalStreamersClick}
+              role="button"
+              tabIndex={0}
+            >
+              <span className={styles.statNumber}>
+                {streamers.length}
+              </span>
+              <span className={styles.statLabel}>TOTAL STREAMERS</span>
+            </div>
+            <div className={`${styles.statItem} ${styles.prizePool}`}>
+              <span className={styles.statNumber}>
+                <span className={styles.currency}>$</span>
+                {totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={styles.statLabel}>PRIZE POOL</span>
+              <div className={styles.prizePoolTimer} aria-label="Time until payout">
+                {timeUntilPayout}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.searchControls}>
+          <div className={styles.searchWrapper}>
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search streamers..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search streamers"
+            />
+            <div className={styles.filterControls}>
+              <select
+                className={styles.sortSelect}
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                aria-label="Sort streamers"
+              >
+                <option value="viewers-high">Viewers (High)</option>
+                <option value="viewers-low">Viewers (Low)</option>
+                <option value="alphabetical">Alphabetical</option>
+                <option value="popular">Most Popular</option>
+              </select>
+              
+              <div 
+                className={`${styles.toggleSwitch} ${streamersFilter === 'online' ? styles.online : styles.all}`}
+                onClick={() => setStreamersFilter(streamersFilter === 'online' ? 'all' : 'online')}
+                role="button"
+                tabIndex={0}
+                aria-label="Toggle online streamers"
+              >
+                <div className={styles.toggleSwitchInner}>
+                  <span className={`${styles.toggleOption} ${streamersFilter === 'online' ? styles.active : ''}`}>
+                    Online
+                  </span>
+                  <span className={`${styles.toggleOption} ${streamersFilter === 'all' ? styles.active : ''}`}>
+                    All
+                  </span>
+                  <div className={styles.toggleSlider} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.actionButtonsContainer}>
+          <a 
+            href="/dig-deeper"
+            className={styles.digDeeperButtonLink}
+            aria-label="Go to Dig Deeper page to find small streamers"
+          >
+            <span className={styles.buttonText}>Dig Deeper</span>
+          </a>
+          
+          <button 
+            onClick={scrollToNomination}
+            className={styles.nominateButton}
+            aria-label="Go to nominate streamer section"
+          >
+            Nominate a Streamer
+          </button>
+        </div>
+      </div>
+
+      {/* Add the trending streamers section */}
+      {renderTrendingStreamers()}
+
+      <div className={styles.streamersSection}>
+        <h2 className={styles.streamersTitle}>
+          Featured Streamers
+        </h2>
+        <p className={styles.streamersSubtitle}>
+          Find streamers, join the conversation, and vote for your favorites!
+        </p>
+        {!user && (
+          <div className={styles.gatedContentMessage}>
+            <h3>Want to see more amazing streamers?</h3>
+            <p>Create a free account to unlock our full catalog of talented streamers and join our community!</p>
+            <button className={styles.signUpButton} onClick={handleAuthPrompt}>
+              Sign Up Now
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.streamerGrid} ref={streamersGridRef}>
+        {isLoading ? (
+          <div className={styles.messageContainer}>
+            <p>Loading streamers...</p>
+          </div>
+        ) : loadError ? (
+          <div className={styles.messageContainer}>
+            <div className={styles.errorMessage}>
+              <h3>Oops! We couldn't load the streamers</h3>
+              <p>{loadError}</p>
+              <p>We're working on fixing this. Please try using a different browser or device.</p>
+              <div className={styles.errorDetails}>
+                <p><strong>Troubleshooting Tips:</strong></p>
+                <ul>
+                  <li>Make sure your internet connection is stable</li>
+                  <li>Check if you're using a VPN or proxy that might block access</li>
+                  <li>Try clearing your browser cache</li>
+                  <li>If you're using an ad blocker, try disabling it temporarily</li>
+                </ul>
+              </div>
+              <div className={styles.buttonGroup}>
+                <button 
+                  onClick={handleRetry} 
+                  className={styles.retryButton}
+                >
+                  Retry
+                </button>
+              </div>
+              <p className={styles.fallbackNote}>
+                <small>We only display real data from Twitch. No data is shown if we can't connect.</small>
+              </p>
+            </div>
+          </div>
+        ) : sortedStreamers.length === 0 ? (
+          <div className={styles.messageContainer}>
+            <div className={styles.errorMessage}>
+              <h3>No streamers found</h3>
+              <p>We couldn't find any streamers matching your filters.</p>
+              <p>Try clearing your search or filters, or try again later.</p>
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setCategoryFilter('all');
+                  setStreamersFilter('all');
+                  setSortOption('viewers-high');
+                  handleRetry();
+                }}
+                className={styles.retryButton}
+              >
+                Reset Filters
+              </button>
+            </div>
+          </div>
+        ) : (
+          sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))
+        )}
+      </div>
+
+      <div className={styles.sectionDivider} />
+
+      <div className={styles.nominationSection} ref={nominationSectionRef}>
+        <h2 className={styles.nominationTitle}>
+          Nominate a Streamer
+        </h2>
+        <p className={styles.nominationSubtitle}>
+          Know an amazing streamer who should be part of our community? 
+          Nominate them by submitting their Twitch channel URL below.
+        </p>
+        <form onSubmit={handleNomination} className={styles.nominationForm}>
+          <input
+            type="text"
+            value={nominationUrl}
+            onChange={(e) => setNominationUrl(e.target.value)}
+            placeholder="Enter Twitch channel URL (e.g., https://twitch.tv/username)"
+            className={styles.nominationInput}
+            aria-label="Streamer URL"
+          />
+          <button
+            type="submit"
+            className={styles.nominationSubmit}
+            aria-label={user ? "Submit nomination" : "Login to nominate"}
+            onClick={(e) => {
+              if (!user) {
+                e.preventDefault();
+                navigate('/signup');
+              }
+            }}
+          >
+            {user ? "Submit Nomination" : "Login or Signup to Nominate a Streamer"}
+          </button>
+          {nominationStatus && (
+            <div 
+              className={`${styles.nominationStatus} ${
+                nominationStatus.includes('Error') || nominationStatus.includes('already') 
+                  ? styles.error 
+                  : styles.success
+              }`}
+              role="alert"
+            >
+              {nominationStatus}
+            </div>
+          )}
+        </form>
+      </div>
+
+      <DebugInfo 
+        isLoading={isLoading} 
+        loadError={loadError} 
+        streamers={streamers} 
+        onRetry={handleRetry} 
+      />
+    </div>
+  );
+};
+
+export default Discover;
