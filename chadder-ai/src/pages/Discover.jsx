@@ -507,18 +507,27 @@ const Discover = () => {
 
   const fetchVotes = async () => {
     try {
+      // Get the start of the current week (Sunday)
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay()); // Go back to the most recent Sunday
+      startOfWeek.setHours(0, 0, 0, 0); // Set to beginning of day
+      
+      // Query votes with filter for current week only
       const { data: votes, error } = await supabase
         .from("votes")
-        .select("streamer, amount");
+        .select("streamer, amount, created_at")
+        .gte('created_at', startOfWeek.toISOString());
 
       if (error) throw error;
 
-      // Convert votes to a map of streamer -> total votes
+      // Convert votes to a map of streamer -> total votes for current week
       const votesMap = votes.reduce((acc, vote) => {
         acc[vote.streamer] = (acc[vote.streamer] || 0) + vote.amount;
         return acc;
       }, {});
       
+      console.log('Weekly votes from:', startOfWeek.toISOString(), 'Map:', votesMap);
       setStreamerVotes(votesMap);
       return votesMap;
     } catch (error) {
@@ -533,7 +542,8 @@ const Discover = () => {
       setIsTrendingLoading(true);
       setTrendingError(null);
       
-      // Fetch votes to get the top voted streamers
+      // Fetch votes to get the top voted streamers for the current week
+      // This ensures the "Community Favorites" section matches the leaderboard's "This Week" column
       const votesMap = await fetchVotes();
       
       // Convert votes map to an array and sort by vote count
@@ -542,6 +552,8 @@ const Discover = () => {
         .filter(item => item.votes > 0) // Only include streamers with votes
         .sort((a, b) => b.votes - a.votes)
         .slice(0, 10); // Get top 10
+      
+      console.log('Top weekly streamers by votes:', sortedStreamers);
       
       if (sortedStreamers.length === 0) {
         console.log('No trending streamers found');
@@ -932,7 +944,7 @@ const Discover = () => {
     return (
       <div className={styles.trendingSection}>
         <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
-        <p className={styles.trendingSectionSubtitle}>Top voted streamers from our community</p>
+        <p className={styles.trendingSectionSubtitle}>Top voted streamers from our community this week</p>
         <div className={styles.trendingStreamerGrid}>
           {trendingStreamers.map((streamer, index) => renderStreamerCard(streamer, index, true))}
         </div>
