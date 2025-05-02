@@ -106,7 +106,8 @@
   right: 0 !important;
   background-color: #18181b !important;
   height: calc(100% - 40vh - 68px) !important; /* Remove the extra spacing */
-  max-height: calc(100% - 50px - 40vh - 68px) !important; /* Keep max-height constraint */
+  top: calc(40vh + 68px) !important; /* Position it right after the buttons */
+  max-height: none !important; /* Remove max-height constraint to allow full expansion */
   z-index: 25 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -116,14 +117,13 @@
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
   transition: transform 0.3s ease-in-out !important;
   transform: translateY(100%) !important; /* Hidden by default */
-  top: auto !important; /* Ensure bottom positioning works */
 }
 
 /* Panel visible state */
 .mobile-panel-container.visible {
   transform: translateY(0) !important;
   bottom: 0 !important; /* Ensure it stays at the bottom */
-  top: auto !important; /* Ensure bottom positioning works */
+  top: calc(40vh + 68px) !important; /* Position it right after the buttons */
 }
 
 /* Panel header */
@@ -164,6 +164,8 @@
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
+  position: relative !important;
+  height: 100% !important;
 }
 
 #mobile-twitch-chat {
@@ -179,6 +181,9 @@
   height: 100% !important;
   border: none !important;
   overflow: visible !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
 }
 
 /* Stats panel specific styling */
@@ -302,6 +307,11 @@
   .mobile-panel-container {
     padding-bottom: env(safe-area-inset-bottom, 0) !important;
     height: calc(100% - 40vh - 68px - env(safe-area-inset-bottom, 0)) !important;
+    top: calc(40vh + 68px) !important; /* Position it right after the buttons */
+  }
+  
+  .mobile-panel-container.visible {
+    top: calc(40vh + 68px) !important; /* Position it right after the buttons */
   }
   
   .mobile-video-container {
@@ -319,6 +329,11 @@
   
   .mobile-panel-container {
     height: calc(100% - 35vh - 68px) !important; /* Remove extra spacing */
+    top: calc(35vh + 68px) !important; /* Position it right after the buttons for iPhone Pro */
+  }
+  
+  .mobile-panel-container.visible {
+    top: calc(35vh + 68px) !important; /* Position it right after the buttons for iPhone Pro */
   }
 }
 
@@ -347,4 +362,22 @@
 .mobile-stream-layout {
   -webkit-overflow-scrolling: touch !important;
   overflow-scrolling: touch !important;
+}
+
+/* Fix for cookie banner in Twitch chat iframe */
+.mobile-chat-panel::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0; /* Hide the cookie banner by pushing it out of view */
+  z-index: 3;
+  background-color: transparent;
+}
+
+/* Handle Twitch cookie banner by making chat iframe larger than container */
+#mobile-twitch-chat iframe {
+  height: calc(100% + 100px) !important; /* Make iframe taller to hide cookie banner at bottom */
+  bottom: -100px !important; /* Push content up to hide cookie banner */
 } 
