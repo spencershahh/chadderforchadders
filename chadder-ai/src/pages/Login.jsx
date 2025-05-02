@@ -13,6 +13,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -136,6 +137,35 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Please enter your email address");
+      return;
+    }
+    
+    setResetLoading(true);
+    
+    try {
+      // Get site URL for proper redirection
+      const siteUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${siteUrl}/reset-password`
+      });
+      
+      if (error) {
+        toast.error(`Error: ${error.message}`);
+      } else {
+        toast.success("Password reset email sent. Please check your inbox.");
+      }
+    } catch (error) {
+      console.error("Error sending reset email:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   // Cleanup function to run when component unmounts
   useEffect(() => {
     return () => {
@@ -168,6 +198,16 @@ const Login = () => {
           {loading ? "Logging in..." : "Log In"}
         </button>
       </form>
+      <div className="auth-links">
+        <button 
+          type="button" 
+          onClick={handleForgotPassword} 
+          disabled={resetLoading}
+          className="forgot-password-link"
+        >
+          {resetLoading ? "Sending..." : "Forgot Password?"}
+        </button>
+      </div>
       <p className="auth-switch">
         Don't have an account? <a href="/signup">Sign Up</a>
       </p>

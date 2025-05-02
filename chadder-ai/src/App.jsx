@@ -19,6 +19,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const StreamPage = lazy(() => import("./pages/StreamPage"));
 const Signup = lazy(() => import("./pages/Signup"));
 const Login = lazy(() => import("./pages/Login"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const GemsPage = lazy(() => import('./pages/GemsPage'));
 const CreditsPage = lazy(() => import('./pages/CreditsPage'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -60,6 +61,7 @@ const App = () => {
                     <Route path="/stream/:username" element={<StreamPage />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/gems" element={<Navigate to="/credits" replace />} />
                     <Route path="/credits" element={<CreditsPage />} />
                     <Route path="/dig-deeper" element={<DigDeeperPage />} />

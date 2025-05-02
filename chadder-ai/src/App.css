@@ -319,6 +319,32 @@ body, html, #root {
   text-decoration: underline;
 }
 
+.auth-links {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.forgot-password-link {
+  background: none;
+  border: none;
+  color: #adadb8;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  text-decoration: underline;
+  padding: 0.5rem;
+}
+
+.forgot-password-link:hover {
+  color: #9147ff;
+}
+
+.forgot-password-link:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* ===========================
    🔐 Discover Page
 =========================== */
