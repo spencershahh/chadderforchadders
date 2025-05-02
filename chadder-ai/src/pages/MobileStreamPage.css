@@ -105,8 +105,8 @@
   left: 0 !important;
   right: 0 !important;
   background-color: #18181b !important;
-  height: calc(100% - 40vh - 68px - 40px) !important; /* Reduced height to position closer to buttons */
-  max-height: calc(100% - 50px - 40vh - 68px) !important; /* Ensure it doesn't overlap with video and buttons */
+  height: calc(100% - 40vh - 68px) !important; /* Remove the extra spacing */
+  max-height: calc(100% - 50px - 40vh - 68px) !important; /* Keep max-height constraint */
   z-index: 25 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -301,7 +301,7 @@
 @supports (padding: env(safe-area-inset-bottom)) {
   .mobile-panel-container {
     padding-bottom: env(safe-area-inset-bottom, 0) !important;
-    height: calc(100% - 40vh - 68px - 40px - env(safe-area-inset-bottom, 0)) !important;
+    height: calc(100% - 40vh - 68px - env(safe-area-inset-bottom, 0)) !important;
   }
   
   .mobile-video-container {
@@ -318,7 +318,7 @@
   }
   
   .mobile-panel-container {
-    height: calc(100% - 35vh - 68px - 45px) !important;
+    height: calc(100% - 35vh - 68px) !important; /* Remove extra spacing */
   }
 }
 
