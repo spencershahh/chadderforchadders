@@ -432,6 +432,7 @@ const StreamPage = () => {
       const chatIframe = document.createElement("iframe");
       
       // Keep the Twitch chat input by NOT using the hideform parameter
+      // Add the popout and the parent parameter
       let iframeSrc = `https://www.twitch.tv/embed/${normalizedUsername}/chat?darkpopout&parent=${window.location.hostname}`;
       
       chatIframe.src = iframeSrc;
@@ -449,7 +450,11 @@ const StreamPage = () => {
         chatIframe.style.width = '100%';
         chatIframe.style.border = 'none';
         chatIframe.style.overflow = 'visible';
-        chatIframe.style.minHeight = '300px';
+        chatIframe.style.position = 'absolute';
+        chatIframe.style.top = '0';
+        chatIframe.style.left = '0';
+        chatIframe.style.right = '0';
+        chatIframe.style.bottom = '0';
         chatIframe.style.padding = '0';
         chatIframe.style.margin = '0';
         chatIframe.style.zIndex = '10';
