@@ -1138,7 +1138,7 @@
 }
 
 .nominateButton:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .streamersSection {
@@ -1607,4 +1607,21 @@
 .retryButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 10px rgba(145, 71, 255, 0.3);
+}
+
+.digDeeperDescription {
+  max-width: 700px;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.digDeeperDescription p {
+  color: #a8a8c0;
+  font-size: 1rem;
+  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(138, 106, 255, 0.2);
 } 

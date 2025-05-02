@@ -296,18 +296,13 @@ const Discover = () => {
   const [userBalance, setUserBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [topStreamer, setTopStreamer] = useState(null);
   const [totalDonations, setTotalDonations] = useState(0);
   const [timeUntilPayout, setTimeUntilPayout] = useState('');
   const [nominationUrl, setNominationUrl] = useState('');
   const [nominationStatus, setNominationStatus] = useState('');
-  const [trendingStreamers, setTrendingStreamers] = useState([]);
-  const [isTrendingLoading, setIsTrendingLoading] = useState(false);
-  const [trendingError, setTrendingError] = useState(null);
   const navigate = useNavigate();
   const nominationSectionRef = useRef(null);
   const streamersGridRef = useRef(null);
-  const trendingRefreshInterval = useRef(null);
 
   const FREE_STREAMER_LIMIT = 5;
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -527,170 +522,12 @@ const Discover = () => {
     }
   };
 
-  // New function to fetch trending streamers based on votes
-  const fetchTrendingStreamers = async () => {
-    try {
-      setIsTrendingLoading(true);
-      setTrendingError(null);
-      
-      // Fetch votes to get the top voted streamers
-      const votesMap = await fetchVotes();
-      
-      // Convert votes map to an array and sort by vote count
-      const sortedStreamers = Object.entries(votesMap)
-        .map(([streamer, votes]) => ({ streamer, votes }))
-        .filter(item => item.votes > 0) // Only include streamers with votes
-        .sort((a, b) => b.votes - a.votes)
-        .slice(0, 10); // Get top 10
-      
-      if (sortedStreamers.length === 0) {
-        console.log('No trending streamers found');
-        setTrendingStreamers([]);
-        setIsTrendingLoading(false);
-        return;
-      }
-      
-      // Get the streamer usernames
-      const streamerUsernames = sortedStreamers.map(s => s.streamer);
-      
-      // Fetch the streamer details
-      const { data: streamerDetails, error } = await supabase
-        .from('streamers')
-        .select('*')
-        .in('username', streamerUsernames);
-      
-      if (error) {
-        console.error('Error fetching trending streamer details:', error);
-        setTrendingError('Failed to load trending streamers');
-        setIsTrendingLoading(false);
-        return;
-      }
-      
-      if (!streamerDetails || streamerDetails.length === 0) {
-        console.log('No trending streamer details found');
-        setTrendingStreamers([]);
-        setIsTrendingLoading(false);
-        return;
-      }
-
-      // Find the top voted streamer
-      const topVotedStreamerUsername = sortedStreamers[0]?.streamer;
-      
-      // Try to enrich the streamer data with Twitch API data
-      try {
-        // Fetch enriched data from API if available
-        const enrichedStreamerData = await fetchStreamers(streamerUsernames.join(','));
-        console.log('Enriched streamer data from API:', enrichedStreamerData);
-        
-        // Create a map of username to enriched data for easy lookup
-        const enrichedDataMap = {};
-        if (Array.isArray(enrichedStreamerData)) {
-          enrichedStreamerData.forEach(streamer => {
-            const username = streamer.user_login?.toLowerCase();
-            if (username) {
-              enrichedDataMap[username] = streamer;
-            }
-          });
-        }
-        
-        // Map votes to streamer details and normalize the data
-        const trendingStreamersWithVotes = streamerDetails.map(streamer => {
-          const votes = votesMap[streamer.username] || 0;
-          const username = streamer.username?.toLowerCase();
-          const enrichedData = username ? enrichedDataMap[username] : null;
-          
-          // Use enriched data if available, otherwise fallback to database data
-          const profileImageUrl = enrichedData?.profile_image_url || streamer.profile_image_url;
-          
-          console.log(`Streamer ${streamer.username} profile image:`, profileImageUrl);
-          
-          // Normalize data structure to match what renderStreamerCard expects
-          return {
-            ...streamer,
-            ...enrichedData, // Merge in any enriched data available
-            votes,
-            user_name: streamer.display_name || streamer.username,
-            user_login: streamer.username,
-            display_name: streamer.display_name || streamer.username,
-            profile_image_url: profileImageUrl
-          };
-        }).sort((a, b) => b.votes - a.votes);
-        
-        setTrendingStreamers(trendingStreamersWithVotes);
-        
-        // If we have a top streamer, set it
-        if (trendingStreamersWithVotes.length > 0) {
-          const topStreamerData = trendingStreamersWithVotes.find(
-            s => s.username?.toLowerCase() === topVotedStreamerUsername?.toLowerCase()
-          ) || trendingStreamersWithVotes[0];
-          
-          console.log('Setting top streamer data:', topStreamerData);
-          console.log('Top streamer profile image URL:', topStreamerData.profile_image_url);
-          
-          setTopStreamer({
-            ...topStreamerData,
-            user_name: topStreamerData.display_name || topStreamerData.username,
-            user_login: topStreamerData.username,
-            weeklyVotes: topStreamerData.votes,
-            profile_image_url: topStreamerData.profile_image_url || DEFAULT_PROFILE_IMAGE
-          });
-        }
-      } catch (enrichError) {
-        console.error('Error enriching streamer data:', enrichError);
-        
-        // Fallback to just using the database data without enrichment
-        const trendingStreamersWithVotes = streamerDetails.map(streamer => {
-          const votes = votesMap[streamer.username] || 0;
-          return {
-            ...streamer,
-            votes,
-            user_name: streamer.display_name || streamer.username,
-            user_login: streamer.username,
-            display_name: streamer.display_name || streamer.username
-          };
-        }).sort((a, b) => b.votes - a.votes);
-        
-        setTrendingStreamers(trendingStreamersWithVotes);
-        
-        // If we have a top streamer, set it
-        if (trendingStreamersWithVotes.length > 0) {
-          const topStreamerData = trendingStreamersWithVotes[0];
-          setTopStreamer({
-            ...topStreamerData,
-            user_name: topStreamerData.display_name || topStreamerData.username,
-            user_login: topStreamerData.username,
-            weeklyVotes: topStreamerData.votes,
-            profile_image_url: topStreamerData.profile_image_url || DEFAULT_PROFILE_IMAGE
-          });
-        }
-      }
-      
-      setIsTrendingLoading(false);
-    } catch (error) {
-      console.error('Error fetching trending streamers:', error);
-      setTrendingError('Failed to load trending streamers');
-      setIsTrendingLoading(false);
-    }
-  };
-
-  // Load streamers and trending streamers on initial mount
+  // Load streamers on initial mount
   useEffect(() => {
     loadStreamers();
-    fetchTrendingStreamers();
-    
-    // Set up a refresh interval for trending streamers (every 2 minutes)
-    trendingRefreshInterval.current = setInterval(() => {
-      fetchTrendingStreamers();
-    }, 2 * 60 * 1000);
-    
-    return () => {
-      if (trendingRefreshInterval.current) {
-        clearInterval(trendingRefreshInterval.current);
-      }
-    };
   }, []);
   
-  // Listen for votes table changes to update trending
+  // Listen for votes table changes to update votes
   useEffect(() => {
     const votesSubscription = supabase
       .channel('votes-changes')
@@ -703,7 +540,7 @@ const Discover = () => {
         },
         (payload) => {
           console.log('Votes update received:', payload);
-          fetchTrendingStreamers();
+          fetchVotes();
         }
       )
       .subscribe();
@@ -882,73 +719,15 @@ const Discover = () => {
     streamersGridRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // New component to render trending streamers section
-  const renderTrendingStreamers = () => {
-    if (isTrendingLoading && trendingStreamers.length === 0) {
-      return (
-        <div className={styles.trendingSection}>
-          <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
-          <p className={styles.trendingSectionSubtitle}>Loading top voted streamers...</p>
-          <div className={styles.trendingLoading}>
-            <div className={styles.spinner}></div>
-          </div>
-        </div>
-      );
-    }
-    
-    if (trendingError) {
-      return (
-        <div className={styles.trendingSection}>
-          <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
-          <p className={styles.trendingSectionSubtitle}>
-            There was an error loading trending streamers
-          </p>
-          <button 
-            className={styles.retryButton}
-            onClick={fetchTrendingStreamers}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
-    
-    if (trendingStreamers.length === 0) {
-      return (
-        <div className={styles.trendingSection}>
-          <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
-          <p className={styles.trendingSectionSubtitle}>
-            No trending streamers yet. Check out our Dig Deeper page to discover and vote for small streamers!
-          </p>
-          <div className={styles.trendingEmpty}>
-            <a href="/dig-deeper" className={styles.digDeeperLink}>
-              Try Dig Deeper
-            </a>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={styles.trendingSection}>
-        <h2 className={styles.trendingSectionTitle}>Community Favorites</h2>
-        <p className={styles.trendingSectionSubtitle}>Top voted streamers from our community</p>
-        <div className={styles.trendingStreamerGrid}>
-          {trendingStreamers.map((streamer, index) => renderStreamerCard(streamer, index, true))}
-        </div>
-      </div>
-    );
-  };
-
-  // Modify renderStreamerCard to handle trending streamers
-  const renderStreamerCard = (streamer, index, isTrending = false) => {
+  // Modify renderStreamerCard to handle streamers
+  const renderStreamerCard = (streamer, index) => {
     // Early return if streamer data is invalid
     if (!streamer) {
       console.error('Invalid streamer data:', streamer);
       return null;
     }
     
-    // Handle different data structures between trending and regular streamers
+    // Handle different data structures between streamers
     const userName = streamer.user_name || streamer.display_name || streamer.username || streamer.name;
     const userLogin = streamer.user_login || streamer.username || streamer.login || '';
     const userId = streamer.user_id || streamer.id || `streamer-${index}`;
@@ -959,9 +738,9 @@ const Discover = () => {
       return null;
     }
     
-    // Only lock cards if user is not logged in AND index is beyond the free limit AND it's not a trending card
-    const isLocked = !user && index >= FREE_STREAMER_LIMIT && !isTrending;
-    const votes = isTrending ? streamer.votes : (streamerVotes[userLogin] || 0);
+    // Only lock cards if user is not logged in AND index is beyond the free limit
+    const isLocked = !user && index >= FREE_STREAMER_LIMIT;
+    const votes = streamerVotes[userLogin] || 0;
 
     // Use a standard placeholder image for missing profile images
     const getProfileImagePlaceholder = () => {
@@ -994,7 +773,7 @@ const Discover = () => {
     return (
       <div 
         key={userId}
-        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''} ${isTrending ? styles.trendingCard : ''}`}
+        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''}`}
         onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(userLogin || userName)}
       >
         <div className={styles.thumbnailWrapper}>
@@ -1008,7 +787,6 @@ const Discover = () => {
             }}
           />
           {streamer.type === "live" && <span className={styles.liveBadge}>LIVE</span>}
-          {isTrending && <span className={styles.trendingBadge}>TRENDING</span>}
         </div>
         <div className={styles.streamerCardContent}>
           <img
@@ -1108,49 +886,6 @@ const Discover = () => {
           </div>
         </div>
 
-        {topStreamer && (
-          <div 
-            className={styles.topStreamerCard}
-            onClick={() => navigate(`/stream/${topStreamer.user_login}`)}
-            role="button"
-            tabIndex={0}
-            aria-label={`View ${topStreamer.user_name}'s stream`}
-          >
-            <div className={styles.topStreamerBadge}>
-              <span>🏆 Top Streamer This Week</span>
-            </div>
-
-            <img 
-              src={topStreamer.profile_image_url || DEFAULT_PROFILE_IMAGE}
-              alt={`${topStreamer.user_name} profile`} 
-              className={styles.topStreamerProfileImage}
-              loading="lazy"
-              onError={(e) => {
-                console.log('Failed to load top streamer profile image, using fallback');
-                e.target.src = DEFAULT_PROFILE_IMAGE;
-              }}
-            />
-            
-            <div className={styles.topStreamerInfo}>
-              <h3 className={styles.topStreamerName}>{topStreamer.user_name}</h3>
-              
-              <div className={styles.topStreamerStats}>
-                <span className={styles.votesBadge}>
-                  {topStreamer.weeklyVotes} votes
-                </span>
-                {topStreamer.type === "live" && (
-                  <>
-                    <span className={styles.liveBadge}>LIVE</span>
-                    <span className={styles.viewerCount}>
-                      {topStreamer.viewer_count?.toLocaleString()} viewers
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className={styles.searchControls}>
           <div className={styles.searchWrapper}>
             <input
@@ -1212,10 +947,14 @@ const Discover = () => {
             Nominate a Streamer
           </button>
         </div>
+        
+        <div className={styles.digDeeperDescription}>
+          <p>
+            Dig Deeper - Swipe right to favorite streamers, 
+            swipe left to skip.
+          </p>
+        </div>
       </div>
-
-      {/* Add the trending streamers section */}
-      {renderTrendingStreamers()}
 
       <div className={styles.streamersSection}>
         <h2 className={styles.streamersTitle}>
