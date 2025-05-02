@@ -4,35 +4,52 @@ import { Link as RouterLink } from "react-router-dom";
 import formatViewers from "../utils/formatViewers";
 
 function GameCard({ streamer }) {
-  if (!streamer) {
+  // Validate streamer data before rendering
+  if (!streamer || typeof streamer !== 'object') {
+    console.error('Invalid streamer data provided to GameCard:', streamer);
     return null;
   }
 
-  // Normalize streamer data
-  const username = streamer.user_login || streamer.user_name || streamer.username || "unknown";
+  // Normalize streamer data with fallbacks for everything
+  const username = streamer.user_login || streamer.user_name || streamer.username || streamer.login || "unknown";
   const displayName = streamer.user_name || streamer.display_name || username || "Unknown Streamer";
   const type = streamer.type || "offline";
   const isLive = type === "live";
-  const viewerCount = streamer.viewer_count || 0;
-  const gameName = streamer.game_name || "Unknown Game";
+  const viewerCount = Number(streamer.viewer_count) || 0;
+  const gameName = streamer.game_name || streamer.game || "Unknown Game";
   const streamTitle = streamer.title || "No title";
   
   // Get profile image if available
-  const profileImage = streamer.profile_image_url || null;
+  const profileImage = streamer.profile_image_url || streamer.profile_image || null;
   
-  // Thumbnail with appropriate sizing
-  let thumbnailUrl = streamer.thumbnail_url || null;
-  if (thumbnailUrl) {
-    thumbnailUrl = thumbnailUrl
-      .replace("{width}", "320")
-      .replace("{height}", "180");
-  }
+  // Safely process thumbnail URL
+  const getThumbnailUrl = () => {
+    if (!streamer.thumbnail_url) return null;
+    
+    try {
+      return streamer.thumbnail_url
+        .replace("{width}", "320")
+        .replace("{height}", "180");
+    } catch (error) {
+      console.error('Error processing thumbnail URL:', error);
+      return null;
+    }
+  };
+  
+  const thumbnailUrl = getThumbnailUrl();
 
   // Ensure we have an avatar, even without an image
   const getInitials = () => {
     if (!displayName) return "??";
-    return displayName.substring(0, 2).toUpperCase();
+    try {
+      return displayName.substring(0, 2).toUpperCase();
+    } catch (error) {
+      return "??";
+    }
   };
+
+  // Create a safe route
+  const profileRoute = `/streamers/${encodeURIComponent(username)}`;
 
   return (
     <Box
@@ -50,7 +67,7 @@ function GameCard({ streamer }) {
     >
       <Link
         as={RouterLink}
-        to={`/streamers/${username}`}
+        to={profileRoute}
         _hover={{ textDecoration: "none" }}
       >
         <Box position="relative">
@@ -62,6 +79,10 @@ function GameCard({ streamer }) {
               height="180px"
               objectFit="cover"
               fallbackSrc="https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=No+Preview"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://via.placeholder.com/320x180/1a1a2e/FFFFFF?text=No+Preview";
+              }}
             />
           ) : (
             <Box 
@@ -115,6 +136,11 @@ function GameCard({ streamer }) {
               size="sm" 
               mr={2} 
               bg="purple.500"
+              onError={(e) => {
+                // Force use of initials if image fails
+                e.target.onerror = null;
+                e.target.src = "";
+              }}
             />
             <Heading
               as="h3"

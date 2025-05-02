@@ -340,21 +340,35 @@ const Discover = () => {
       setIsLoading(true);
       setLoadError(null);
       
+      // Add a timeout to ensure we don't wait forever
+      const apiTimeout = 15000; // 15 seconds max wait time
+      let didTimeout = false;
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          didTimeout = true;
+          reject(new Error('API request timed out'));
+        }, apiTimeout);
+      });
+      
       // Check if the API server is reachable before making the full request
       if (import.meta.env.VITE_API_URL) {
         try {
           console.log('Testing API connectivity...');
-          const testResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/health`, { 
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          }).catch(e => {
-            console.error('API connectivity test failed:', e);
-            return { ok: false, status: 0 };
-          });
+          const testResponse = await Promise.race([
+            fetch(`${import.meta.env.VITE_API_URL}/api/health`, { 
+              method: 'GET',
+              mode: 'cors',
+              cache: 'no-cache',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            }).catch(e => {
+              console.error('API connectivity test failed:', e);
+              return { ok: false, status: 0 };
+            }),
+            timeoutPromise
+          ]);
           
           if (!testResponse.ok) {
             console.warn('API server not responding properly. Status:', testResponse.status);
@@ -385,18 +399,53 @@ const Discover = () => {
       }
       
       // Get streamer data from main API
-      const streamersData = await fetchStreamers();
+      let streamersData;
+      try {
+        // Use Promise.race to add a timeout
+        streamersData = await Promise.race([
+          fetchStreamers(),
+          timeoutPromise
+        ]);
+      } catch (error) {
+        if (didTimeout) {
+          console.error('Streamer API request timed out');
+          streamersData = { error: true, message: 'API request timed out. Please try again later.' };
+        } else {
+          console.error('Error fetching streamers:', error);
+          streamersData = { error: true, message: error.message || 'Unknown error occurred' };
+        }
+      }
+      
       console.log('Loaded streamers from API:', streamersData);
       
       // Check if the result is an error object
       if (streamersData && streamersData.error) {
         console.error('Error loading streamers:', streamersData.message);
         setLoadError(streamersData.message || 'Failed to load live streamer data. Please try refreshing the page.');
-        setStreamers([]);
+        
+        // Check if we have any streamer data from the database at all
+        const { data: backupStreamers, error: backupError } = await supabase
+          .from('streamers')
+          .select('*')
+          .order('username');
+          
+        if (!backupError && backupStreamers && backupStreamers.length > 0) {
+          console.log('Using backup streamer data from database');
+          setStreamers(backupStreamers.map(s => ({
+            ...s,
+            user_name: s.username || s.name || 'Unknown',
+            user_login: s.username || s.login || s.name || 'unknown',
+            type: 'offline',
+            title: 'No title',
+            thumbnail_url: null
+          })));
+        } else {
+          setStreamers([]);
+        }
       } else {
         let allStreamers = [];
         
-        if (streamersData && streamersData.length > 0) {
+        if (streamersData && Array.isArray(streamersData) && streamersData.length > 0) {
           console.log('Successfully fetched live data from API:', streamersData.length, 'streamers');
           allStreamers = [...streamersData];
         }
@@ -421,82 +470,89 @@ const Discover = () => {
               const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
               
               if (clientId && clientSecret) {
-                // Get token
-                const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                  body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
-                });
-                
-                if (tokenResponse.ok) {
-                  const tokenData = await tokenResponse.json();
-                  const accessToken = tokenData.access_token;
+                try {
+                  // Get token with timeout
+                  const tokenResponse = await Promise.race([
+                    fetch('https://id.twitch.tv/oauth2/token', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                      body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Token request timed out')), 5000))
+                  ]);
                   
-                  if (accessToken) {
-                    // Query Twitch API for users
-                    const queryParams = missingUsernames.map(name => `login=${name}`).join('&');
-                    const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${queryParams}`, {
-                      headers: {
-                        'Client-ID': clientId,
-                        'Authorization': `Bearer ${accessToken}`
-                      }
-                    });
+                  if (tokenResponse.ok) {
+                    const tokenData = await tokenResponse.json();
+                    const accessToken = tokenData.access_token;
                     
-                    if (usersResponse.ok) {
-                      const userData = await usersResponse.json();
-                      
-                      if (userData.data && userData.data.length > 0) {
-                        // Query stream status
-                        const userIds = userData.data.map(user => user.id);
-                        const streamsQueryParams = userIds.map(id => `user_id=${id}`).join('&');
-                        const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${streamsQueryParams}`, {
-                          headers: {
-                            'Client-ID': clientId,
-                            'Authorization': `Bearer ${accessToken}`
-                          }
-                        });
-                        
-                        let liveStreams = {};
-                        if (streamsResponse.ok) {
-                          const streamsData = await streamsResponse.json();
-                          streamsData.data.forEach(stream => {
-                            liveStreams[stream.user_id] = stream;
-                          });
+                    if (accessToken) {
+                      // Query Twitch API for users
+                      const queryParams = missingUsernames.map(name => `login=${name}`).join('&');
+                      const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${queryParams}`, {
+                        headers: {
+                          'Client-ID': clientId,
+                          'Authorization': `Bearer ${accessToken}`
                         }
+                      });
+                      
+                      if (usersResponse.ok) {
+                        const userData = await usersResponse.json();
                         
-                        // Create streamer objects
-                        const digDeeperStreamers = userData.data.map(user => {
-                          const isLive = !!liveStreams[user.id];
-                          const stream = liveStreams[user.id];
-                          const voteData = votedStreamers.find(v => 
-                            v.streamer.toLowerCase() === user.login.toLowerCase()
-                          );
+                        if (userData.data && userData.data.length > 0) {
+                          // Query stream status
+                          const userIds = userData.data.map(user => user.id);
+                          const streamsQueryParams = userIds.map(id => `user_id=${id}`).join('&');
+                          const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${streamsQueryParams}`, {
+                            headers: {
+                              'Client-ID': clientId,
+                              'Authorization': `Bearer ${accessToken}`
+                            }
+                          });
                           
-                          return {
-                            id: user.id,
-                            user_id: user.id,
-                            user_name: user.display_name,
-                            user_login: user.login,
-                            profile_image_url: user.profile_image_url,
-                            description: user.description,
-                            type: isLive ? "live" : "offline",
-                            viewer_count: isLive ? stream.viewer_count : 0,
-                            game_name: isLive ? stream.game_name : "Not Live",
-                            title: isLive ? stream.title : "",
-                            started_at: isLive ? stream.started_at : null,
-                            thumbnail_url: isLive ? stream.thumbnail_url : null,
-                            tag_ids: isLive ? stream.tag_ids : [],
-                            is_dig_deeper: true, // Flag to identify streamers from Dig Deeper
-                            vote_count: voteData ? voteData.count : 0
-                          };
-                        });
-                        
-                        // Add new streamers to the list
-                        console.log(`Adding ${digDeeperStreamers.length} voted streamers from Dig Deeper`);
-                        allStreamers = [...allStreamers, ...digDeeperStreamers];
+                          let liveStreams = {};
+                          if (streamsResponse.ok) {
+                            const streamsData = await streamsResponse.json();
+                            streamsData.data.forEach(stream => {
+                              liveStreams[stream.user_id] = stream;
+                            });
+                          }
+                          
+                          // Create streamer objects
+                          const digDeeperStreamers = userData.data.map(user => {
+                            const isLive = !!liveStreams[user.id];
+                            const stream = liveStreams[user.id];
+                            const voteData = votedStreamers.find(v => 
+                              v.streamer.toLowerCase() === user.login.toLowerCase()
+                            );
+                            
+                            return {
+                              id: user.id,
+                              user_id: user.id,
+                              user_name: user.display_name,
+                              user_login: user.login,
+                              profile_image_url: user.profile_image_url,
+                              description: user.description,
+                              type: isLive ? "live" : "offline",
+                              viewer_count: isLive ? stream.viewer_count : 0,
+                              game_name: isLive ? stream.game_name : "Not Live",
+                              title: isLive ? stream.title : "",
+                              started_at: isLive ? stream.started_at : null,
+                              thumbnail_url: isLive ? stream.thumbnail_url : null,
+                              tag_ids: isLive ? stream.tag_ids : [],
+                              is_dig_deeper: true, // Flag to identify streamers from Dig Deeper
+                              vote_count: voteData ? voteData.count : 0
+                            };
+                          });
+                          
+                          // Add new streamers to the list
+                          console.log(`Adding ${digDeeperStreamers.length} voted streamers from Dig Deeper`);
+                          allStreamers = [...allStreamers, ...digDeeperStreamers];
+                        }
                       }
                     }
                   }
+                } catch (tokenError) {
+                  console.error('Error getting Twitch token:', tokenError);
                 }
               }
             }
@@ -510,9 +566,25 @@ const Discover = () => {
         const seenIds = new Set();
         
         for (const streamer of allStreamers) {
-          if (streamer && streamer.user_id && !seenIds.has(streamer.user_id)) {
-            seenIds.add(streamer.user_id);
-            uniqueStreamers.push(streamer);
+          // Skip null/undefined streamers
+          if (!streamer) continue;
+          
+          // Use user_id or fallback to other identifiers
+          const streamerId = streamer.user_id || streamer.id || `${streamer.user_login || streamer.username}`;
+          
+          if (streamerId && !seenIds.has(streamerId)) {
+            seenIds.add(streamerId);
+            
+            // Ensure required fields exist
+            const normalizedStreamer = {
+              ...streamer,
+              user_name: streamer.user_name || streamer.display_name || streamer.username || 'Unknown',
+              user_login: streamer.user_login || streamer.username || streamer.login || 'unknown',
+              type: streamer.type || 'offline',
+              title: streamer.title || 'No title'
+            };
+            
+            uniqueStreamers.push(normalizedStreamer);
           }
         }
         
@@ -522,7 +594,32 @@ const Discover = () => {
     } catch (error) {
       console.error('Error in loadStreamers function:', error);
       setLoadError('Failed to load live streamer data. Please try refreshing the page.');
-      setStreamers([]);
+      
+      // Try to load basic streamer info from database as a fallback
+      try {
+        const { data: basicStreamers } = await supabase
+          .from('streamers')
+          .select('*')
+          .limit(20);
+          
+        if (basicStreamers && basicStreamers.length > 0) {
+          setStreamers(basicStreamers.map(s => ({
+            id: s.id,
+            user_id: s.id,
+            user_name: s.username || 'Unknown',
+            user_login: s.username || 'unknown',
+            type: 'offline',
+            title: 'No title available',
+            profile_image_url: null,
+            thumbnail_url: null
+          })));
+        } else {
+          setStreamers([]);
+        }
+      } catch (dbError) {
+        console.error('Could not load backup data from database:', dbError);
+        setStreamers([]);
+      }
     } finally {
       setIsLoading(false);
     }

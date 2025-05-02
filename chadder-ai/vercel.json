@@ -5,6 +5,29 @@
       "destination": "/index.html"
     }
   ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; connect-src 'self' https://zvxwsdmrfsvmhkiqdkul.supabase.co https://chadderforchadders.onrender.com https://id.twitch.tv https://api.twitch.tv https://*.tawk.to wss://*.tawk.to; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.tawk.to; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.twitch.tv https://*.jtvnw.net https://via.placeholder.com https://*.tawk.to; font-src 'self' https://fonts.gstatic.com; frame-src https://*.twitch.tv https://*.tawk.to;"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Accept"
+        }
+      ]
+    }
+  ],
   "buildCommand": "./.vercel/build.sh",
   "outputDirectory": "dist",
   "framework": "vite"
