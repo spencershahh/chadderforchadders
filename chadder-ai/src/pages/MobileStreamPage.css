@@ -117,6 +117,8 @@
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
   transition: transform 0.3s ease-in-out !important;
   transform: translateY(100%) !important; /* Hidden by default */
+  /* Account for the browser UI at bottom of iPhone */
+  padding-bottom: 85px !important;
 }
 
 /* Panel visible state */
@@ -126,36 +128,35 @@
   top: calc(40vh + 68px) !important; /* Position it right after the buttons */
 }
 
-/* Panel header */
-.mobile-panel-header {
+/* Panel close button container - replace header with minimal UI */
+.mobile-panel-close-container {
   display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  padding: 12px 16px !important;
-  background-color: #0e0e10 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-top-left-radius: 12px !important;
-  border-top-right-radius: 12px !important;
-  min-height: 50px !important; /* Ensure consistent header height */
-  box-sizing: border-box !important;
+  justify-content: flex-end !important;
+  padding: 8px !important;
+  background-color: transparent !important;
+  z-index: 26 !important;
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: auto !important;
 }
 
-.mobile-panel-title {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  color: white !important;
-  margin: 0 !important;
-}
-
+/* Panel close button */
 .mobile-panel-close {
-  background: transparent !important;
+  background: rgba(14, 14, 16, 0.7) !important;
   border: none !important;
   color: rgba(255, 255, 255, 0.7) !important;
   font-size: 18px !important;
   cursor: pointer !important;
-  padding: 5px !important;
+  padding: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
   line-height: 1 !important;
+  border-radius: 50% !important;
   -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Chat panel specific styling */
@@ -166,6 +167,8 @@
   overflow: hidden !important;
   position: relative !important;
   height: 100% !important;
+  /* Push content up to make room for input field */
+  padding-bottom: 0 !important;
 }
 
 #mobile-twitch-chat {
@@ -305,7 +308,7 @@
 /* Fix for notched iPhones and iOS devices */
 @supports (padding: env(safe-area-inset-bottom)) {
   .mobile-panel-container {
-    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+    padding-bottom: calc(85px + env(safe-area-inset-bottom, 0)) !important;
     height: calc(100% - 40vh - 68px - env(safe-area-inset-bottom, 0)) !important;
     top: calc(40vh + 68px) !important; /* Position it right after the buttons */
   }
@@ -320,7 +323,8 @@
   }
 }
 
-/* Handle iPhone 14/15/16 Pro specific dimensions */
+/* iPhone models specific adjustments */
+/* iPhone 16/15/14 Pro */
 @media screen and (min-width: 390px) and (max-width: 393px) and (min-height: 844px) and (max-height: 852px) {
   .mobile-video-container {
     max-height: 35vh !important;
@@ -330,10 +334,25 @@
   .mobile-panel-container {
     height: calc(100% - 35vh - 68px) !important; /* Remove extra spacing */
     top: calc(35vh + 68px) !important; /* Position it right after the buttons for iPhone Pro */
+    padding-bottom: 90px !important; /* Specific for iPhone Pro browser UI */
   }
   
   .mobile-panel-container.visible {
     top: calc(35vh + 68px) !important; /* Position it right after the buttons for iPhone Pro */
+  }
+}
+
+/* iPhone Pro Max */
+@media screen and (min-width: 428px) and (max-height: 926px) {
+  .mobile-panel-container {
+    padding-bottom: 95px !important; /* Larger screen needs more bottom padding */
+  }
+}
+
+/* iPhone Mini */
+@media screen and (max-width: 375px) {
+  .mobile-panel-container {
+    padding-bottom: 80px !important; /* Smaller screen needs less bottom padding */
   }
 }
 

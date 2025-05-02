@@ -878,8 +878,7 @@ const StreamPage = () => {
             
             {/* Chat Panel */}
             <div className="mobile-panel-container chat-panel">
-              <div className="mobile-panel-header">
-                <h3 className="mobile-panel-title">STREAM CHAT</h3>
+              <div className="mobile-panel-close-container">
                 <button 
                   className="mobile-panel-close"
                   onClick={() => document.querySelector('.mobile-panel-container.chat-panel')?.classList.remove('visible')}
