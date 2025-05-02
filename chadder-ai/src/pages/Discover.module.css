@@ -1624,4 +1624,44 @@
   padding: 1rem 1.5rem;
   border-radius: 12px;
   border: 1px solid rgba(138, 106, 255, 0.2);
+}
+
+/* Styles for cards from Dig Deeper */
+.digDeeperCard {
+  border: 2px solid #9147ff !important;
+  box-shadow: 0 0 15px rgba(145, 71, 255, 0.35) !important;
+  position: relative;
+}
+
+.digDeeperCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 40px 40px 0;
+  border-color: transparent #9147ff transparent transparent;
+  z-index: 1;
+}
+
+/* Tag for streamers from Dig Deeper */
+.digDeeperTag {
+  background: linear-gradient(135deg, #9147ff, #b347ff);
+  display: inline-flex;
+  align-items: center;
+  border-radius: 12px;
+  padding: 2px 8px;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.digDeeperLabel {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 } 

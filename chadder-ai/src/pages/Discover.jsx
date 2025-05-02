@@ -5,6 +5,9 @@ import { useNavigate } from "react-router-dom";
 import styles from './Discover.module.css';
 import { FaLock } from 'react-icons/fa';
 
+// Configurable vote threshold for promoting streamers from Dig Deeper
+const VOTE_THRESHOLD = 5; // Minimum votes needed to appear on Discover page
+
 // Debug component - only shows in development
 const DebugInfo = ({ isLoading, loadError, streamers, onRetry }) => {
   const isDev = import.meta.env.MODE === 'development';
@@ -369,6 +372,19 @@ const Discover = () => {
         }
       }
       
+      // Fetch streamers with votes >= threshold from Dig Deeper
+      const { data: votedStreamers, error: votedError } = await supabase
+        .from('votes')
+        .select('streamer, count(*)')
+        .group('streamer')
+        .having(`count(*) >= ${VOTE_THRESHOLD}`)
+        .order('count', { ascending: false });
+        
+      if (votedError) {
+        console.error('Error fetching voted streamers:', votedError);
+      }
+      
+      // Get streamer data from main API
       const streamersData = await fetchStreamers();
       console.log('Loaded streamers from API:', streamersData);
       
@@ -377,14 +393,131 @@ const Discover = () => {
         console.error('Error loading streamers:', streamersData.message);
         setLoadError(streamersData.message || 'Failed to load live streamer data. Please try refreshing the page.');
         setStreamers([]);
-      } else if (streamersData && streamersData.length > 0) {
-        console.log('Successfully fetched live data from API:', streamersData.length, 'streamers');
-        setStreamers(streamersData);
-        setLoadError(null);
       } else {
-        console.warn('No streamers returned from API');
-        setLoadError('No streamers found. Please try refreshing the page.');
-        setStreamers([]);
+        let allStreamers = [];
+        
+        if (streamersData && streamersData.length > 0) {
+          console.log('Successfully fetched live data from API:', streamersData.length, 'streamers');
+          allStreamers = [...streamersData];
+        }
+        
+        // If we have voted streamers from Dig Deeper, add them to the list if not already present
+        if (votedStreamers && votedStreamers.length > 0) {
+          console.log('Found voted streamers from Dig Deeper:', votedStreamers.length);
+          
+          // Fetch Twitch data for these streamers if they have enough votes
+          try {
+            const usernames = votedStreamers.map(v => v.streamer);
+            
+            // Check if usernames exist in current streamers list
+            const existingUsernames = new Set(allStreamers.map(s => s.user_login?.toLowerCase()));
+            const missingUsernames = usernames.filter(username => 
+              username && !existingUsernames.has(username.toLowerCase())
+            );
+            
+            if (missingUsernames.length > 0) {
+              // Get Twitch API credentials
+              const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID;
+              const clientSecret = import.meta.env.VITE_TWITCH_CLIENT_SECRET;
+              
+              if (clientId && clientSecret) {
+                // Get token
+                const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`
+                });
+                
+                if (tokenResponse.ok) {
+                  const tokenData = await tokenResponse.json();
+                  const accessToken = tokenData.access_token;
+                  
+                  if (accessToken) {
+                    // Query Twitch API for users
+                    const queryParams = missingUsernames.map(name => `login=${name}`).join('&');
+                    const usersResponse = await fetch(`https://api.twitch.tv/helix/users?${queryParams}`, {
+                      headers: {
+                        'Client-ID': clientId,
+                        'Authorization': `Bearer ${accessToken}`
+                      }
+                    });
+                    
+                    if (usersResponse.ok) {
+                      const userData = await usersResponse.json();
+                      
+                      if (userData.data && userData.data.length > 0) {
+                        // Query stream status
+                        const userIds = userData.data.map(user => user.id);
+                        const streamsQueryParams = userIds.map(id => `user_id=${id}`).join('&');
+                        const streamsResponse = await fetch(`https://api.twitch.tv/helix/streams?${streamsQueryParams}`, {
+                          headers: {
+                            'Client-ID': clientId,
+                            'Authorization': `Bearer ${accessToken}`
+                          }
+                        });
+                        
+                        let liveStreams = {};
+                        if (streamsResponse.ok) {
+                          const streamsData = await streamsResponse.json();
+                          streamsData.data.forEach(stream => {
+                            liveStreams[stream.user_id] = stream;
+                          });
+                        }
+                        
+                        // Create streamer objects
+                        const digDeeperStreamers = userData.data.map(user => {
+                          const isLive = !!liveStreams[user.id];
+                          const stream = liveStreams[user.id];
+                          const voteData = votedStreamers.find(v => 
+                            v.streamer.toLowerCase() === user.login.toLowerCase()
+                          );
+                          
+                          return {
+                            id: user.id,
+                            user_id: user.id,
+                            user_name: user.display_name,
+                            user_login: user.login,
+                            profile_image_url: user.profile_image_url,
+                            description: user.description,
+                            type: isLive ? "live" : "offline",
+                            viewer_count: isLive ? stream.viewer_count : 0,
+                            game_name: isLive ? stream.game_name : "Not Live",
+                            title: isLive ? stream.title : "",
+                            started_at: isLive ? stream.started_at : null,
+                            thumbnail_url: isLive ? stream.thumbnail_url : null,
+                            tag_ids: isLive ? stream.tag_ids : [],
+                            is_dig_deeper: true, // Flag to identify streamers from Dig Deeper
+                            vote_count: voteData ? voteData.count : 0
+                          };
+                        });
+                        
+                        // Add new streamers to the list
+                        console.log(`Adding ${digDeeperStreamers.length} voted streamers from Dig Deeper`);
+                        allStreamers = [...allStreamers, ...digDeeperStreamers];
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching Twitch data for voted streamers:', error);
+          }
+        }
+        
+        // Deduplicate streamers by user_id
+        const uniqueStreamers = [];
+        const seenIds = new Set();
+        
+        for (const streamer of allStreamers) {
+          if (streamer && streamer.user_id && !seenIds.has(streamer.user_id)) {
+            seenIds.add(streamer.user_id);
+            uniqueStreamers.push(streamer);
+          }
+        }
+        
+        setStreamers(uniqueStreamers);
+        setLoadError(null);
       }
     } catch (error) {
       console.error('Error in loadStreamers function:', error);
@@ -740,7 +873,7 @@ const Discover = () => {
     
     // Only lock cards if user is not logged in AND index is beyond the free limit
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
-    const votes = streamerVotes[userLogin] || 0;
+    const votes = streamerVotes[userLogin] || streamer.vote_count || 0;
 
     // Use a standard placeholder image for missing profile images
     const getProfileImagePlaceholder = () => {
@@ -770,10 +903,13 @@ const Discover = () => {
       return getProfileImagePlaceholder();
     };
 
+    // Check if streamer is from Dig Deeper with enough votes
+    const isFromDigDeeper = streamer.is_dig_deeper === true;
+
     return (
       <div 
         key={userId}
-        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''}`}
+        className={`${styles.streamerCard} ${isLocked ? styles.lockedCard : ''} ${isFromDigDeeper ? styles.digDeeperCard : ''}`}
         onClick={() => isLocked ? handleAuthPrompt() : handleCardClick(userLogin || userName)}
       >
         <div className={styles.thumbnailWrapper}>
