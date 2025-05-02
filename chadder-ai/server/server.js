@@ -14,6 +14,28 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+// Add environment variable handling for CORS
+const getCorsAllowedOrigins = () => {
+  // Default origins list from code
+  const defaultOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://chadderai.vercel.app',
+    'https://chadder.ai',
+    'https://chadderforchadders.onrender.com',
+    'https://www.chadderforchadders.onrender.com',
+    'https://zvxwsdmrfsvmhkiqdkul.supabase.co'
+  ];
+  
+  // If CORS_ALLOW_ORIGIN environment variable is set, use it
+  if (process.env.CORS_ALLOW_ORIGIN) {
+    console.log('Using CORS origins from environment:', process.env.CORS_ALLOW_ORIGIN);
+    return process.env.CORS_ALLOW_ORIGIN.split(',');
+  }
+  
+  return defaultOrigins;
+};
+
 // Initialize Supabase client with the correct env variable names
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,        // matches your .env
@@ -45,7 +67,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add proper CORS configuration
+// Before the existing CORS middleware, add a section to get credentials setting
+
+// Get credentials setting from environment or default to true
+const corsCredentialsEnabled = process.env.CORS_ALLOW_CREDENTIALS 
+  ? process.env.CORS_ALLOW_CREDENTIALS.toLowerCase() === 'true'
+  : true;
+
+console.log('CORS credentials enabled:', corsCredentialsEnabled);
+
+// Then update the CORS middleware to use this variable
 app.use(cors({
   origin: function(origin, callback) {
     // Always allow webhook requests (they come from Stripe)
@@ -53,13 +84,7 @@ app.use(cors({
       return callback(null, true);
     }
     
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'https://chadderai.vercel.app',
-      'https://chadder.ai',
-      'https://chadderforchadders.onrender.com',
-      'https://www.chadderforchadders.onrender.com'
-    ];
+    const allowedOrigins = getCorsAllowedOrigins();
     
     // Allow all vercel.app subdomains and specified origins
     if (allowedOrigins.includes(origin) || 
@@ -71,10 +96,29 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: corsCredentialsEnabled,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature', 'Origin', 'X-Requested-With', 'Accept']
 }));
+
+// After the CORS middleware configuration, add a CORS diagnostic middleware
+
+// Add CORS diagnostic middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (req.method === 'OPTIONS') {
+    console.log('CORS preflight request:', {
+      path: req.path,
+      origin: origin || 'no origin',
+      method: req.method,
+      headers: {
+        accept: req.headers.accept,
+        'content-type': req.headers['content-type']
+      }
+    });
+  }
+  next();
+});
 
 // Add Twitch API routes
 app.use('/api/twitch', twitchApiRouter);
