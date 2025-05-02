@@ -16,13 +16,25 @@ const AdminDashboard = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState({
+    visitors: { daily: 0, weekly: 0, monthly: 0 },
+    pageViews: { daily: 0, weekly: 0, monthly: 0 },
+    topPages: [],
+    conversionRate: 0,
+    averageSessionTime: '0:00',
+    bounceRate: 0
+  });
+  const [timeRange, setTimeRange] = useState('weekly');
 
   // Attempt to load streamers if in database mode
   useEffect(() => {
     if (mode === 'database') {
       fetchStreamers();
+      fetchAnalytics(timeRange);
     }
-  }, [mode]);
+  }, [mode, timeRange]);
 
   // Safe database operation to fetch streamers
   const fetchStreamers = async () => {
@@ -51,6 +63,122 @@ const AdminDashboard = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Fetch analytics data based on time range
+  const fetchAnalytics = async (range) => {
+    setIsLoading(true);
+    try {
+      // Fetch visitor data
+      const { data: visitorData, error: visitorError } = await supabase
+        .from('analytics_visitors')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(range === 'daily' ? 1 : range === 'weekly' ? 7 : 30);
+      
+      if (visitorError) {
+        console.error('Error fetching visitor analytics:', visitorError);
+        setError(`Failed to fetch analytics: ${visitorError.message}`);
+        return;
+      }
+      
+      // Fetch page views
+      const { data: pageViewData, error: pageViewError } = await supabase
+        .from('analytics_page_views')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(range === 'daily' ? 1 : range === 'weekly' ? 7 : 30);
+      
+      if (pageViewError) {
+        console.error('Error fetching page view analytics:', pageViewError);
+        setError(`Failed to fetch analytics: ${pageViewError.message}`);
+        return;
+      }
+      
+      // Fetch top pages
+      const { data: topPagesData, error: topPagesError } = await supabase
+        .from('analytics_top_pages')
+        .select('*')
+        .order('views', { ascending: false })
+        .limit(5);
+      
+      if (topPagesError) {
+        console.error('Error fetching top pages:', topPagesError);
+        setError(`Failed to fetch analytics: ${topPagesError.message}`);
+        return;
+      }
+      
+      // Process the analytics data
+      const processedData = {
+        visitors: {
+          daily: calculateVisitors(visitorData, 'daily'),
+          weekly: calculateVisitors(visitorData, 'weekly'),
+          monthly: calculateVisitors(visitorData, 'monthly')
+        },
+        pageViews: {
+          daily: calculatePageViews(pageViewData, 'daily'),
+          weekly: calculatePageViews(pageViewData, 'weekly'),
+          monthly: calculatePageViews(pageViewData, 'monthly')
+        },
+        topPages: topPagesData || [],
+        conversionRate: calculateConversionRate(visitorData, pageViewData),
+        averageSessionTime: calculateAverageSessionTime(visitorData),
+        bounceRate: calculateBounceRate(visitorData)
+      };
+      
+      setAnalyticsData(processedData);
+    } catch (err) {
+      console.error('Exception fetching analytics:', err);
+      setError(`Something went wrong: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper functions for analytics calculations
+  const calculateVisitors = (data, range) => {
+    if (!data || data.length === 0) return 0;
+    const sum = data.reduce((acc, item) => acc + (item.unique_visitors || 0), 0);
+    return range === 'daily' ? sum : sum;
+  };
+
+  const calculatePageViews = (data, range) => {
+    if (!data || data.length === 0) return 0;
+    const sum = data.reduce((acc, item) => acc + (item.views || 0), 0);
+    return range === 'daily' ? sum : sum;
+  };
+
+  const calculateConversionRate = (visitors, pageViews) => {
+    if (!visitors || visitors.length === 0 || !pageViews || pageViews.length === 0) return 0;
+    const totalVisitors = visitors.reduce((acc, item) => acc + (item.unique_visitors || 0), 0);
+    const totalConversions = visitors.reduce((acc, item) => acc + (item.conversions || 0), 0);
+    return totalVisitors > 0 ? ((totalConversions / totalVisitors) * 100).toFixed(2) : 0;
+  };
+
+  const calculateAverageSessionTime = (data) => {
+    if (!data || data.length === 0) return '0:00';
+    const totalSessions = data.reduce((acc, item) => acc + (item.sessions || 0), 0);
+    const totalTimeSeconds = data.reduce((acc, item) => acc + (item.session_time || 0), 0);
+    
+    if (totalSessions === 0) return '0:00';
+    
+    const avgSeconds = Math.floor(totalTimeSeconds / totalSessions);
+    const minutes = Math.floor(avgSeconds / 60);
+    const seconds = avgSeconds % 60;
+    
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  const calculateBounceRate = (data) => {
+    if (!data || data.length === 0) return 0;
+    const totalSessions = data.reduce((acc, item) => acc + (item.sessions || 0), 0);
+    const totalBounces = data.reduce((acc, item) => acc + (item.bounces || 0), 0);
+    return totalSessions > 0 ? ((totalBounces / totalSessions) * 100).toFixed(2) : 0;
+  };
+
+  // Handle time range change
+  const handleTimeRangeChange = (range) => {
+    setTimeRange(range);
   };
 
   // Handle form input changes
@@ -173,6 +301,166 @@ const AdminDashboard = () => {
     }
   };
 
+  // Render analytics section for emergency mode
+  const renderEmergencyAnalytics = () => (
+    <div className={styles.section}>
+      <h2>Analytics Dashboard</h2>
+      <div className={styles.analyticsWrapper}>
+        <div className={styles.analyticsHeader}>
+          <h3>Business Overview</h3>
+        </div>
+        
+        <div className={styles.analyticsSummary}>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Total Visitors</div>
+            <div className={styles.metricValue}>1,245</div>
+            <div className={`${styles.metricChange} ${styles.positive}`}>+12.5%</div>
+          </div>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Page Views</div>
+            <div className={styles.metricValue}>5,871</div>
+            <div className={`${styles.metricChange} ${styles.positive}`}>+8.2%</div>
+          </div>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Avg. Session</div>
+            <div className={styles.metricValue}>2:45</div>
+            <div className={`${styles.metricChange} ${styles.negative}`}>-1.3%</div>
+          </div>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Bounce Rate</div>
+            <div className={styles.metricValue}>42.6%</div>
+            <div className={`${styles.metricChange} ${styles.positive}`}>-3.8%</div>
+          </div>
+        </div>
+        
+        <div className={styles.analyticsGrid}>
+          <div className={styles.analyticsPanel}>
+            <h4>Most Visited Pages</h4>
+            <div className={styles.topPages}>
+              <div className={styles.pageItem}>
+                <div className={styles.pagePath}>/discover</div>
+                <div className={styles.pageViews}>2,341</div>
+              </div>
+              <div className={styles.pageItem}>
+                <div className={styles.pagePath}>/leaderboard</div>
+                <div className={styles.pageViews}>1,852</div>
+              </div>
+              <div className={styles.pageItem}>
+                <div className={styles.pagePath}>/dig-deeper</div>
+                <div className={styles.pageViews}>987</div>
+              </div>
+              <div className={styles.pageItem}>
+                <div className={styles.pagePath}>/credits</div>
+                <div className={styles.pageViews}>432</div>
+              </div>
+              <div className={styles.pageItem}>
+                <div className={styles.pagePath}>/admin</div>
+                <div className={styles.pageViews}>259</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className={styles.analyticsPanel}>
+            <h4>Visitor Trends</h4>
+            <div className={styles.mockChart}>
+              <div className={styles.chartLabel}>Weekly visitor data visualization</div>
+              <div className={styles.chartPlaceholder}>
+                <div className={styles.barGraph}>
+                  <div className={styles.bar} style={{ height: '60%' }}></div>
+                  <div className={styles.bar} style={{ height: '45%' }}></div>
+                  <div className={styles.bar} style={{ height: '75%' }}></div>
+                  <div className={styles.bar} style={{ height: '90%' }}></div>
+                  <div className={styles.bar} style={{ height: '65%' }}></div>
+                  <div className={styles.bar} style={{ height: '80%' }}></div>
+                  <div className={styles.bar} style={{ height: '70%' }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render analytics section for database mode
+  const renderDatabaseAnalytics = () => (
+    <div className={styles.section}>
+      <h2>Analytics Dashboard</h2>
+      <div className={styles.analyticsWrapper}>
+        <div className={styles.analyticsHeader}>
+          <h3>Business Overview</h3>
+          <div className={styles.timeRangeSelector}>
+            <button 
+              className={`${styles.timeButton} ${timeRange === 'daily' ? styles.active : ''}`}
+              onClick={() => handleTimeRangeChange('daily')}
+            >
+              Today
+            </button>
+            <button 
+              className={`${styles.timeButton} ${timeRange === 'weekly' ? styles.active : ''}`}
+              onClick={() => handleTimeRangeChange('weekly')}
+            >
+              This Week
+            </button>
+            <button 
+              className={`${styles.timeButton} ${timeRange === 'monthly' ? styles.active : ''}`}
+              onClick={() => handleTimeRangeChange('monthly')}
+            >
+              This Month
+            </button>
+          </div>
+        </div>
+        
+        <div className={styles.analyticsSummary}>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Total Visitors</div>
+            <div className={styles.metricValue}>{analyticsData.visitors[timeRange].toLocaleString()}</div>
+          </div>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Page Views</div>
+            <div className={styles.metricValue}>{analyticsData.pageViews[timeRange].toLocaleString()}</div>
+          </div>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Avg. Session</div>
+            <div className={styles.metricValue}>{analyticsData.averageSessionTime}</div>
+          </div>
+          <div className={styles.analyticsCard}>
+            <div className={styles.metricTitle}>Bounce Rate</div>
+            <div className={styles.metricValue}>{analyticsData.bounceRate}%</div>
+          </div>
+        </div>
+        
+        <div className={styles.analyticsGrid}>
+          <div className={styles.analyticsPanel}>
+            <h4>Most Visited Pages</h4>
+            {analyticsData.topPages.length > 0 ? (
+              <div className={styles.topPages}>
+                {analyticsData.topPages.map((page, index) => (
+                  <div key={index} className={styles.pageItem}>
+                    <div className={styles.pagePath}>{page.path}</div>
+                    <div className={styles.pageViews}>{page.views.toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.emptyState}>No page view data available</div>
+            )}
+          </div>
+          
+          <div className={styles.analyticsPanel}>
+            <h4>Conversion Rate</h4>
+            <div className={styles.conversionWrapper}>
+              <div className={styles.conversionRate}>
+                <div className={styles.conversionValue}>{analyticsData.conversionRate}%</div>
+                <div className={styles.conversionLabel}>of visitors take action</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Render emergency mode
   const renderEmergencyMode = () => (
     <>
@@ -188,6 +476,8 @@ const AdminDashboard = () => {
           <div><strong>Role:</strong> Admin</div>
         </div>
       </div>
+      
+      {renderEmergencyAnalytics()}
       
       <div className={styles.section}>
         <h2>Database Status</h2>
@@ -234,6 +524,8 @@ const AdminDashboard = () => {
           <p>{successMessage}</p>
         </div>
       )}
+      
+      {renderDatabaseAnalytics()}
       
       <div className={styles.section}>
         <h2>Add New Streamer</h2>

@@ -1,20 +1,15 @@
 .adminDashboard {
   max-width: 1200px;
-  margin: 40px auto;
+  margin: 0 auto;
   padding: 20px;
-  color: #fff;
-  background-color: #121212;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  color: #e4e4e4;
 }
 
 .title {
-  font-size: 32px;
-  margin-bottom: 30px;
+  font-size: 2.4rem;
   text-align: center;
-  color: #f4f4f4;
-  border-bottom: 2px solid #333;
-  padding-bottom: 10px;
+  margin-bottom: 1.5rem;
+  color: #fff;
 }
 
 /* Tab Navigation Styles */
@@ -52,18 +47,20 @@
 }
 
 .section {
-  margin-bottom: 40px;
-  background-color: #1a1a1a;
-  padding: 20px;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .section h2 {
   margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 24px;
-  color: #00ccff;
+  margin-bottom: 1.2rem;
+  font-size: 1.8rem;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.8rem;
 }
 
 .sectionHeader {
@@ -100,41 +97,43 @@
 }
 
 .input, .textarea {
-  padding: 12px;
-  background-color: #2a2a2a;
-  border: 1px solid #444;
+  width: 100%;
+  padding: 0.8rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
-  color: #fff;
-  font-size: 16px;
-  transition: border-color 0.3s;
+  color: white;
+  font-size: 1rem;
+}
+
+.input::placeholder, .textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .input:focus, .textarea:focus {
   outline: none;
-  border-color: #00ccff;
-  box-shadow: 0 0 0 2px rgba(0, 204, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .button {
-  display: inline-block;
-  padding: 12px 20px;
-  background-color: #00ccff;
-  color: #0a0a0a;
+  padding: 10px 20px;
+  background-color: #8732f5;
+  color: white;
   border: none;
   border-radius: 4px;
-  font-weight: 600;
-  font-size: 16px;
+  font-size: 1rem;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
 }
 
 .button:hover {
-  background-color: #00bfed;
-  transform: translateY(-2px);
+  background-color: #722ad9;
 }
 
-.button:active {
-  transform: translateY(0);
+.button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
 }
 
 .editButton {
@@ -189,10 +188,10 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 16px;
-  background-color: #1f1f1f;
-  border-radius: 8px;
-  border: 1px solid #333;
+  padding: 1.2rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-bottom: 1rem;
 }
 
 .streamerInfo {
@@ -268,19 +267,37 @@
   gap: 8px;
 }
 
-.viewButton {
-  background-color: #6441a5; /* Twitch purple */
-  color: white;
+.viewButton, .deleteButton {
+  padding: 8px 15px;
   border: none;
   border-radius: 4px;
-  padding: 8px 12px;
+  font-size: 0.9rem;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+}
+
+.viewButton {
+  background-color: #6441a5;
+  color: white;
 }
 
 .viewButton:hover {
   background-color: #7d5bbe;
+}
+
+.deleteButton {
+  background-color: transparent;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+}
+
+.deleteButton:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .refreshButton {
@@ -540,16 +557,16 @@
 /* Add these styles at the end of the file */
 
 .notice {
-  background-color: #302e44;
-  border-left: 4px solid #00ccff;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  border-radius: 4px;
+  background-color: rgba(220, 53, 69, 0.1);
+  border-left: 4px solid #dc3545;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0 4px 4px 0;
 }
 
 .notice p {
   margin: 0;
-  color: #ddd;
+  color: #dc3545;
 }
 
 .mockUsers {
@@ -559,45 +576,40 @@
 }
 
 .mockUser {
-  background-color: #222;
-  padding: 16px;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.mockUser div {
+  margin-bottom: 0.5rem;
 }
 
 .mockStats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 20px;
+  display: flex;
+  justify-content: space-around;
+  margin-top: 1.5rem;
 }
 
 .statCard {
-  background: linear-gradient(to bottom right, #1e272e, #2C3A47);
-  padding: 20px;
-  border-radius: 8px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.statCard:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  min-width: 120px;
 }
 
 .statValue {
-  font-size: 36px;
+  font-size: 2rem;
   font-weight: bold;
-  color: #00ccff;
-  margin-bottom: 8px;
+  margin-bottom: 0.3rem;
+  color: #fff;
 }
 
 .statLabel {
+  font-size: 0.9rem;
   color: #aaa;
-  font-size: 14px;
 }
 
 /* Add these styles to the file */
@@ -606,102 +618,105 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 10px;
-  background-color: #1a1a1a;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
 }
 
 .toggleButton {
-  padding: 12px 20px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 10px 20px;
+  background-color: #3a3a3a;
+  color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
+.toggleButton:hover {
+  opacity: 0.9;
+}
+
 .emergencyMode {
-  background-color: #4CAF50;
-  color: #fff;
+  background-color: #dc3545;
 }
 
 .databaseMode {
-  background-color: #f44336;
-  color: #fff;
+  background-color: #28a745;
 }
 
 .modeIndicator {
   margin-top: 10px;
-  font-size: 14px;
-  color: #ccc;
+  font-size: 0.9rem;
+  color: #aaa;
 }
 
 .errorMessage {
-  background-color: rgba(244, 67, 54, 0.2);
-  border-left: 4px solid #f44336;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 4px;
+  background-color: rgba(220, 53, 69, 0.1);
+  border-left: 4px solid #dc3545;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0 4px 4px 0;
+  color: #dc3545;
 }
 
 .successMessage {
-  background-color: rgba(76, 175, 80, 0.2);
-  border-left: 4px solid #4CAF50;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 4px;
+  background-color: rgba(40, 167, 69, 0.1);
+  border-left: 4px solid #28a745;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0 4px 4px 0;
+  color: #28a745;
 }
 
 .streamerForm {
-  background-color: #222;
-  padding: 20px;
-  border-radius: 8px;
-  margin-top: 15px;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  border-radius: 4px;
+  margin-top: 1rem;
 }
 
 .formGroup {
-  margin-bottom: 15px;
+  margin-bottom: 1.2rem;
 }
 
 .formGroup label {
   display: block;
-  margin-bottom: 8px;
-  color: #eee;
+  margin-bottom: 0.5rem;
   font-weight: 500;
 }
 
 .inputError {
-  border-color: #f44336 !important;
+  border-color: #dc3545;
 }
 
 .errorText {
-  color: #f44336;
-  font-size: 14px;
-  margin-top: 5px;
+  color: #dc3545;
+  margin-top: 0.3rem;
+  font-size: 0.9rem;
 }
 
 .helpText {
+  font-size: 0.8rem;
   color: #aaa;
-  font-size: 13px;
-  margin-top: 5px;
+  margin-top: 0.3rem;
 }
 
 .formActions {
-  margin-top: 20px;
+  margin-top: 1.5rem;
 }
 
 .loadingIndicator {
   text-align: center;
-  padding: 20px;
+  padding: 1rem;
+  font-style: italic;
   color: #aaa;
 }
 
 .streamersList {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  margin-top: 1.5rem;
 }
 
 .streamerItem {
@@ -770,4 +785,193 @@
   padding: 30px;
   text-align: center;
   color: #888;
+}
+
+/* Analytics Section Styles */
+.analyticsWrapper {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.analyticsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.analyticsHeader h3 {
+  margin: 0;
+  color: #fff;
+}
+
+.timeRangeSelector {
+  display: flex;
+  gap: 8px;
+}
+
+.timeButton {
+  padding: 8px 15px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 4px;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.timeButton:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.timeButton.active {
+  background-color: #8732f5;
+  color: white;
+}
+
+.analyticsSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.analyticsCard {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1.2rem;
+  text-align: center;
+}
+
+.metricTitle {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+}
+
+.metricValue {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 0.3rem;
+}
+
+.metricChange {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.metricChange.positive {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+}
+
+.metricChange.negative {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.analyticsPanel {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1.2rem;
+}
+
+.analyticsPanel h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.topPages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.pageItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.pagePath {
+  font-size: 0.9rem;
+  color: #ddd;
+}
+
+.pageViews {
+  font-size: 0.9rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.mockChart {
+  text-align: center;
+}
+
+.chartLabel {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 1rem;
+}
+
+.chartPlaceholder {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 1rem;
+  height: 150px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.barGraph {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 100%;
+  width: 100%;
+}
+
+.bar {
+  flex: 1;
+  background: linear-gradient(to top, #8732f5, #a566f7);
+  border-radius: 3px 3px 0 0;
+}
+
+.conversionWrapper {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conversionRate {
+  text-align: center;
+}
+
+.conversionValue {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #8732f5;
+  margin-bottom: 0.5rem;
+}
+
+.conversionLabel {
+  font-size: 0.9rem;
+  color: #aaa;
 } 

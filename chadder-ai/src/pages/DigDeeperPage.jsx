@@ -126,16 +126,19 @@ const DigDeeperPage = () => {
   
   // Authentication check - only run when user state changes
   useEffect(() => {
-    const checkAuth = () => {
-      // If we have a user, ensure auth modal is closed
-      if (user) {
+    const checkAuth = async () => {
+      // Check for active session directly from supabase
+      const { data: session } = await supabase.auth.getSession();
+      
+      // If we have an active session or user object, user is logged in
+      if (session?.session || user) {
         setShowAuthModal(false);
         setAuthChecked(true);
         return;
       }
       
-      // If we've confirmed there's no user, show auth modal
-      if (user === null) {
+      // If we've confirmed there's no user AND we've verified no active session, show auth modal
+      if (user === null && !session?.session) {
         setShowAuthModal(true);
         setAuthChecked(true);
         return;
@@ -154,6 +157,26 @@ const DigDeeperPage = () => {
       setShowAuthModal(false);
       setAuthChecked(false);
     };
+  }, []);
+  
+  // Immediately check auth status on component mount
+  useEffect(() => {
+    const verifyAuth = async () => {
+      try {
+        // Get the current session
+        const { data } = await supabase.auth.getSession();
+        
+        // If we have a session but no user object yet, keep modal closed
+        if (data?.session?.user) {
+          setShowAuthModal(false);
+          setAuthChecked(true);
+        }
+      } catch (err) {
+        console.error('Error verifying auth:', err);
+      }
+    };
+    
+    verifyAuth();
   }, []);
   
   // Preference selector state
@@ -604,8 +627,19 @@ const DigDeeperPage = () => {
     const currentStreamer = streamers[currentIndex];
     
     if (!user) {
-      toast.info('Sign in to save favorites!');
-      setShowAuthModal(true);
+      // Check for session before showing auth modal
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data?.session) {
+          toast.info('Sign in to save favorites!');
+          setShowAuthModal(true);
+        } else {
+          // We have a session but user object might not be loaded yet
+          // Still save the favorite
+          saveVote(currentStreamer);
+          saveFavorite(currentStreamer);
+          addToSwiped(currentStreamer.twitch_id, 'right');
+        }
+      });
     } else if (currentStreamer) {
       // Save vote to database
       saveVote(currentStreamer);
@@ -1342,8 +1376,17 @@ const DigDeeperPage = () => {
                     e.stopPropagation();
                     
                     if (!user) {
-                      toast.info('Sign in to save favorites!');
-                      setShowAuthModal(true);
+                      // Check for session before showing auth modal
+                      supabase.auth.getSession().then(({ data }) => {
+                        if (!data?.session) {
+                          toast.info('Sign in to save favorites!');
+                          setShowAuthModal(true);
+                        } else {
+                          // We have a session but user object might not be loaded yet
+                          saveFavorite(streamer);
+                          toast.success(`Added ${streamer.display_name || streamer.username} to favorites!`);
+                        }
+                      });
                       return;
                     }
                     
@@ -1500,8 +1543,8 @@ const DigDeeperPage = () => {
     <div className={styles.container}>
       {/* Only show auth modal if we've confirmed no user AND auth is checked */}
       <AuthModal 
-        show={showAuthModal && authChecked} 
-        isOpen={showAuthModal && authChecked}
+        show={showAuthModal && authChecked && !user} 
+        isOpen={showAuthModal && authChecked && !user}
         onClose={() => {
           if (user) {
             setShowAuthModal(false);
@@ -1514,7 +1557,7 @@ const DigDeeperPage = () => {
       />
       
       {/* Only show auth required if we've checked auth and have no user */}
-      {authChecked && !user ? (
+      {authChecked && !user && showAuthModal ? (
         <div className={styles.authRequiredContainer}>
           <h2>Authentication Required</h2>
           <p>Please sign in to access the Dig Deeper feature</p>
