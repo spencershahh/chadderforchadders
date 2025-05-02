@@ -9,105 +9,110 @@
 }
 
 .toggleButton {
-  display: flex;
-  align-items: center;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background-color: #5b41e0;
   color: white;
+  padding: 8px 12px;
+  border-radius: 50px;
   border: none;
-  border-radius: 30px;
-  padding: 10px 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  transition: all 0.2s ease;
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  margin-bottom: 10px;
+  min-width: 200px;
 }
 
-.toggleButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+.buttonContent {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  cursor: pointer;
 }
 
 .hasPending {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(139, 92, 246, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
-  }
+  animation: pulse 1.5s infinite;
 }
 
 .challengeIcon {
   margin-right: 8px;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .dailyText {
-  font-size: 14px;
+  white-space: nowrap;
 }
 
 .pendingBadge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #ef4444;
+  background-color: #ff3c3c;
   color: white;
-  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
   width: 20px;
   height: 20px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-left: 8px;
+}
+
+/* Close button styles */
+.closeButton {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
+  border: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  margin-left: 8px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 .challengesPanel {
-  background-color: #1f2937;
-  border-radius: 12px;
+  background-color: #18181b;
+  border-radius: 8px;
   padding: 16px;
-  margin-top: 12px;
-  width: 320px;
-  max-height: 500px;
-  overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  width: 300px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  color: white;
 }
 
 .challengesPanel h2 {
   margin-top: 0;
   margin-bottom: 16px;
   font-size: 18px;
-  color: white;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 8px;
 }
 
 .challengeItem {
-  background-color: #2d3748;
-  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
   padding: 12px;
-  margin-bottom: 12px;
-  border-left: 4px solid #3b82f6;
-  transition: all 0.3s ease;
-}
-
-.challengeItem.completed {
-  border-left-color: #10b981;
+  margin-bottom: 10px;
 }
 
 .challengeHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .challengeHeader h3 {
@@ -116,90 +121,116 @@
   color: white;
 }
 
+.challengeDescription {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 12px;
+}
+
+.challengeRewards {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.xpReward, .gemReward {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.xpReward {
+  background-color: #43b581;
+  color: white;
+}
+
+.gemReward {
+  background-color: #f7b955;
+  color: black;
+}
+
+.progressBarContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progressBar {
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: #5b41e0;
+  border-radius: 4px;
+}
+
+.progressText {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 40px;
+  text-align: right;
+}
+
 .claimButton {
-  background-color: #10b981;
+  background-color: #5b41e0;
   color: white;
   border: none;
-  border-radius: 4px;
   padding: 4px 10px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .claimedBadge {
-  background-color: #6b7280;
+  background-color: #43b581;
   color: white;
-  border-radius: 4px;
   padding: 4px 10px;
-  font-size: 12px;
-}
-
-.challengeDescription {
-  color: #d1d5db;
-  font-size: 12px;
-  margin: 8px 0;
-}
-
-.challengeRewards {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.xpReward, .gemReward {
-  background-color: #374151;
-  border-radius: 12px;
-  padding: 4px 8px;
-  font-size: 11px;
-  color: #e5e7eb;
-  display: inline-flex;
-  align-items: center;
-}
-
-.xpReward {
-  background-color: #2563eb;
-}
-
-.gemReward {
-  background-color: #4f46e5;
-}
-
-.progressBarContainer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.progressBar {
-  flex-grow: 1;
-  height: 8px;
-  background-color: #4b5563;
   border-radius: 4px;
-  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.progressFill {
-  height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  border-radius: 4px;
+.completed .progressFill {
+  background-color: #43b581;
 }
 
-.progressText {
-  font-size: 11px;
-  color: #d1d5db;
-  white-space: nowrap;
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
-/* Mobile adjustments */
+/* Mobile responsive styles */
 @media (max-width: 768px) {
   .dailyChallengesContainer {
-    bottom: 70px; /* Above bottom nav if present */
+    bottom: 70px;
     left: 10px;
   }
   
   .challengesPanel {
     width: 280px;
-    max-height: 400px;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+}
+
+/* Add iPhone specific styles to ensure the button doesn't conflict with browser UI */
+@media (max-width: 430px) {
+  .dailyChallengesContainer {
+    bottom: 85px;
+  }
+}
+
+/* Special iPhone safe area consideration */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .dailyChallengesContainer {
+    bottom: calc(85px + env(safe-area-inset-bottom, 0));
   }
 } 

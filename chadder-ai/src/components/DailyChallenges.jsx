@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGamification } from '../hooks/useGamification';
 import styles from './DailyChallenges.module.css';
@@ -62,6 +62,15 @@ const ChallengeItem = ({ challenge, onClaim }) => {
 const DailyChallenges = () => {
   const { dailyChallenges, claimChallenge, loading } = useGamification();
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  
+  // Restore visibility from localStorage on component mount
+  useEffect(() => {
+    const savedVisibility = localStorage.getItem('dailyChallengesVisible');
+    if (savedVisibility !== null) {
+      setIsVisible(savedVisibility === 'true');
+    }
+  }, []);
   
   const handleClaim = async (challengeId, assignedDate) => {
     await claimChallenge(challengeId, assignedDate);
@@ -77,8 +86,21 @@ const DailyChallenges = () => {
     return dailyChallenges.filter(c => c.completed && !c.claimed).length;
   };
   
-  // Don't render until challenges are loaded
-  if (loading || !dailyChallenges || dailyChallenges.length === 0) {
+  const toggleOpen = (e) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
+  
+  const hideButton = (e) => {
+    e.stopPropagation();
+    setIsVisible(false);
+    setIsOpen(false);
+    // Save preference to localStorage
+    localStorage.setItem('dailyChallengesVisible', 'false');
+  };
+  
+  // Don't render until challenges are loaded or if button is hidden
+  if (loading || !dailyChallenges || dailyChallenges.length === 0 || !isVisible) {
     return null;
   }
   
@@ -86,20 +108,28 @@ const DailyChallenges = () => {
   
   return (
     <div className={styles.dailyChallengesContainer}>
-      <motion.button 
+      <motion.div 
         className={`${styles.toggleButton} ${hasClaimable ? styles.hasPending : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <span className={styles.challengeIcon}>🎯</span>
-        <span className={styles.dailyText}>
-          Daily Challenges {getCompletedCount()}/{dailyChallenges.length}
-        </span>
-        {hasClaimable && (
-          <span className={styles.pendingBadge}>{getPendingClaimCount()}</span>
-        )}
-      </motion.button>
+        <div className={styles.buttonContent} onClick={toggleOpen}>
+          <span className={styles.challengeIcon}>🎯</span>
+          <span className={styles.dailyText}>
+            Daily Challenges {getCompletedCount()}/{dailyChallenges.length}
+          </span>
+          {hasClaimable && (
+            <span className={styles.pendingBadge}>{getPendingClaimCount()}</span>
+          )}
+        </div>
+        <button 
+          className={styles.closeButton} 
+          onClick={hideButton}
+          aria-label="Hide daily challenges"
+        >
+          ✕
+        </button>
+      </motion.div>
       
       <AnimatePresence>
         {isOpen && (
