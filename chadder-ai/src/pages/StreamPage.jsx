@@ -41,7 +41,6 @@ const StreamPage = () => {
   const [showMobileVotePanel, setShowMobileVotePanel] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
-  const [isCookieConsentShown, setIsCookieConsentShown] = useState(true);
   const [isStatsRowCollapsed, setIsStatsRowCollapsed] = useState(false);
 
   // Activity tracking
@@ -773,19 +772,6 @@ const StreamPage = () => {
     navigate('/login');
   };
 
-  // Add this useEffect to check if cookie consent was previously accepted
-  useEffect(() => {
-    const cookieConsent = localStorage.getItem('cookie_consent_accepted');
-    if (cookieConsent === 'true') {
-      setIsCookieConsentShown(false);
-    }
-  }, []);
-
-  const handleCloseCookieConsent = () => {
-    setIsCookieConsentShown(false);
-    localStorage.setItem('cookie_consent_accepted', 'true');
-  };
-
   const toggleStatsRow = () => {
     setIsStatsRowCollapsed(!isStatsRowCollapsed);
   };
@@ -900,20 +886,6 @@ const StreamPage = () => {
             >
               VOTE
             </button>
-            
-            {/* Cookie Consent Banner */}
-            {isCookieConsentShown && (
-              <div className="cookie-consent-banner">
-                <button className="cookie-close-button" onClick={handleCloseCookieConsent}>×</button>
-                <div className="cookie-consent-content">
-                  <p>We work with trusted partners to provide relevant advertising based on information about your use of Twitch and third-party websites and applications. If you want to learn more about our advertising practices and your rights to opt-out, click the "Opt-Out Preferences" button below or use the navigation menu at the top of the page.</p>
-                </div>
-                <div className="cookie-banner-actions">
-                  <button className="cookie-accept-button" onClick={handleCloseCookieConsent}>Accept</button>
-                  <button className="cookie-settings-button" onClick={handleCloseCookieConsent}>Opt-Out Preferences</button>
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           // Desktop layout

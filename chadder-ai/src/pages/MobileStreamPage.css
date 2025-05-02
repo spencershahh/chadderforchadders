@@ -267,74 +267,72 @@
   pointer-events: none;
 }
 
-/* Cookie Consent Banner */
-.cookie-consent-banner {
+/* Twitch Cookie Banner Accommodation */
+.mobile-chat-messages {
+  position: relative;
+  height: calc(100% - 20px);
+  padding-top: 80px; /* Space for Twitch's cookie banner */
+  overflow: hidden;
+}
+
+/* Add these new styles for better Twitch cookie banner accommodation */
+#mobile-twitch-chat {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Improve Twitch cookie banner visibility */
+.twitch-cookie-banner {
+  max-width: 100%;
+  overflow: visible !important;
+}
+
+/* Ensure Twitch iframe properly contains the cookie banner */
+#mobile-twitch-chat iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible !important;
+}
+
+/* Make Twitch cookie banners clickable */
+.mobile-chat-container {
+  position: relative;
+  z-index: 80; /* Lower than the stats row but higher than other elements */
+  padding-bottom: 60px;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Adjust chat container to make room for Twitch's cookie banner */
+.mobile-chat-container::before {
+  content: '';
+  display: block;
+  height: 160px; /* Extra space for cookie banners */
+  position: relative;
+  pointer-events: none;
+}
+
+/* Vote button position adjustment to prevent overlap */
+.vote-button {
+  z-index: 110; /* Ensure it's above the stats row */
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: rgba(25, 22, 36, 0.95);
-  color: white;
-  padding: 16px;
-  z-index: 10000;
-  border-top: 1px solid #9147ff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
-  font-size: 14px;
-  max-height: 40vh;
-  overflow-y: auto;
-  transform: translateY(0);
-  transition: transform 0.3s ease;
-}
-
-.cookie-consent-banner.hidden {
-  transform: translateY(100%);
-}
-
-.cookie-consent-content {
-  margin-bottom: 16px;
-}
-
-.cookie-banner-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.cookie-accept-button {
+  bottom: 70px; /* Position above the stats row */
+  left: 50%;
+  transform: translateX(-50%);
   background-color: #9147ff;
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 8px 16px;
+  padding: 12px 30px;
   font-weight: bold;
-  flex: 1;
-}
-
-.cookie-settings-button {
-  background-color: transparent;
-  color: white;
-  border: 1px solid #9147ff;
-  border-radius: 4px;
-  padding: 8px 16px;
-  flex: 1;
-}
-
-.cookie-close-button {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 16px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  margin-bottom: 5px; /* Extra margin to avoid overlapping with any banners */
 }
 
 /* Stats Row - Collapsible */
@@ -373,17 +371,7 @@
   z-index: 101;
 }
 
-/* Adjust chat container to account for collapsible stats */
-.mobile-chat-container {
-  padding-bottom: 60px;
-}
-
-/* Vote button position adjustment */
-.vote-button {
-  z-index: 110; /* Ensure it's above the stats row */
-}
-
 /* Improve Twitch chat iframe to prevent overlapping with UI elements */
 .chat-iframe {
-  padding-bottom: 60px;
+  padding-bottom: 120px; /* Extra padding to account for UI elements */
 } 
