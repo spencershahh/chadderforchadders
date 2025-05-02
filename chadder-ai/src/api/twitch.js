@@ -71,6 +71,38 @@ export const fetchStreamers = async () => {
     
     // First, fetch streamers from Supabase
     try {
+      console.log("Fetching streamers from Supabase...");
+      
+      // Special handling for mobile - try with different options
+      if (isMobile) {
+        console.log("Using mobile-optimized query");
+        // Try a simpler query for mobile with fewer columns
+        const { data: mobileStreamers, error: mobileError } = await supabase
+          .from('streamers')
+          .select('id, username, name')
+          .order('username')
+          .limit(20);
+          
+        if (!mobileError && mobileStreamers && mobileStreamers.length > 0) {
+          console.log('Found streamers in database (mobile):', mobileStreamers.length);
+          // Just normalize the basic data
+          streamers = mobileStreamers.map(s => ({
+            user_id: s.id,
+            user_name: s.username || s.name || 'Unknown',
+            user_login: s.username || s.name || 'unknown',
+            type: 'offline',
+            title: 'No title available',
+            profile_image_url: null,
+            thumbnail_url: null,
+            game_name: 'Not Live'
+          }));
+          
+          // Just return this basic data for mobile
+          return streamers;
+        }
+      }
+      
+      // Regular query for desktop or as fallback for mobile
       const { data: dbStreamers, error } = await supabase
         .from('streamers')
         .select('*')
@@ -91,7 +123,13 @@ export const fetchStreamers = async () => {
       return { error: true, message: 'Failed to connect to the database.' };
     }
     
-    // Try to get enriched data from backend
+    // For mobile, just return the basic data without trying to enrich
+    if (isMobile) {
+      console.log("Returning basic data for mobile without enrichment");
+      return streamers;
+    }
+    
+    // Only try to get enriched data for desktop
     if (API_URL) {
       try {
         // Fetch enriched data from our backend API

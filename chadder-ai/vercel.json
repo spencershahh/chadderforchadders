@@ -11,7 +11,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; connect-src 'self' https://zvxwsdmrfsvmhkiqdkul.supabase.co https://chadderforchadders.onrender.com https://id.twitch.tv https://api.twitch.tv; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.twitch.tv https://*.jtvnw.net https://via.placeholder.com; font-src 'self' https://fonts.gstatic.com; frame-src https://*.twitch.tv;"
+          "value": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; style-src * 'unsafe-inline' data:; img-src * data: blob:; font-src * data:; frame-src *;"
         },
         {
           "key": "Access-Control-Allow-Origin",
@@ -19,11 +19,15 @@
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
+          "value": "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "X-Requested-With, Content-Type, Accept"
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
         }
       ]
     }

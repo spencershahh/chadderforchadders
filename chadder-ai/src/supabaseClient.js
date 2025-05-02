@@ -14,17 +14,65 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const queryCache = new Map();
 const CACHE_TTL = 60000; // 1 minute cache TTL
 
+// Log Supabase configuration for debugging
+console.log('Supabase Configuration:', {
+  url: supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  siteUrl
+});
+
 // Initialize the Supabase client with more robust configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'chadder_supabase_auth',
+    flowType: 'implicit' // Use implicit flow for better compatibility
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'chadder-app'
+    },
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   },
   db: {
     schema: 'public'
   }
 });
+
+// Function to attempt session recovery
+const recoverSession = async () => {
+  try {
+    // Try to recover session from localStorage
+    const storedSession = localStorage.getItem('authSession');
+    if (storedSession) {
+      const parsedSession = JSON.parse(storedSession);
+      if (parsedSession?.access_token) {
+        console.log('Attempting to recover session from localStorage');
+        // Set session manually
+        const { error } = await supabase.auth.setSession({
+          access_token: parsedSession.access_token,
+          refresh_token: parsedSession.refresh_token
+        });
+        
+        if (error) {
+          console.error('Failed to recover session:', error.message);
+          localStorage.removeItem('authSession');
+        } else {
+          console.log('Session recovered successfully');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error recovering session:', error);
+    localStorage.removeItem('authSession');
+  }
+};
 
 // Detect network issues and handle reconnection
 let networkStatus = {
@@ -42,6 +90,9 @@ window.addEventListener('online', function() {
     authSubscription.subscription.unsubscribe();
   }
   setupAuthListener();
+  
+  // Try to recover session
+  recoverSession();
 });
 
 window.addEventListener('offline', function() {
@@ -54,21 +105,20 @@ window.addEventListener('offline', function() {
 let authSubscription;
 const setupAuthListener = () => {
   authSubscription = supabase.auth.onAuthStateChange((event, session) => {
-    // Only log important auth events in production
-    if (['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED', 'TOKEN_REFRESHED', 'PASSWORD_RECOVERY'].includes(event)) {
-      console.log('Auth state changed:', {
-        event,
-        sessionExists: !!session,
-        userId: session?.user?.id,
-        timestamp: new Date().toISOString()
-      });
-    }
+    console.log('Auth state changed:', {
+      event,
+      sessionExists: !!session,
+      userId: session?.user?.id,
+      timestamp: new Date().toISOString()
+    });
     
     // Persist session in localStorage for better recovery
-    if (event === 'SIGNED_IN') {
+    if (event === 'SIGNED_IN' && session) {
       localStorage.setItem('authSession', JSON.stringify(session));
     } else if (event === 'SIGNED_OUT') {
       localStorage.removeItem('authSession');
+    } else if (event === 'TOKEN_REFRESHED' && session) {
+      localStorage.setItem('authSession', JSON.stringify(session));
     }
   });
 };
@@ -163,7 +213,7 @@ const testConnection = async () => {
   try {
     const { error } = await supabase
       .from('users')
-      .select('count(*)', { count: 'exact' })
+      .select('count', { count: 'exact' })
       .limit(0);
     
     if (error) {
@@ -187,6 +237,9 @@ export const cleanup = () => {
   queryCache.clear();
 };
 
+// Try to recover session on initial load
+recoverSession();
+
 // Test database connection and auth status
 (async () => {
   try {
@@ -194,29 +247,29 @@ export const cleanup = () => {
     await testConnection();
     
     // Check auth status
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
       console.error('Session error:', sessionError);
       return;
     }
 
-    console.log('Auth status:', session ? 'Authenticated' : 'Not authenticated');
+    console.log('Auth status:', data.session ? 'Authenticated' : 'Not authenticated');
     
-    if (session) {
-      console.log('Logged in as:', session.user.email);
+    if (data.session) {
+      console.log('Logged in as:', data.session.user.email);
       
       // Test admin status
-      const { data, error: dbError } = await supabase
+      const { data: adminData, error: dbError } = await supabase
         .from('admins')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', data.session.user.id)
         .single();
         
       if (dbError && dbError.code !== 'PGRST116') { // Not found is okay
         console.error('Database access error:', dbError);
       } else {
-        console.log('Admin status:', data ? 'Is admin' : 'Not admin');
+        console.log('Admin status:', adminData ? 'Is admin' : 'Not admin');
       }
     }
   } catch (err) {
