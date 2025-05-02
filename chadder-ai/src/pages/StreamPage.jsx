@@ -841,41 +841,6 @@ const StreamPage = () => {
               </span>
             </div>
             
-            {/* Top supporters section */}
-            <div className="mobile-supporters">
-              <div className="mobile-supporters-scroll">
-                <button className="mobile-scroll-button left">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                
-                <div className="mobile-supporters-list">
-                  {topSupporters.slice(0, 3).map((supporter, index) => (
-                    <div key={index} className="mobile-supporter">
-                      <div className="supporter-icon">
-                        {index === 0 && <span className="supporter-rank">1</span>}
-                        {index === 0 ? 
-                          <span className="gift-icon">🎁</span> : 
-                          <span className="gift-icon">{index === 1 ? "🎁" : "🎁"}</span>
-                        }
-                      </div>
-                      <div className="supporter-name">{supporter.username}</div>
-                      <div className="supporter-gems">
-                        <span className="gem-icon">💎</span> {index === 0 ? "5" : (index === 1 ? "2" : "1")}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <button className="mobile-scroll-button right">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9 6L15 12L9 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
             {/* Real Twitch chat with full height */}
             <div className="mobile-chat-container">
               <div className="mobile-chat-messages" id="mobile-twitch-chat">
@@ -883,28 +848,28 @@ const StreamPage = () => {
               </div>
             </div>
             
-            {/* Fixed bottom elements */}
-            <div className={`mobile-stats-row ${isStatsRowCollapsed ? 'collapsed' : ''}`}>
-              <button className="stats-toggle-button" onClick={toggleStatsRow}>
+            {/* Bottom bar with stats and vote button */}
+            <div className="mobile-bottom-bar">
+              <div className={`mobile-stats-row ${isStatsRowCollapsed ? 'collapsed' : ''}`}>
+                <div className="mobile-time-display">
+                  <span className="mobile-time-label">Time Remaining</span>
+                  <span className="mobile-time-value">{timeRemaining || '0d 0h 0m 0s'}</span>
+                </div>
+                <button 
+                  className="vote-button"
+                  onClick={() => setShowVoteModal(true)}
+                >
+                  VOTE
+                </button>
+                <div className="mobile-prize-display">
+                  <span className="mobile-prize-label">Prize Pool</span>
+                  <span className="mobile-prize-value">${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+              <button className="stats-toggle-button" onClick={toggleStatsRow} style={{display: 'none'}}>
                 {isStatsRowCollapsed ? "Show Stats" : "Hide Stats"}
               </button>
-              <div className="mobile-time-display">
-                <span className="mobile-time-label">Time Remaining</span>
-                <span className="mobile-time-value">{timeRemaining || '0d 0h 0m 0s'}</span>
-              </div>
-              <div className="mobile-prize-display">
-                <span className="mobile-prize-label">Prize Pool</span>
-                <span className="mobile-prize-value">${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
             </div>
-            
-            {/* Vote button */}
-            <button 
-              className="vote-button"
-              onClick={() => setShowVoteModal(true)}
-            >
-              VOTE
-            </button>
           </div>
         ) : (
           // Desktop layout
