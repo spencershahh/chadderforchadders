@@ -42,6 +42,7 @@ const StreamPage = () => {
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
   const [isStatsRowCollapsed, setIsStatsRowCollapsed] = useState(false);
+  const [showDailyChallenges, setShowDailyChallenges] = useState(true);
 
   // Activity tracking
   const { trackStreamWatch, trackChatMessage, trackVote } = useActivityTracker();
@@ -240,6 +241,38 @@ const StreamPage = () => {
     // Cleanup
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Add this effect to handle the Daily Challenges button
+  useEffect(() => {
+    if (isMobile) {
+      // Initially show our custom Daily Challenges button
+      setShowDailyChallenges(true);
+      
+      // Function to hide native Twitch Daily Challenges button
+      const hideNativeChallengesButton = () => {
+        const nativeChallengesButtons = document.querySelectorAll(
+          '[data-a-target="daily-challenges-button"], [data-test-selector="daily-challenge-button"], [class*="daily-challenge"]'
+        );
+        
+        nativeChallengesButtons.forEach(button => {
+          if (button.id !== 'daily-challenges-button') {
+            button.style.display = 'none';
+          }
+        });
+      };
+      
+      // Run multiple times to ensure it catches the button after it loads
+      const timer1 = setTimeout(hideNativeChallengesButton, 1000);
+      const timer2 = setTimeout(hideNativeChallengesButton, 3000);
+      const timer3 = setTimeout(hideNativeChallengesButton, 5000);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
+    }
+  }, [isMobile]);
 
   // Add this effect to initialize the Twitch embeds after the DOM elements exist
   useEffect(() => {
@@ -893,6 +926,22 @@ const StreamPage = () => {
               </div>
               <div className="mobile-chat-panel" id="mobile-twitch-chat">
                 {/* Twitch chat will be embedded here */}
+              </div>
+              
+              {/* Custom Daily Challenges button with close option */}
+              <div 
+                id="daily-challenges-button" 
+                className="daily-challenges-button"
+                style={{ display: showDailyChallenges ? 'flex' : 'none' }}
+              >
+                <span className="daily-challenges-text">Daily Challenges 0/3</span>
+                <button 
+                  className="daily-challenges-close"
+                  onClick={() => setShowDailyChallenges(false)}
+                  aria-label="Close daily challenges"
+                >
+                  ✕
+                </button>
               </div>
             </div>
             
