@@ -31,6 +31,8 @@
   aspect-ratio: 16/9 !important;
   max-height: 40vh !important;
   overflow: hidden !important;
+  margin-top: 50px !important; /* Add margin to push video below nav bar */
+  padding-top: 0 !important; /* Reset any padding */
 }
 
 /* Video container iframe */
@@ -103,7 +105,8 @@
   left: 0 !important;
   right: 0 !important;
   background-color: #18181b !important;
-  height: calc(100% - 40vh - 68px) !important; /* Screen height minus video and buttons */
+  height: calc(100% - 40vh - 68px - 40px) !important; /* Reduced height to position closer to buttons */
+  max-height: calc(100% - 50px - 40vh - 68px) !important; /* Ensure it doesn't overlap with video and buttons */
   z-index: 25 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -113,11 +116,14 @@
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
   transition: transform 0.3s ease-in-out !important;
   transform: translateY(100%) !important; /* Hidden by default */
+  top: auto !important; /* Ensure bottom positioning works */
 }
 
 /* Panel visible state */
 .mobile-panel-container.visible {
   transform: translateY(0) !important;
+  bottom: 0 !important; /* Ensure it stays at the bottom */
+  top: auto !important; /* Ensure bottom positioning works */
 }
 
 /* Panel header */
@@ -130,6 +136,8 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-top-left-radius: 12px !important;
   border-top-right-radius: 12px !important;
+  min-height: 50px !important; /* Ensure consistent header height */
+  box-sizing: border-box !important;
 }
 
 .mobile-panel-title {
@@ -293,11 +301,12 @@
 @supports (padding: env(safe-area-inset-bottom)) {
   .mobile-panel-container {
     padding-bottom: env(safe-area-inset-bottom, 0) !important;
-    height: calc(100% - 40vh - 68px - env(safe-area-inset-bottom, 0)) !important;
+    height: calc(100% - 40vh - 68px - 40px - env(safe-area-inset-bottom, 0)) !important;
   }
   
   .mobile-video-container {
     padding-top: env(safe-area-inset-top, 0) !important;
+    margin-top: calc(50px + env(safe-area-inset-top, 0)) !important; /* Account for notch */
   }
 }
 
@@ -305,10 +314,11 @@
 @media screen and (min-width: 390px) and (max-width: 393px) and (min-height: 844px) and (max-height: 852px) {
   .mobile-video-container {
     max-height: 35vh !important;
+    margin-top: 55px !important; /* Specific adjustment for iPhone Pro */
   }
   
   .mobile-panel-container {
-    height: calc(100% - 35vh - 68px) !important;
+    height: calc(100% - 35vh - 68px - 45px) !important;
   }
 }
 
@@ -324,6 +334,10 @@
     width: 15px !important;
     height: 15px !important;
     margin-right: 4px !important;
+  }
+  
+  .mobile-video-container {
+    margin-top: 45px !important; /* Smaller margin for smaller devices */
   }
 }
 
