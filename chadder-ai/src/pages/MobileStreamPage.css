@@ -267,78 +267,68 @@
   pointer-events: none;
 }
 
-/* Twitch Cookie Banner Accommodation */
-.mobile-chat-messages {
-  position: relative;
-  height: calc(100% - 20px);
-  padding-top: 80px; /* Space for Twitch's cookie banner */
+/* Reset layout for mobile view */
+.mobile-stream-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
-/* Add these new styles for better Twitch cookie banner accommodation */
+/* Mobile video container */
+.mobile-video-container {
+  height: 35vh; /* Fixed height for video */
+  width: 100%;
+  position: relative;
+  z-index: 10;
+}
+
+/* Mobile chat section */
+.mobile-chat-container {
+  flex: 1;
+  width: 100%;
+  height: calc(65vh - 50px); /* Subtract VOTE button height */
+  position: relative;
+  overflow: hidden;
+  z-index: 20;
+}
+
+/* Mobile chat messages area */
+.mobile-chat-messages {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 60px; /* Space for stats row */
+}
+
+/* Twitch Chat iframe container */
 #mobile-twitch-chat {
   width: 100%;
   height: 100%;
   position: relative;
 }
 
-/* Improve Twitch cookie banner visibility */
-.twitch-cookie-banner {
-  max-width: 100%;
-  overflow: visible !important;
-}
-
-/* Ensure Twitch iframe properly contains the cookie banner */
+/* Ensure Twitch iframe has proper dimensions and scrolling */
 #mobile-twitch-chat iframe {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   border: none;
   margin: 0;
   padding: 0;
   overflow: visible !important;
 }
 
-/* Make Twitch cookie banners clickable */
-.mobile-chat-container {
-  position: relative;
-  z-index: 80; /* Lower than the stats row but higher than other elements */
-  padding-bottom: 60px;
-  height: 100%;
-  overflow: hidden;
+/* Make sure the chat is visible with Twitch's cookie banner */
+#mobile-twitch-chat {
+  padding-top: 5px; /* Small padding for the cookie banner to show properly */
 }
 
-/* Adjust chat container to make room for Twitch's cookie banner */
-.mobile-chat-container::before {
-  content: '';
-  display: block;
-  height: 160px; /* Extra space for cookie banners */
-  position: relative;
-  pointer-events: none;
-}
-
-/* Vote button position adjustment to prevent overlap */
-.vote-button {
-  z-index: 110; /* Ensure it's above the stats row */
-  position: fixed;
-  bottom: 70px; /* Position above the stats row */
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #9147ff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 12px 30px;
-  font-weight: bold;
-  font-size: 16px;
-  text-transform: uppercase;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  margin-bottom: 5px; /* Extra margin to avoid overlapping with any banners */
-}
-
-/* Stats Row - Collapsible */
+/* Stats row at the bottom */
 .mobile-stats-row {
   position: fixed;
-  bottom: 0;
+  bottom: 50px; /* Just above VOTE button */
   left: 0;
   right: 0;
   display: flex;
@@ -347,14 +337,16 @@
   background-color: rgba(25, 22, 36, 0.95);
   color: white;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 100;
+  z-index: 90;
   transition: transform 0.3s ease;
+  height: 60px; /* Fixed height */
 }
 
 .mobile-stats-row.collapsed {
   transform: translateY(100%);
 }
 
+/* Stats toggle button */
 .stats-toggle-button {
   position: absolute;
   top: -24px;
@@ -368,10 +360,96 @@
   padding: 4px 12px;
   font-size: 12px;
   cursor: pointer;
-  z-index: 101;
+  z-index: 91;
 }
 
-/* Improve Twitch chat iframe to prevent overlapping with UI elements */
-.chat-iframe {
-  padding-bottom: 120px; /* Extra padding to account for UI elements */
+/* Vote button - fixed at bottom */
+.vote-button {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 50px;
+  background-color: #9147ff;
+  color: white;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  z-index: 100;
+  padding: 0;
+  margin: 0;
+}
+
+/* Ensure consistent timing display */
+.mobile-time-display,
+.mobile-prize-display {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-time-display {
+  text-align: left;
+}
+
+.mobile-prize-display {
+  text-align: right;
+}
+
+.mobile-time-label,
+.mobile-prize-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 3px;
+}
+
+.mobile-time-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #43b581;
+  font-family: monospace;
+  line-height: 1;
+}
+
+.mobile-prize-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #f7b955;
+  line-height: 1;
+}
+
+/* Mobile-specific overrides for StreamPage.css */
+.stream-page.mobile-mode .mobile-stream-layout {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.stream-page.mobile-mode .vote-button {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  transform: none;
+  border-radius: 0;
+}
+
+.stream-page.mobile-mode .mobile-chat-container {
+  margin-bottom: 0;
+  padding-bottom: 110px;
+}
+
+.stream-page.mobile-mode .mobile-chat-messages {
+  padding-bottom: 0;
+}
+
+/* Fix for Twitch's chat and cookie banner */
+.stream-page.mobile-mode iframe,
+.stream-page.mobile-mode #mobile-twitch-chat iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
 } 

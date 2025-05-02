@@ -386,6 +386,14 @@ const StreamPage = () => {
       iframe.allowFullscreen = true;
       iframe.style.display = "block";
       
+      // Add specific mobile styling if on mobile
+      if (isMobile) {
+        iframe.style.height = '100%';
+        iframe.style.width = '100%';
+        iframe.style.minHeight = '200px';
+        iframe.style.border = 'none';
+      }
+      
       embedContainer.appendChild(iframe);
     } catch (error) {
       console.error("Error in setupTwitchEmbed:", error);
@@ -424,6 +432,17 @@ const StreamPage = () => {
       
       // Add a class to target with CSS
       chatIframe.classList.add("chat-iframe");
+      
+      // Add specific mobile styling if on mobile
+      if (isMobile) {
+        chatIframe.style.height = '100%';
+        chatIframe.style.width = '100%';
+        chatIframe.style.border = 'none';
+        chatIframe.style.overflow = 'visible';
+        chatIframe.style.minHeight = '300px';
+        chatIframe.style.padding = '0';
+        chatIframe.style.margin = '0';
+      }
       
       chatContainer.appendChild(chatIframe);
 
