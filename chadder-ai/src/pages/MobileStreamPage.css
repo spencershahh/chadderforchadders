@@ -4,33 +4,34 @@
 .stream-page.mobile-mode {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 100%;
   width: 100%;
   overflow: hidden;
   background-color: #0e0e10;
   position: relative;
 }
 
-/* Mobile stream layout */
+/* Mobile stream layout - Use height: 100% instead of vh to avoid browser toolbar issues */
 .mobile-stream-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   overflow: hidden;
   position: relative;
-  padding-bottom: env(safe-area-inset-bottom, 0); /* iOS safe area */
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 
+          env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0); /* Full iOS safe area */
 }
 
-/* Video container */
+/* Video container - use aspect ratio approach instead of fixed heights */
 .mobile-video-container {
   width: 100%;
-  height: 35vh;
-  min-height: 180px;
-  max-height: 40vh;
   position: relative;
   background-color: #000;
-  z-index: 5; /* Lower z-index to ensure controls are accessible */
+  z-index: 5;
+  aspect-ratio: 16/9;
+  max-height: 40vh;
 }
 
 /* Video container iframe */
@@ -39,7 +40,7 @@
   height: 100%;
   border: none;
   position: relative;
-  z-index: 1; /* Ensure controls are accessible */
+  z-index: 1;
 }
 
 /* Important: Fix to ensure video controls are clickable */
@@ -50,7 +51,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: -1; /* Negative z-index to stay behind the iframe */
+  z-index: -1;
 }
 
 /* Chat header */
@@ -64,11 +65,10 @@
   z-index: 10;
 }
 
-/* Chat container */
+/* Chat container - use flex approach instead of fixed vh */
 .mobile-chat-container {
   flex: 1;
   width: 100%;
-  height: calc(65vh - 60px); /* Adjust height to make room for stats bar */
   position: relative;
   background-color: #18181b;
   overflow: hidden;
@@ -83,7 +83,8 @@
   overflow-y: auto;
   position: relative;
   z-index: 15;
-  padding-top: 120px; /* Added space for Twitch's cookie banner */
+  padding-top: 80px; /* Reduced padding */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 /* Twitch chat iframe */
@@ -98,14 +99,14 @@
   width: 100% !important;
   height: 100% !important;
   border: none !important;
-  overflow: visible !important; /* Allow overflow for cookie banner */
+  overflow: visible !important;
 }
 
 /* Fix for Twitch's chat input */
 #mobile-twitch-chat::after {
   content: "";
   display: block;
-  height: 50px; /* Space for chat input */
+  height: 50px;
   width: 100%;
 }
 
@@ -133,8 +134,8 @@
   left: 0;
   right: 0;
   display: flex;
-  z-index: 50; /* High enough to be above content but below modals */
-  padding-bottom: env(safe-area-inset-bottom, 0); /* iOS safe area */
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 /* Stats information */
@@ -153,21 +154,26 @@
   transform: translateY(100%);
 }
 
-/* Stats toggle button */
+/* Stats toggle button - enlarged for better touch target */
 .stats-toggle-button {
   position: absolute;
-  top: -24px;
+  top: -30px;
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(25, 22, 36, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-bottom: none;
-  border-radius: 4px 4px 0 0;
+  border-radius: 8px 8px 0 0;
   color: white;
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 8px 16px;
+  font-size: 14px;
   cursor: pointer;
   z-index: 51;
+  min-height: 44px; /* Apple's recommended min touch target */
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Time and Prize display */
@@ -176,6 +182,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  padding: 0 5px;
 }
 
 .mobile-time-display {
@@ -188,9 +195,9 @@
 
 .mobile-time-label,
 .mobile-prize-label {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 2px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 4px;
 }
 
 .mobile-time-value {
@@ -198,38 +205,40 @@
   font-weight: 600;
   color: #43b581;
   font-family: monospace;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .mobile-prize-value {
   font-size: 16px;
   font-weight: 600;
   color: #f7b955;
-  line-height: 1;
+  line-height: 1.2;
 }
 
-/* Vote button */
+/* Vote button - enlarged for better touch target */
 .vote-button {
-  min-width: 90px;
-  height: 36px;
+  min-width: 100px;
+  min-height: 44px; /* Apple's recommended min touch target */
   margin: 7px 10px;
   background-color: #9147ff;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 1px;
   align-self: center;
-  z-index: 52; /* Ensure it's above other elements */
+  z-index: 52;
   cursor: pointer;
+  padding: 10px 16px;
+  -webkit-tap-highlight-color: rgba(0,0,0,0); /* Remove tap highlight */
 }
 
 /* Adding height for Twitch's cookie banner */
 .chat-iframe {
-  margin-bottom: 70px; /* Extra space for input field */
-  padding-top: 120px; /* Space for cookie banner */
+  margin-bottom: 70px;
+  padding-top: 80px; /* Reduced from 120px */
 }
 
 /* Full-width vote button at bottom - can be toggled with a class */
@@ -245,56 +254,66 @@
   z-index: 100;
 }
 
-/* Media queries for different mobile sizes */
-@media screen and (max-height: 600px) {
-  .mobile-video-container {
-    height: 30vh;
-    min-height: 150px;
-  }
-  
-  .mobile-chat-container {
-    height: calc(70vh - 60px);
-  }
-  
+/* Media queries for modern devices - iPhone Pro Max (428px width) */
+@media screen and (min-width: 390px) and (max-width: 428px) {
   .mobile-time-value,
   .mobile-prize-value {
-    font-size: 14px;
+    font-size: 16px;
   }
   
-  .mobile-chat-messages {
-    padding-top: 100px; /* Slightly less padding on smaller screens */
-  }
-}
-
-@media screen and (max-height: 480px) {
-  .mobile-video-container {
-    height: 40%;
-    min-height: 120px;
-  }
-  
-  .mobile-chat-container {
-    height: calc(60% - 60px);
-  }
-  
-  .mobile-chat-messages {
-    padding-top: 80px; /* Even less padding on very small screens */
-  }
-}
-
-/* Portrait mode (narrow screens) */
-@media screen and (max-width: 380px) {
   .vote-button {
-    min-width: 80px;
+    min-width: 110px;
+  }
+}
+
+/* Media queries for iPhone Pro & similar (390px width) */
+@media screen and (min-width: 375px) and (max-width: 389px) {
+  .mobile-time-value,
+  .mobile-prize-value {
+    font-size: 15px;
+  }
+  
+  .vote-button {
+    min-width: 100px;
+  }
+}
+
+/* Media queries for iPhone Mini & similar (< 375px width) */
+@media screen and (max-width: 374px) {
+  .vote-button {
+    min-width: 90px;
     font-size: 12px;
+    padding: 8px 12px;
   }
   
   .mobile-time-value,
   .mobile-prize-value {
     font-size: 14px;
   }
+  
+  .mobile-time-label,
+  .mobile-prize-label {
+    font-size: 10px;
+  }
 }
 
-/* Fix for iOS safe area */
+/* Adjust for landscape orientation */
+@media screen and (orientation: landscape) {
+  .mobile-video-container {
+    aspect-ratio: 16/9;
+    max-height: 50vh;
+  }
+  
+  .mobile-chat-container {
+    max-height: 50vh;
+  }
+  
+  .mobile-chat-messages {
+    padding-top: 60px;
+  }
+}
+
+/* Fix for notched iPhones and iOS devices */
 @supports (padding: env(safe-area-inset-bottom)) {
   .mobile-bottom-bar {
     padding-bottom: env(safe-area-inset-bottom, 0);
@@ -302,11 +321,38 @@
   }
   
   .mobile-chat-container {
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0));
   }
   
   .vote-button-fullwidth {
     padding-bottom: env(safe-area-inset-bottom, 0);
     height: calc(50px + env(safe-area-inset-bottom, 0));
   }
+  
+  /* Handle top notch area */
+  .mobile-video-container {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
+
+/* Fix for dynamic toolbar heights on mobile browsers */
+@media screen and (max-height: 700px) {
+  .mobile-chat-messages {
+    padding-top: 60px;
+  }
+}
+
+/* Extra accommodations for small screens in portrait */
+@media screen and (max-height: 600px) and (orientation: portrait) {
+  .mobile-video-container {
+    max-height: 35vh;
+  }
+}
+
+/* Adding touch momentum scrolling for all scrollable areas */
+.mobile-chat-messages,
+#mobile-twitch-chat,
+.mobile-stream-layout {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
 } 
