@@ -695,41 +695,6 @@ const Discover = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Add tawk.to chat widget
-  useEffect(() => {
-    // Add tawk.to chat widget
-    var Tawk_API = window.Tawk_API || {};
-    var Tawk_LoadStart = new Date();
-    
-    const addTawkToScript = () => {
-      const s1 = document.createElement("script");
-      const s0 = document.getElementsByTagName("script")[0];
-      s1.async = true;
-      s1.src = 'https://embed.tawk.to/67eb74ded67fa61906209197/1inns11js';
-      s1.charset = 'UTF-8';
-      s1.setAttribute('crossorigin', '*');
-      s0.parentNode.insertBefore(s1, s0);
-      
-      return s1; // Return the script element for cleanup
-    };
-    
-    const tawkScript = addTawkToScript();
-    
-    // Clean up the script when component unmounts
-    return () => {
-      if (tawkScript && tawkScript.parentNode) {
-        tawkScript.parentNode.removeChild(tawkScript);
-      }
-      // Try to clean up any tawk.to related elements
-      const tawkElements = document.querySelectorAll('[id^="tawk-"]');
-      tawkElements.forEach(element => {
-        if (element.parentNode) {
-          element.parentNode.removeChild(element);
-        }
-      });
-    };
-  }, []);
-
   const fetchVotes = async () => {
     try {
       const { data: votes, error } = await supabase
