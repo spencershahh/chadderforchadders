@@ -842,44 +842,113 @@ const StreamPage = () => {
             {/* Video section at top */}
             <div className="mobile-video-container" id="mobile-twitch-embed"></div>
             
-            {/* Chat section with header */}
-            <div className="mobile-chat-header">
-              <span>STREAM CHAT</span>
-              <span className="chat-user-count">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 4C10.4178 4 8.87103 4.46919 7.55544 5.34824C6.23985 6.22729 5.21447 7.47672 4.60897 8.93853C4.00347 10.4003 3.84504 12.0089 4.15372 13.5607C4.4624 15.1126 5.22433 16.538 6.34315 17.6569C7.46197 18.7757 8.88743 19.5376 10.4393 19.8463C11.9911 20.155 13.5997 19.9965 15.0615 19.391C16.5233 18.7855 17.7727 17.7602 18.6518 16.4446C19.5308 15.129 20 13.5823 20 12C20 9.87827 19.1571 7.84344 17.6569 6.34315C16.1566 4.84285 14.1217 4 12 4Z" fill="white"/>
-                </svg>
-              </span>
+            {/* Button container */}
+            <div className="mobile-buttons-container">
+              <button 
+                className="mobile-chat-button" 
+                onClick={() => {
+                  setShowMobileVotePanel(false);
+                  document.querySelector('.mobile-panel-container.chat-panel')?.classList.toggle('visible');
+                  document.querySelector('.mobile-panel-container.stats-panel')?.classList.remove('visible');
+                }}
+              >
+                <span className="mobile-button-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z" fill="white"/>
+                  </svg>
+                </span>
+                Chat
+              </button>
+              <button 
+                className="mobile-stats-button"
+                onClick={() => {
+                  setShowMobileVotePanel(false);
+                  document.querySelector('.mobile-panel-container.stats-panel')?.classList.toggle('visible');
+                  document.querySelector('.mobile-panel-container.chat-panel')?.classList.remove('visible');
+                }}
+              >
+                <span className="mobile-button-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM9 17H7V10H9V17ZM13 17H11V7H13V17ZM17 17H15V13H17V17Z" fill="white"/>
+                  </svg>
+                </span>
+                Stats
+              </button>
             </div>
             
-            {/* Real Twitch chat with full height */}
-            <div className="mobile-chat-container">
-              <div className="mobile-chat-messages" id="mobile-twitch-chat">
+            {/* Chat Panel */}
+            <div className="mobile-panel-container chat-panel">
+              <div className="mobile-panel-header">
+                <h3 className="mobile-panel-title">STREAM CHAT</h3>
+                <button 
+                  className="mobile-panel-close"
+                  onClick={() => document.querySelector('.mobile-panel-container.chat-panel')?.classList.remove('visible')}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mobile-chat-panel" id="mobile-twitch-chat">
                 {/* Twitch chat will be embedded here */}
               </div>
             </div>
             
-            {/* Bottom bar with stats and vote button */}
-            <div className="mobile-bottom-bar">
-              <div className={`mobile-stats-row ${isStatsRowCollapsed ? 'collapsed' : ''}`}>
-                <div className="mobile-time-display">
-                  <span className="mobile-time-label">Time Remaining</span>
-                  <span className="mobile-time-value">{timeRemaining || '0d 0h 0m 0s'}</span>
-                </div>
+            {/* Stats Panel */}
+            <div className="mobile-panel-container stats-panel">
+              <div className="mobile-panel-header">
+                <h3 className="mobile-panel-title">STREAM STATS</h3>
                 <button 
-                  className="vote-button"
+                  className="mobile-panel-close"
+                  onClick={() => document.querySelector('.mobile-panel-container.stats-panel')?.classList.remove('visible')}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mobile-stats-panel">
+                {/* Time Remaining */}
+                <div className="mobile-stats-item">
+                  <div className="mobile-stats-label">Time Remaining</div>
+                  <div className="mobile-stats-value time">{timeRemaining || '0d 0h 0m 0s'}</div>
+                </div>
+                
+                {/* Prize Pool */}
+                <div className="mobile-stats-item">
+                  <div className="mobile-stats-label">Prize Pool</div>
+                  <div className="mobile-stats-value prize">${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+                
+                {/* Vote Stats */}
+                <div className="mobile-stats-item">
+                  <div className="mobile-stats-label">Weekly Votes</div>
+                  <div className="mobile-stats-value">{voteStats.week}</div>
+                </div>
+                
+                {/* Top Supporters */}
+                {topSupporters.length > 0 && (
+                  <div className="mobile-stats-item">
+                    <div className="mobile-stats-label">Top Supporters</div>
+                    <div className="mobile-supporters-list">
+                      {topSupporters.slice(0, 3).map((supporter, index) => (
+                        <div 
+                          key={`${supporter.username}-${supporter.amount}-${index}`} 
+                          className="mobile-supporter-item"
+                        >
+                          <span className="mobile-supporter-rank">#{index + 1}</span>
+                          <span className="mobile-supporter-name">{supporter.username}</span>
+                          <span className="mobile-supporter-amount">{supporter.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Vote Button */}
+                <button 
+                  className="mobile-vote-button"
                   onClick={() => setShowVoteModal(true)}
                 >
-                  VOTE
+                  VOTE NOW
                 </button>
-                <div className="mobile-prize-display">
-                  <span className="mobile-prize-label">Prize Pool</span>
-                  <span className="mobile-prize-value">${totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
               </div>
-              <button className="stats-toggle-button" onClick={toggleStatsRow} style={{display: 'none'}}>
-                {isStatsRowCollapsed ? "Show Stats" : "Hide Stats"}
-              </button>
             </div>
           </div>
         ) : (

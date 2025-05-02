@@ -1,30 +1,28 @@
-/* Mobile Stream Page - Complete Redesign */
+/* Mobile Stream Page - Two Button Design */
 
-/* Base mobile layout - Force override any inline styles */
+/* Base mobile layout */
 .stream-page.mobile-mode {
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
-  min-height: 100% !important;
   width: 100% !important;
   overflow: hidden !important;
   background-color: #0e0e10 !important;
   position: relative !important;
 }
 
-/* Mobile stream layout - Use height: 100% instead of vh to avoid browser toolbar issues */
+/* Mobile stream layout */
 .mobile-stream-layout {
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
   width: 100% !important;
-  overflow: hidden !important;
   position: relative !important;
   padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 
-          env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0) !important; /* Full iOS safe area */
+          env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0) !important;
 }
 
-/* Video container - use aspect ratio approach instead of fixed heights */
+/* Video container - only element visible by default */
 .mobile-video-container {
   width: 100% !important;
   position: relative !important;
@@ -35,7 +33,7 @@
   overflow: hidden !important;
 }
 
-/* Video container iframe - Force override any inline styles */
+/* Video container iframe */
 .mobile-video-container iframe,
 #mobile-twitch-embed iframe {
   width: 100% !important;
@@ -43,12 +41,9 @@
   border: none !important;
   position: relative !important;
   z-index: 1 !important;
-  min-height: unset !important; /* Override inline minHeight */
-  margin: 0 !important;
-  padding: 0 !important;
 }
 
-/* Important: Fix to ensure video controls are clickable */
+/* Fix to ensure video controls are clickable */
 .mobile-video-container::before {
   content: "";
   position: absolute;
@@ -59,204 +54,24 @@
   z-index: -1;
 }
 
-/* Chat header */
-.mobile-chat-header {
+/* Button container for chat and stats buttons */
+.mobile-buttons-container {
   display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  padding: 10px 16px !important;
-  background-color: #18181b !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-  z-index: 10 !important;
-  height: auto !important;
-  min-height: 40px !important;
-}
-
-/* Chat container - use flex approach instead of fixed vh */
-.mobile-chat-container {
-  flex: 1 !important;
+  justify-content: space-around !important;
   width: 100% !important;
-  position: relative !important;
-  background-color: #18181b !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  margin-bottom: 60px !important; /* Make room for bottom bar */
-}
-
-/* Chat messages */
-.mobile-chat-messages {
-  width: 100% !important;
-  flex: 1 !important;
-  overflow-y: auto !important;
-  position: relative !important;
-  z-index: 15 !important;
-  padding-top: 0 !important; /* Remove padding, handled inside the iframe */
-  -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
-  height: 100% !important;
-}
-
-/* Handle Twitch's cookie banner by pushing content down */
-.mobile-chat-messages::before {
-  content: "";
-  display: block;
-  height: 0;
-  width: 100%;
-}
-
-/* Twitch chat iframe */
-#mobile-twitch-chat {
-  width: 100% !important;
-  height: 100% !important;
-  position: relative !important;
-  z-index: 2 !important;
-  overflow: hidden !important;
-}
-
-/* Force override iframe styling */
-#mobile-twitch-chat iframe,
-.chat-iframe {
-  width: 100% !important;
-  height: 100% !important;
-  border: none !important;
-  overflow: visible !important;
-  min-height: unset !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-/* Fixing Twitch embedded chat display */
-#mobile-twitch-chat iframe body {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}
-
-/* Fix for Twitch's chat input */
-#mobile-twitch-chat::after {
-  content: "";
-  display: block;
-  height: 50px;
-  width: 100%;
-}
-
-/* Prevent any elements from blocking chat input */
-#mobile-twitch-chat iframe textarea,
-#mobile-twitch-chat iframe input,
-#mobile-twitch-chat iframe [contenteditable="true"] {
-  z-index: 200 !important;
-  pointer-events: auto !important;
-}
-
-/* Hide cookie banner (attempt) */
-#mobile-twitch-chat iframe div[data-a-target="consent-banner"],
-.chat-iframe div[data-a-target="consent-banner"] {
-  display: none !important;
-  height: 0 !important;
-  overflow: hidden !important;
-}
-
-/* Supporters section - hidden by default on mobile */
-.mobile-supporters {
-  display: none !important;
-}
-
-/* Bottom bar with stats and vote button - Fixed at bottom */
-.mobile-bottom-bar {
-  width: 100% !important;
-  height: 60px !important;
+  padding: 10px !important;
   background-color: #0e0e10 !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  display: flex !important;
-  z-index: 50 !important;
-  padding-bottom: env(safe-area-inset-bottom, 0) !important;
+  position: relative !important;
+  z-index: 20 !important;
 }
 
-/* Stats information */
-.mobile-stats-row {
+/* Chat and Stats buttons */
+.mobile-chat-button,
+.mobile-stats-button {
   flex: 1 !important;
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  padding: 0 10px !important;
-  background-color: transparent !important;
-  height: 100% !important;
-  transition: all 0.3s ease !important;
-}
-
-.mobile-stats-row.collapsed {
-  transform: translateY(100%) !important;
-}
-
-/* Stats toggle button - enlarged for better touch target */
-.stats-toggle-button {
-  position: absolute !important;
-  top: -30px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  background-color: rgba(25, 22, 36, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-bottom: none !important;
-  border-radius: 8px 8px 0 0 !important;
-  color: white !important;
-  padding: 8px 16px !important;
-  font-size: 14px !important;
-  cursor: pointer !important;
-  z-index: 51 !important;
-  min-height: 44px !important; /* Apple's recommended min touch target */
-  min-width: 80px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-/* Time and Prize display */
-.mobile-time-display,
-.mobile-prize-display {
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  padding: 0 5px !important;
-}
-
-.mobile-time-display {
-  text-align: left !important;
-}
-
-.mobile-prize-display {
-  text-align: right !important;
-}
-
-.mobile-time-label,
-.mobile-prize-label {
-  font-size: 11px !important;
-  color: rgba(255, 255, 255, 0.7) !important;
-  margin-bottom: 4px !important;
-}
-
-.mobile-time-value {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  color: #43b581 !important;
-  font-family: monospace !important;
-  line-height: 1.2 !important;
-}
-
-.mobile-prize-value {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  color: #f7b955 !important;
-  line-height: 1.2 !important;
-}
-
-/* Vote button - enlarged for better touch target */
-.vote-button {
-  min-width: 100px !important;
-  min-height: 44px !important; /* Apple's recommended min touch target */
-  margin: 7px 10px !important;
+  padding: 12px !important;
+  margin: 0 5px !important;
+  height: 48px !important;
   background-color: #9147ff !important;
   color: white !important;
   border: none !important;
@@ -265,14 +80,188 @@
   font-size: 14px !important;
   text-transform: uppercase !important;
   letter-spacing: 1px !important;
-  align-self: center !important;
-  z-index: 52 !important;
   cursor: pointer !important;
-  padding: 10px 16px !important;
-  -webkit-tap-highlight-color: rgba(0,0,0,0) !important; /* Remove tap highlight */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 20 !important;
+  -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
 }
 
-/* Fix offline message display */
+/* Button icon styling */
+.mobile-button-icon {
+  margin-right: 8px !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Panel container - occupies the rest of the screen */
+.mobile-panel-container {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background-color: #18181b !important;
+  height: calc(100% - 40vh - 68px) !important; /* Screen height minus video and buttons */
+  z-index: 25 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.3s ease-in-out !important;
+  transform: translateY(100%) !important; /* Hidden by default */
+}
+
+/* Panel visible state */
+.mobile-panel-container.visible {
+  transform: translateY(0) !important;
+}
+
+/* Panel header */
+.mobile-panel-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 12px 16px !important;
+  background-color: #0e0e10 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+}
+
+.mobile-panel-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: white !important;
+  margin: 0 !important;
+}
+
+.mobile-panel-close {
+  background: transparent !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 18px !important;
+  cursor: pointer !important;
+  padding: 5px !important;
+  line-height: 1 !important;
+  -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+}
+
+/* Chat panel specific styling */
+.mobile-chat-panel {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+#mobile-twitch-chat {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+  z-index: 2 !important;
+  overflow: hidden !important;
+}
+
+#mobile-twitch-chat iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+/* Stats panel specific styling */
+.mobile-stats-panel {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 15px !important;
+  overflow-y: auto !important;
+  background-color: #18181b !important;
+}
+
+/* Stats content */
+.mobile-stats-item {
+  margin-bottom: 15px !important;
+  padding: 15px !important;
+  background-color: #0e0e10 !important;
+  border-radius: 8px !important;
+}
+
+.mobile-stats-label {
+  font-size: 12px !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  margin-bottom: 5px !important;
+}
+
+.mobile-stats-value {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: white !important;
+}
+
+.mobile-stats-value.time {
+  color: #43b581 !important;
+  font-family: monospace !important;
+}
+
+.mobile-stats-value.prize {
+  color: #f7b955 !important;
+}
+
+/* Vote button in stats panel */
+.mobile-vote-button {
+  width: 100% !important;
+  padding: 14px !important;
+  margin-top: 15px !important;
+  height: auto !important;
+  background-color: #9147ff !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+}
+
+/* Top supporters section */
+.mobile-supporters-list {
+  margin-top: 20px !important;
+}
+
+.mobile-supporter-item {
+  display: flex !important;
+  justify-content: space-between !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.mobile-supporter-rank {
+  color: #9147ff !important;
+  font-weight: 600 !important;
+  margin-right: 10px !important;
+}
+
+.mobile-supporter-name {
+  flex: 1 !important;
+  color: white !important;
+}
+
+.mobile-supporter-amount {
+  color: #f7b955 !important;
+  font-weight: 600 !important;
+}
+
+/* Fix for offline message display */
 .mobile-video-container .offline-message,
 .mobile-video-container div[data-a-target="player-overlay-content"] {
   display: flex !important;
@@ -294,112 +283,21 @@
   margin-bottom: 10px !important;
 }
 
-/* Adding height for Twitch's cookie banner */
-.chat-iframe {
-  margin-bottom: 0 !important;
-  padding-top: 0 !important; /* Remove extra padding */
-}
-
-/* Full-width vote button at bottom - can be toggled with a class */
-.vote-button-fullwidth {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  margin: 0 !important;
-  height: 50px !important;
-  border-radius: 0 !important;
-  z-index: 100 !important;
-}
-
-/* Media queries for modern devices - iPhone Pro Max (428px width) */
-@media screen and (min-width: 390px) and (max-width: 428px) {
-  .mobile-time-value,
-  .mobile-prize-value {
-    font-size: 16px !important;
-  }
-  
-  .vote-button {
-    min-width: 110px !important;
-  }
-}
-
-/* Media queries for iPhone Pro & similar (390px width) */
-@media screen and (min-width: 375px) and (max-width: 389px) {
-  .mobile-time-value,
-  .mobile-prize-value {
-    font-size: 15px !important;
-  }
-  
-  .vote-button {
-    min-width: 100px !important;
-  }
-}
-
-/* Media queries for iPhone Mini & similar (< 375px width) */
-@media screen and (max-width: 374px) {
-  .vote-button {
-    min-width: 90px !important;
-    font-size: 12px !important;
-    padding: 8px 12px !important;
-  }
-  
-  .mobile-time-value,
-  .mobile-prize-value {
-    font-size: 14px !important;
-  }
-  
-  .mobile-time-label,
-  .mobile-prize-label {
-    font-size: 10px !important;
-  }
-}
-
-/* Adjust for landscape orientation */
-@media screen and (orientation: landscape) {
-  .mobile-video-container {
-    aspect-ratio: 16/9 !important;
-    max-height: 50vh !important;
-  }
-  
-  .mobile-chat-container {
-    max-height: 50vh !important;
-  }
-}
-
-/* Fix for Twitch vote modals and popups */
+/* Ensure modals are above everything */
 .vote-modal-overlay,
 .vote-modal {
-  z-index: 1000 !important; /* Ensure it's above everything */
+  z-index: 1000 !important;
 }
 
 /* Fix for notched iPhones and iOS devices */
 @supports (padding: env(safe-area-inset-bottom)) {
-  .mobile-bottom-bar {
+  .mobile-panel-container {
     padding-bottom: env(safe-area-inset-bottom, 0) !important;
-    height: calc(60px + env(safe-area-inset-bottom, 0)) !important;
+    height: calc(100% - 40vh - 68px - env(safe-area-inset-bottom, 0)) !important;
   }
   
-  .mobile-chat-container {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0)) !important;
-  }
-  
-  .vote-button-fullwidth {
-    padding-bottom: env(safe-area-inset-bottom, 0) !important;
-    height: calc(50px + env(safe-area-inset-bottom, 0)) !important;
-  }
-  
-  /* Handle top notch area */
   .mobile-video-container {
     padding-top: env(safe-area-inset-top, 0) !important;
-  }
-}
-
-/* Fix for dynamic toolbar heights on mobile browsers */
-@media screen and (max-height: 700px) {
-  .mobile-chat-messages {
-    padding-top: 0 !important;
   }
 }
 
@@ -408,10 +306,29 @@
   .mobile-video-container {
     max-height: 35vh !important;
   }
+  
+  .mobile-panel-container {
+    height: calc(100% - 35vh - 68px) !important;
+  }
+}
+
+/* Media queries for different device sizes */
+@media screen and (max-width: 374px) {
+  .mobile-chat-button,
+  .mobile-stats-button {
+    font-size: 12px !important;
+    padding: 10px !important;
+  }
+  
+  .mobile-button-icon {
+    width: 15px !important;
+    height: 15px !important;
+    margin-right: 4px !important;
+  }
 }
 
 /* Adding touch momentum scrolling for all scrollable areas */
-.mobile-chat-messages,
+.mobile-stats-panel,
 #mobile-twitch-chat,
 .mobile-stream-layout {
   -webkit-overflow-scrolling: touch !important;
