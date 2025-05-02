@@ -361,6 +361,7 @@ const StreamPage = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Update setupTwitchEmbed to ensure controls are accessible
   const setupTwitchEmbed = () => {
     try {
       // Find appropriate container based on device
@@ -392,15 +393,24 @@ const StreamPage = () => {
         iframe.style.width = '100%';
         iframe.style.minHeight = '200px';
         iframe.style.border = 'none';
+        iframe.style.position = 'relative';
+        iframe.style.zIndex = '5'; // Make sure controls are accessible
       }
       
       embedContainer.appendChild(iframe);
+      
+      // Return a cleanup function
+      return () => {
+        if (embedContainer) {
+          embedContainer.innerHTML = "";
+        }
+      };
     } catch (error) {
       console.error("Error in setupTwitchEmbed:", error);
     }
   };
 
-  // Update setupTwitchChatEmbed to ensure it works with our new layout
+  // Update setupTwitchChatEmbed to ensure chat input is visible
   const setupTwitchChatEmbed = () => {
     try {
       // Clear any existing chat embed
@@ -442,6 +452,7 @@ const StreamPage = () => {
         chatIframe.style.minHeight = '300px';
         chatIframe.style.padding = '0';
         chatIframe.style.margin = '0';
+        chatIframe.style.zIndex = '10';
       }
       
       chatContainer.appendChild(chatIframe);

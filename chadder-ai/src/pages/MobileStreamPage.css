@@ -19,6 +19,7 @@
   width: 100%;
   overflow: hidden;
   position: relative;
+  padding-bottom: env(safe-area-inset-bottom, 0); /* iOS safe area */
 }
 
 /* Video container */
@@ -28,8 +29,8 @@
   min-height: 180px;
   max-height: 40vh;
   position: relative;
-  z-index: 5;
   background-color: #000;
+  z-index: 5; /* Lower z-index to ensure controls are accessible */
 }
 
 /* Video container iframe */
@@ -37,6 +38,19 @@
   width: 100%;
   height: 100%;
   border: none;
+  position: relative;
+  z-index: 1; /* Ensure controls are accessible */
+}
+
+/* Important: Fix to ensure video controls are clickable */
+.mobile-video-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1; /* Negative z-index to stay behind the iframe */
 }
 
 /* Chat header */
@@ -54,19 +68,22 @@
 .mobile-chat-container {
   flex: 1;
   width: 100%;
-  height: calc(65vh - 110px); /* Screen height - video - bottom bar */
+  height: calc(65vh - 60px); /* Adjust height to make room for stats bar */
   position: relative;
   background-color: #18181b;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Chat messages */
 .mobile-chat-messages {
   width: 100%;
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
   position: relative;
   z-index: 15;
+  padding-top: 120px; /* Added space for Twitch's cookie banner */
 }
 
 /* Twitch chat iframe */
@@ -74,12 +91,30 @@
   width: 100%;
   height: 100%;
   position: relative;
+  z-index: 2;
 }
 
 #mobile-twitch-chat iframe {
   width: 100% !important;
   height: 100% !important;
   border: none !important;
+  overflow: visible !important; /* Allow overflow for cookie banner */
+}
+
+/* Fix for Twitch's chat input */
+#mobile-twitch-chat::after {
+  content: "";
+  display: block;
+  height: 50px; /* Space for chat input */
+  width: 100%;
+}
+
+/* Prevent any elements from blocking chat input */
+#mobile-twitch-chat iframe textarea,
+#mobile-twitch-chat iframe input,
+#mobile-twitch-chat iframe [contenteditable="true"] {
+  z-index: 200 !important;
+  pointer-events: auto !important;
 }
 
 /* Supporters section - hidden by default on mobile */
@@ -87,10 +122,10 @@
   display: none;
 }
 
-/* Bottom bar with stats and vote button */
+/* Bottom bar with stats and vote button - Fixed at bottom */
 .mobile-bottom-bar {
   width: 100%;
-  height: 50px;
+  height: 60px;
   background-color: #0e0e10;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   position: fixed;
@@ -98,7 +133,8 @@
   left: 0;
   right: 0;
   display: flex;
-  z-index: 100;
+  z-index: 50; /* High enough to be above content but below modals */
+  padding-bottom: env(safe-area-inset-bottom, 0); /* iOS safe area */
 }
 
 /* Stats information */
@@ -131,7 +167,7 @@
   padding: 4px 12px;
   font-size: 12px;
   cursor: pointer;
-  z-index: 91;
+  z-index: 51;
 }
 
 /* Time and Prize display */
@@ -186,16 +222,27 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   align-self: center;
+  z-index: 52; /* Ensure it's above other elements */
+  cursor: pointer;
 }
 
-/* Fix for Twitch's native cookie banner */
-.mobile-chat-messages {
-  padding-top: 0;
-}
-
-/* Prevent Twitch chat's bottom from being cut off */
+/* Adding height for Twitch's cookie banner */
 .chat-iframe {
-  margin-bottom: 60px;
+  margin-bottom: 70px; /* Extra space for input field */
+  padding-top: 120px; /* Space for cookie banner */
+}
+
+/* Full-width vote button at bottom - can be toggled with a class */
+.vote-button-fullwidth {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 0;
+  height: 50px;
+  border-radius: 0;
+  z-index: 100;
 }
 
 /* Media queries for different mobile sizes */
@@ -206,12 +253,16 @@
   }
   
   .mobile-chat-container {
-    height: calc(70vh - 110px);
+    height: calc(70vh - 60px);
   }
   
   .mobile-time-value,
   .mobile-prize-value {
     font-size: 14px;
+  }
+  
+  .mobile-chat-messages {
+    padding-top: 100px; /* Slightly less padding on smaller screens */
   }
 }
 
@@ -222,7 +273,11 @@
   }
   
   .mobile-chat-container {
-    height: calc(60% - 50px);
+    height: calc(60% - 60px);
+  }
+  
+  .mobile-chat-messages {
+    padding-top: 80px; /* Even less padding on very small screens */
   }
 }
 
@@ -242,6 +297,15 @@
 /* Fix for iOS safe area */
 @supports (padding: env(safe-area-inset-bottom)) {
   .mobile-bottom-bar {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    height: calc(60px + env(safe-area-inset-bottom, 0));
+  }
+  
+  .mobile-chat-container {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .vote-button-fullwidth {
     padding-bottom: env(safe-area-inset-bottom, 0);
     height: calc(50px + env(safe-area-inset-bottom, 0));
   }
