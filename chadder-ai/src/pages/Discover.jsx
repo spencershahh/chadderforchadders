@@ -8,311 +8,30 @@ import { FaLock } from 'react-icons/fa';
 // Configurable vote threshold for promoting streamers from Dig Deeper
 const VOTE_THRESHOLD = 5; // Minimum votes needed to appear on Discover page
 
-// Debug component - only shows in development
-const DebugInfo = ({ isLoading, loadError, streamers, onRetry }) => {
-  const isDev = import.meta.env.MODE === 'development';
-  const [expanded, setExpanded] = useState(false);
-  const [testResults, setTestResults] = useState(null);
-  const [testing, setTesting] = useState(false);
-  
-  // Function to test various endpoints to diagnose issues
-  const testConnections = async () => {
-    setTesting(true);
-    const results = {
-      tests: [],
-      summary: ''
-    };
-    
-    try {
-      // Helper to run a test
-      const runTest = async (name, url, options = {}) => {
-        const startTime = Date.now();
-        try {
-          const response = await fetch(url, {
-            method: options.method || 'GET',
-            mode: options.mode || 'cors',
-            headers: options.headers || {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            ...options
-          });
-          
-          const endTime = Date.now();
-          const duration = endTime - startTime;
-          
-          let responseData;
-          try {
-            responseData = await response.json();
-          } catch (e) {
-            responseData = 'Could not parse JSON response';
-          }
-          
-          return {
-            name,
-            url,
-            success: response.ok,
-            status: response.status,
-            duration: `${duration}ms`,
-            data: typeof responseData === 'object' ? 'Valid JSON response' : responseData
-          };
-        } catch (error) {
-          const endTime = Date.now();
-          const duration = endTime - startTime;
-          
-          return {
-            name,
-            url,
-            success: false,
-            error: error.message,
-            duration: `${duration}ms`
-          };
-        }
-      };
-      
-      // Test 1: Browser CORS test - should always work
-      results.tests.push(await runTest(
-        'CORS Test',
-        'https://cors-test.codehappy.dev/cors.json'
-      ));
-      
-      // Test 2: Supabase API
-      const supabaseUrl = 'https://xskplljphfqqvhdwluzm.supabase.co/rest/v1/streamers?select=username&limit=1';
-      results.tests.push(await runTest(
-        'Supabase API',
-        supabaseUrl,
-        { 
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhza3BsbGpwaGZxcXZoZHdsdXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDU4MTI0MTAsImV4cCI6MjAyMTM4ODQxMH0.bZvTe7JB3UFDCyV8VeEpdnTYD0RBbJn2mOp10j2nMBU',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhza3BsbGpwaGZxcXZoZHdsdXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDU4MTI0MTAsImV4cCI6MjAyMTM4ODQxMH0.bZvTe7JB3UFDCyV8VeEpdnTYD0RBbJn2mOp10j2nMBU'
-          }
-        }
-      ));
-      
-      // Test 3: API URL if configured
-      const apiUrl = import.meta.env.VITE_API_URL;
-      if (apiUrl) {
-        results.tests.push(await runTest(
-          'API Health Check',
-          `${apiUrl}/api/health`
-        ));
-        
-        // Test 4: Twitch API via our backend
-        results.tests.push(await runTest(
-          'Twitch API via Backend',
-          `${apiUrl}/api/twitch/streamers?logins=fuslie,ludwig,pokimane`
-        ));
-      } else {
-        results.tests.push({
-          name: 'API Health Check',
-          success: false,
-          error: 'API URL not configured',
-        });
-        
-        results.tests.push({
-          name: 'Twitch API via Backend',
-          success: false,
-          error: 'API URL not configured',
-        });
-      }
-      
-      // Analyze results
-      const successCount = results.tests.filter(t => t.success).length;
-      const totalTests = results.tests.length;
-      results.summary = `${successCount}/${totalTests} tests passed`;
-      
-      if (successCount === totalTests) {
-        results.health = 'good';
-      } else if (successCount >= totalTests / 2) {
-        results.health = 'partial';
-      } else {
-        results.health = 'bad';
-      }
-      
-      setTestResults(results);
-    } catch (error) {
-      console.error('Error running connection tests:', error);
-      setTestResults({
-        tests: [],
-        summary: 'Error running tests',
-        health: 'unknown',
-        error: error.message
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-  
-  if (!isDev) return null;
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: '10px',
-      right: '10px',
-      background: '#222',
-      border: '1px solid #666',
-      padding: '8px',
-      borderRadius: '4px',
-      zIndex: 1000,
-      maxWidth: '400px',
-      fontSize: '12px'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <strong>Debug Info</strong>
-        <button 
-          onClick={() => setExpanded(!expanded)}
-          style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer' }}
-        >
-          {expanded ? 'Hide' : 'Show'}
-        </button>
-      </div>
-      
-      {expanded && (
-        <div>
-          <div>Mode: {import.meta.env.MODE}</div>
-          <div>API URL: {import.meta.env.VITE_API_URL || 'Not set'}</div>
-          <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
-          <div>Error: {loadError || 'None'}</div>
-          <div>Streamers: {streamers.length}</div>
-          <div>UA: {navigator.userAgent.substring(0, 50)}...</div>
-          
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-            <button 
-              onClick={onRetry}
-              style={{ 
-                background: '#8a6aff', 
-                color: 'white', 
-                border: 'none', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '11px',
-                flex: 1
-              }}
-            >
-              Retry Connection
-            </button>
-            
-            <button 
-              onClick={testConnections}
-              disabled={testing}
-              style={{ 
-                background: '#4caf50', 
-                color: 'white', 
-                border: 'none', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                cursor: testing ? 'default' : 'pointer',
-                opacity: testing ? 0.7 : 1,
-                fontSize: '11px',
-                flex: 1
-              }}
-            >
-              {testing ? 'Testing...' : 'Test Network'}
-            </button>
-          </div>
-          
-          {testResults && (
-            <div style={{ 
-              marginTop: '12px', 
-              border: '1px solid #444', 
-              padding: '8px',
-              borderRadius: '4px',
-              maxHeight: '300px',
-              overflowY: 'auto'
-            }}>
-              <div style={{ 
-                color: 
-                  testResults.health === 'good' ? '#4caf50' : 
-                  testResults.health === 'partial' ? '#ff9800' : 
-                  testResults.health === 'bad' ? '#f44336' : '#aaa',
-                fontWeight: 'bold',
-                marginBottom: '8px'
-              }}>
-                {testResults.summary}
-              </div>
-              
-              {testResults.tests.map((test, index) => (
-                <div key={index} style={{ 
-                  marginBottom: '8px',
-                  padding: '6px',
-                  background: '#333',
-                  borderRadius: '4px'
-                }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: '4px'
-                  }}>
-                    <span>{test.name}</span>
-                    <span style={{ 
-                      color: test.success ? '#4caf50' : '#f44336',
-                      fontWeight: 'bold'
-                    }}>
-                      {test.success ? '✓ Success' : '✗ Failed'}
-                    </span>
-                  </div>
-                  
-                  {test.url && (
-                    <div style={{ fontSize: '10px', wordBreak: 'break-all' }}>
-                      URL: {test.url}
-                    </div>
-                  )}
-                  
-                  {test.status && (
-                    <div style={{ fontSize: '10px' }}>
-                      Status: {test.status}
-                    </div>
-                  )}
-                  
-                  {test.duration && (
-                    <div style={{ fontSize: '10px' }}>
-                      Time: {test.duration}
-                    </div>
-                  )}
-                  
-                  {test.error && (
-                    <div style={{ 
-                      fontSize: '10px', 
-                      color: '#f44336', 
-                      marginTop: '4px'
-                    }}>
-                      Error: {test.error}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const Discover = () => {
-  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
   const [streamers, setStreamers] = useState([]);
-  const [streamerVotes, setStreamerVotes] = useState({});
-  const [userBalance, setUserBalance] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [user, setUser] = useState(null);
+  const [theme, setTheme] = useState('light');
+  const streamersGridRef = useRef(null);
+  const nominationRef = useRef(null);
+  const [nomination, setNomination] = useState({ name: '', reason: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authAction, setAuthAction] = useState(null);
   const [totalDonations, setTotalDonations] = useState(0);
   const [timeUntilPayout, setTimeUntilPayout] = useState('');
-  const [nominationUrl, setNominationUrl] = useState('');
-  const [nominationStatus, setNominationStatus] = useState('');
-  const [debugInfo, setDebugInfo] = useState({ 
-    apiUrl: import.meta.env.VITE_API_URL || 'Not set',
-    supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'Not set',
-    online: navigator.onLine,
-    lastError: null
-  });
-  const navigate = useNavigate();
-  const nominationSectionRef = useRef(null);
-  const streamersGridRef = useRef(null);
-
+  const [showViewMore, setShowViewMore] = useState(false);
+  const [streamerVotes, setStreamerVotes] = useState({});
+  const [isHovered, setIsHovered] = useState(false);
+  const [hoveredStreamer, setHoveredStreamer] = useState(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  
   const FREE_STREAMER_LIMIT = 5;
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -330,15 +49,13 @@ const Discover = () => {
     };
   };
 
-  const [sortOption, setSortOption] = useState(getUserPreferences().sortOption);
-  const [streamersFilter, setStreamersFilter] = useState(getUserPreferences().streamersFilter);
+  // Initialize with user preferences
+  const userPrefs = getUserPreferences();
+  const [sortOption, setSortOption] = useState(userPrefs.sortOption);
+  const [streamersFilter, setStreamersFilter] = useState(userPrefs.streamersFilter);
 
   const OFFLINE_THUMBNAIL = "https://static-cdn.jtvnw.net/ttv-static/404_preview-320x180.jpg";
   const DEFAULT_PROFILE_IMAGE = "https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png";
-
-  // Add loading and error states
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
 
   // Add this function to detect mobile at the start of your component
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -848,13 +565,6 @@ const Discover = () => {
     }
 
     // Apply category filter
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(streamer => 
-        streamer.game_name?.toLowerCase().includes(categoryFilter.toLowerCase())
-      );
-    }
-
-    // Apply online/offline filter
     if (streamersFilter !== 'all') {
       filtered = filtered.filter(streamer => 
         streamersFilter === 'online' ? 
@@ -1022,7 +732,7 @@ const Discover = () => {
     
     // Only lock cards if user is not logged in AND index is beyond the free limit
     const isLocked = !user && index >= FREE_STREAMER_LIMIT;
-    const votes = streamerVotes[userLogin] || streamer.vote_count || 0;
+    const voteCount = streamerVotes[userLogin] || streamer.vote_count || 0;
 
     // Use a standard placeholder image for missing profile images
     const getProfileImagePlaceholder = () => {
@@ -1089,7 +799,7 @@ const Discover = () => {
               <span className={styles.viewerCount}>{streamer.viewer_count || 0} viewers</span>
             )}
             <span className={styles.gameName}>{streamer.game_name || 'N/A'}</span>
-            {votes > 0 && <span className={styles.votesBadge}>{votes} votes this week</span>}
+            {voteCount > 0 && <span className={styles.votesBadge}>{voteCount} votes this week</span>}
           </div>
         </div>
         {isLocked && (
@@ -1119,137 +829,10 @@ const Discover = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const handleRetry = () => {
-    console.log('Retrying connection...');
-    setDebugInfo({
-      ...debugInfo,
-      online: navigator.onLine,
-      lastError: null,
-      retryCount: (debugInfo.retryCount || 0) + 1
-    });
-    loadStreamers().catch(err => {
-      setDebugInfo(prev => ({
-        ...prev,
-        lastError: err.message || String(err)
-      }));
-    });
-  };
-
-  useEffect(() => {
-    const originalError = console.error;
-    console.error = (...args) => {
-      setDebugInfo(prev => ({
-        ...prev,
-        lastError: args.map(arg => 
-          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-        ).join(' ')
-      }));
-      originalError.apply(console, args);
-    };
-    
-    return () => {
-      console.error = originalError;
-    };
-  }, []);
-
-  // Add a test function for direct API connection
-  const testApiDirectly = async () => {
-    try {
-      setDebugInfo(prev => ({ ...prev, testingApi: true }));
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://chadderforchadders.onrender.com';
-      console.log(`Testing API directly: ${apiUrl}/api/health`);
-      
-      const response = await fetch(`${apiUrl}/api/health`, {
-        mode: 'cors',
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('API direct test result:', data);
-        setDebugInfo(prev => ({ 
-          ...prev, 
-          testingApi: false,
-          apiDirectTest: 'Success: ' + JSON.stringify(data),
-          lastError: null
-        }));
-      } else {
-        console.error('API test failed with status:', response.status);
-        setDebugInfo(prev => ({ 
-          ...prev, 
-          testingApi: false,
-          apiDirectTest: `Failed: ${response.status}`,
-          lastError: `API returned status ${response.status}`
-        }));
-      }
-    } catch (error) {
-      console.error('API direct test error:', error);
-      setDebugInfo(prev => ({ 
-        ...prev, 
-        testingApi: false,
-        apiDirectTest: `Error: ${error.message}`,
-        lastError: error.message
-      }));
-    }
-  };
-
   return (
     <div className={styles.discoverContainer}>
-      <div style={{ 
-        background: '#333', 
-        color: 'white', 
-        padding: '10px', 
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        whiteSpace: 'pre-wrap',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9999,
-        maxHeight: '200px',
-        overflow: 'auto'
-      }}>
-        <h4>Debug Info:</h4>
-        <p>API URL: {debugInfo.apiUrl}</p>
-        <p>Supabase URL: {debugInfo.supabaseUrl}</p>
-        <p>Online: {debugInfo.online ? 'Yes' : 'No'}</p>
-        <p>Last Error: {debugInfo.lastError || 'None'}</p>
-        <p>API Direct Test: {debugInfo.apiDirectTest || 'Not run'}</p>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            onClick={handleRetry} 
-            style={{ 
-              background: '#8a6aff', 
-              color: 'white', 
-              border: 'none', 
-              padding: '4px 8px', 
-              fontSize: '11px', 
-              borderRadius: '4px' 
-            }}
-          >
-            Force Reload
-          </button>
-          <button 
-            onClick={testApiDirectly}
-            disabled={debugInfo.testingApi} 
-            style={{ 
-              background: '#4caf50', 
-              color: 'white', 
-              border: 'none', 
-              padding: '4px 8px', 
-              fontSize: '11px', 
-              borderRadius: '4px',
-              opacity: debugInfo.testingApi ? 0.5 : 1 
-            }}
-          >
-            {debugInfo.testingApi ? 'Testing...' : 'Test API Directly'}
-          </button>
-        </div>
-      </div>
-
       <>
-        <div className="glow-effect" style={{ marginTop: '150px' }}></div>
+        <div className="glow-effect"></div>
         <div className={styles.discoverHeader}>
           <h1 className={styles.discoverTitle}>
             Discover Streamers
@@ -1425,7 +1008,6 @@ const Discover = () => {
                 <button
                   onClick={() => {
                     setSearchQuery('');
-                    setCategoryFilter('all');
                     setStreamersFilter('all');
                     setSortOption('viewers-high');
                     handleRetry();
@@ -1487,13 +1069,6 @@ const Discover = () => {
             )}
           </form>
         </div>
-
-        <DebugInfo 
-          isLoading={isLoading} 
-          loadError={loadError} 
-          streamers={streamers} 
-          onRetry={handleRetry} 
-        />
       </>
     </div>
   );
