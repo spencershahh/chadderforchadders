@@ -18,7 +18,10 @@ const Discover = () => {
   const [theme, setTheme] = useState('light');
   const streamersGridRef = useRef(null);
   const nominationRef = useRef(null);
+  const nominationSectionRef = useRef(null);
   const [nomination, setNomination] = useState({ name: '', reason: '' });
+  const [nominationUrl, setNominationUrl] = useState('');
+  const [nominationStatus, setNominationStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -828,6 +831,14 @@ const Discover = () => {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
+
+  // Handle retry for connection issues
+  const handleRetry = () => {
+    console.log('Retrying connection...');
+    loadStreamers().catch(err => {
+      console.error('Error retrying connection:', err);
+    });
+  };
 
   return (
     <div className={styles.discoverContainer}>
