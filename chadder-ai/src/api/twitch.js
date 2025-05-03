@@ -65,9 +65,10 @@ export const fetchStreamers = async () => {
     console.log("Browser info:", navigator.userAgent);
     let streamers = [];
     
-    // Check if we're on desktop or mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    console.log("Device type:", isMobile ? "Mobile" : "Desktop");
+    // Improved mobile detection
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     (window.innerWidth <= 768);
+    console.log("Device type:", isMobile ? "Mobile" : "Desktop", "Screen width:", window.innerWidth);
     
     // First, fetch streamers from Supabase
     try {
