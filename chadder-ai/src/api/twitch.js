@@ -65,45 +65,11 @@ export const fetchStreamers = async () => {
     console.log("Browser info:", navigator.userAgent);
     let streamers = [];
     
-    // Improved mobile detection
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                     (window.innerWidth <= 768);
-    console.log("Device type:", isMobile ? "Mobile" : "Desktop", "Screen width:", window.innerWidth);
-    
     // First, fetch streamers from Supabase
     try {
       console.log("Fetching streamers from Supabase...");
       
-      // Special handling for mobile - try with different options
-      if (isMobile) {
-        console.log("Using mobile-optimized query");
-        // Try a simpler query for mobile with fewer columns
-        const { data: mobileStreamers, error: mobileError } = await supabase
-          .from('streamers')
-          .select('id, username, name')
-          .order('username')
-          .limit(20);
-          
-        if (!mobileError && mobileStreamers && mobileStreamers.length > 0) {
-          console.log('Found streamers in database (mobile):', mobileStreamers.length);
-          // Just normalize the basic data
-          streamers = mobileStreamers.map(s => ({
-            user_id: s.id,
-            user_name: s.username || s.name || 'Unknown',
-            user_login: s.username || s.name || 'unknown',
-            type: 'offline',
-            title: 'No title available',
-            profile_image_url: null,
-            thumbnail_url: null,
-            game_name: 'Not Live'
-          }));
-          
-          // Just return this basic data for mobile
-          return streamers;
-        }
-      }
-      
-      // Regular query for desktop or as fallback for mobile
+      // Regular query for all devices
       const { data: dbStreamers, error } = await supabase
         .from('streamers')
         .select('*')
@@ -124,13 +90,7 @@ export const fetchStreamers = async () => {
       return { error: true, message: 'Failed to connect to the database.' };
     }
     
-    // For mobile, just return the basic data without trying to enrich
-    if (isMobile) {
-      console.log("Returning basic data for mobile without enrichment");
-      return streamers;
-    }
-    
-    // Only try to get enriched data for desktop
+    // Try to get enriched data for all devices
     if (API_URL) {
       try {
         // Fetch enriched data from our backend API

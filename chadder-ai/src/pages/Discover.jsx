@@ -343,57 +343,6 @@ const Discover = () => {
   // Add this function to detect mobile at the start of your component
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
-  // Add a simplified mobile layout for the streamers grid
-  
-  const renderMobileList = () => {
-    if (isLoading) {
-      return <div>Loading streamers...</div>;
-    }
-    
-    if (loadError) {
-      return (
-        <div>
-          <h3>Error loading streamers</h3>
-          <p>{loadError}</p>
-          <button onClick={handleRetry}>Retry</button>
-        </div>
-      );
-    }
-    
-    if (streamers.length === 0) {
-      return <div>No streamers found</div>;
-    }
-    
-    return (
-      <div style={{ marginTop: '200px', padding: '10px' }}>
-        <h3>Streamers List</h3>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {streamers.map((streamer, index) => {
-            // Safety checks
-            if (!streamer) return null;
-            
-            const name = streamer.user_name || streamer.display_name || streamer.username || 'Unknown Streamer';
-            const status = streamer.type === 'live' ? 'LIVE' : 'Offline';
-            
-            return (
-              <li key={index} style={{ 
-                margin: '10px 0', 
-                padding: '10px', 
-                background: '#333',
-                borderRadius: '5px',
-                color: 'white'
-              }}>
-                <h4>{name}</h4>
-                <div>Status: <span style={{ color: status === 'LIVE' ? '#ff4444' : '#888' }}>{status}</span></div>
-                {streamer.type === 'live' && <div>Viewers: {streamer.viewer_count || 0}</div>}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    );
-  };
-
   const loadStreamers = async () => {
     try {
       console.log('Starting to load streamers...');
@@ -1299,259 +1248,253 @@ const Discover = () => {
         </div>
       </div>
 
-      {isMobile ? (
-        // Simple mobile layout
-        renderMobileList()
-      ) : (
-        // Original desktop layout with all features
-        <>
-          <div className="glow-effect" style={{ marginTop: '150px' }}></div>
-          <div className={styles.discoverHeader}>
-            <h1 className={styles.discoverTitle}>
-              Discover Streamers
-            </h1>
-            <p className={styles.discoverSubtitle}>
-              Find Hidden Gems, One Stream at a Time.
-            </p>
+      <>
+        <div className="glow-effect" style={{ marginTop: '150px' }}></div>
+        <div className={styles.discoverHeader}>
+          <h1 className={styles.discoverTitle}>
+            Discover Streamers
+          </h1>
+          <p className={styles.discoverSubtitle}>
+            Find Hidden Gems, One Stream at a Time.
+          </p>
 
-            <div className={styles.statsContainer}>
-              <div className={styles.statsGrid}>
-                <div 
-                  className={`${styles.statItem} ${styles.clickable}`}
-                  onClick={handleLiveNowClick}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <span className={styles.statNumber}>
-                    {streamers.filter(s => s.type === "live").length}
-                  </span>
-                  <span className={styles.statLabel}>LIVE NOW</span>
-                </div>
-                <div 
-                  className={`${styles.statItem} ${styles.clickable}`}
-                  onClick={handleTotalStreamersClick}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <span className={styles.statNumber}>
-                    {streamers.length}
-                  </span>
-                  <span className={styles.statLabel}>TOTAL STREAMERS</span>
-                </div>
-                <div className={`${styles.statItem} ${styles.prizePool}`}>
-                  <span className={styles.statNumber}>
-                    <span className={styles.currency}>$</span>
-                    {totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                  <span className={styles.statLabel}>PRIZE POOL</span>
-                  <div className={styles.prizePoolTimer} aria-label="Time until payout">
-                    {timeUntilPayout}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.searchControls}>
-              <div className={styles.searchWrapper}>
-                <input
-                  type="text"
-                  className={styles.searchInput}
-                  placeholder="Search streamers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search streamers"
-                />
-                <div className={styles.filterControls}>
-                  <select
-                    className={styles.sortSelect}
-                    value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value)}
-                    aria-label="Sort streamers"
-                  >
-                    <option value="viewers-high">Viewers (High)</option>
-                    <option value="viewers-low">Viewers (Low)</option>
-                    <option value="alphabetical">Alphabetical</option>
-                    <option value="popular">Most Popular</option>
-                  </select>
-                  
-                  <div 
-                    className={`${styles.toggleSwitch} ${streamersFilter === 'online' ? styles.online : styles.all}`}
-                    onClick={() => setStreamersFilter(streamersFilter === 'online' ? 'all' : 'online')}
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Toggle online streamers"
-                  >
-                    <div className={styles.toggleSwitchInner}>
-                      <span className={`${styles.toggleOption} ${streamersFilter === 'online' ? styles.active : ''}`}>
-                        Online
-                      </span>
-                      <span className={`${styles.toggleOption} ${streamersFilter === 'all' ? styles.active : ''}`}>
-                        All
-                      </span>
-                      <div className={styles.toggleSlider} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.actionButtonsContainer}>
-              <a 
-                href="/dig-deeper"
-                className={styles.digDeeperButtonLink}
-                aria-label="Go to Dig Deeper page to find small streamers"
+          <div className={styles.statsContainer}>
+            <div className={styles.statsGrid}>
+              <div 
+                className={`${styles.statItem} ${styles.clickable}`}
+                onClick={handleLiveNowClick}
+                role="button"
+                tabIndex={0}
               >
-                <span className={styles.buttonText}>Dig Deeper</span>
-              </a>
-              
-              <button 
-                onClick={scrollToNomination}
-                className={styles.nominateButton}
-                aria-label="Go to nominate streamer section"
+                <span className={styles.statNumber}>
+                  {streamers.filter(s => s.type === "live").length}
+                </span>
+                <span className={styles.statLabel}>LIVE NOW</span>
+              </div>
+              <div 
+                className={`${styles.statItem} ${styles.clickable}`}
+                onClick={handleTotalStreamersClick}
+                role="button"
+                tabIndex={0}
               >
-                Nominate a Streamer
-              </button>
-            </div>
-            
-            <div className={styles.digDeeperDescription}>
-              <p>
-                Dig Deeper - Swipe right to favorite streamers, 
-                swipe left to skip.
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.streamersSection}>
-            <h2 className={styles.streamersTitle}>
-              Featured Streamers
-            </h2>
-            <p className={styles.streamersSubtitle}>
-            Find streamers, join the conversation, and vote for your favorites!
-            </p>
-            {!user && (
-              <div className={styles.gatedContentMessage}>
-                <h3>Want to see more amazing streamers?</h3>
-                <p>Create a free account to unlock our full catalog of talented streamers and join our community!</p>
-                <button className={styles.signUpButton} onClick={handleAuthPrompt}>
-                  Sign Up Now
-                </button>
+                <span className={styles.statNumber}>
+                  {streamers.length}
+                </span>
+                <span className={styles.statLabel}>TOTAL STREAMERS</span>
               </div>
-            )}
-          </div>
-
-          <div className={styles.streamerGrid} ref={streamersGridRef}>
-            {isLoading ? (
-              <div className={styles.messageContainer}>
-                <p>Loading streamers...</p>
-              </div>
-            ) : loadError ? (
-              <div className={styles.messageContainer}>
-                <div className={styles.errorMessage}>
-                  <h3>Oops! We couldn't load the streamers</h3>
-                  <p>{loadError}</p>
-                  <p>We're working on fixing this. Please try using a different browser or device.</p>
-                  <div className={styles.errorDetails}>
-                    <p><strong>Troubleshooting Tips:</strong></p>
-                    <ul>
-                      <li>Make sure your internet connection is stable</li>
-                      <li>Check if you're using a VPN or proxy that might block access</li>
-                      <li>Try clearing your browser cache</li>
-                      <li>If you're using an ad blocker, try disabling it temporarily</li>
-                    </ul>
-                  </div>
-                  <div className={styles.buttonGroup}>
-                    <button 
-                      onClick={handleRetry} 
-                      className={styles.retryButton}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                  <p className={styles.fallbackNote}>
-                    <small>We only display real data from Twitch. No data is shown if we can't connect.</small>
-                  </p>
+              <div className={`${styles.statItem} ${styles.prizePool}`}>
+                <span className={styles.statNumber}>
+                  <span className={styles.currency}>$</span>
+                  {totalDonations.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span className={styles.statLabel}>PRIZE POOL</span>
+                <div className={styles.prizePoolTimer} aria-label="Time until payout">
+                  {timeUntilPayout}
                 </div>
               </div>
-            ) : sortedStreamers.length === 0 ? (
-              <div className={styles.messageContainer}>
-                <div className={styles.errorMessage}>
-                  <h3>No streamers found</h3>
-                  <p>We couldn't find any streamers matching your filters.</p>
-                  <p>Try clearing your search or filters, or try again later.</p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery('');
-                      setCategoryFilter('all');
-                      setStreamersFilter('all');
-                      setSortOption('viewers-high');
-                      handleRetry();
-                    }}
-                    className={styles.retryButton}
-                  >
-                    Reset Filters
-                  </button>
-                </div>
-              </div>
-            ) : (
-              sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))
-            )}
+            </div>
           </div>
 
-          <div className={styles.sectionDivider} />
-
-          <div className={styles.nominationSection} ref={nominationSectionRef}>
-            <h2 className={styles.nominationTitle}>
-              Nominate a Streamer
-            </h2>
-            <p className={styles.nominationSubtitle}>
-              Know an amazing streamer who should be part of our community? 
-              Nominate them by submitting their Twitch channel URL below.
-            </p>
-            <form onSubmit={handleNomination} className={styles.nominationForm}>
+          <div className={styles.searchControls}>
+            <div className={styles.searchWrapper}>
               <input
                 type="text"
-                value={nominationUrl}
-                onChange={(e) => setNominationUrl(e.target.value)}
-                placeholder="Enter Twitch channel URL (e.g., https://twitch.tv/username)"
-                className={styles.nominationInput}
-                aria-label="Streamer URL"
+                className={styles.searchInput}
+                placeholder="Search streamers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search streamers"
               />
-              <button
-                type="submit"
-                className={styles.nominationSubmit}
-                aria-label={user ? "Submit nomination" : "Login to nominate"}
-                onClick={(e) => {
-                  if (!user) {
-                    e.preventDefault();
-                    navigate('/signup');
-                  }
-                }}
-              >
-                {user ? "Submit Nomination" : "Login or Signup to Nominate a Streamer"}
-              </button>
-              {nominationStatus && (
-                <div 
-                  className={`${styles.nominationStatus} ${
-                    nominationStatus.includes('Error') || nominationStatus.includes('already') 
-                      ? styles.error 
-                      : styles.success
-                  }`}
-                  role="alert"
+              <div className={styles.filterControls}>
+                <select
+                  className={styles.sortSelect}
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                  aria-label="Sort streamers"
                 >
-                  {nominationStatus}
+                  <option value="viewers-high">Viewers (High)</option>
+                  <option value="viewers-low">Viewers (Low)</option>
+                  <option value="alphabetical">Alphabetical</option>
+                  <option value="popular">Most Popular</option>
+                </select>
+                
+                <div 
+                  className={`${styles.toggleSwitch} ${streamersFilter === 'online' ? styles.online : styles.all}`}
+                  onClick={() => setStreamersFilter(streamersFilter === 'online' ? 'all' : 'online')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Toggle online streamers"
+                >
+                  <div className={styles.toggleSwitchInner}>
+                    <span className={`${styles.toggleOption} ${streamersFilter === 'online' ? styles.active : ''}`}>
+                      Online
+                    </span>
+                    <span className={`${styles.toggleOption} ${streamersFilter === 'all' ? styles.active : ''}`}>
+                      All
+                    </span>
+                    <div className={styles.toggleSlider} />
+                  </div>
                 </div>
-              )}
-            </form>
+              </div>
+            </div>
           </div>
 
-          <DebugInfo 
-            isLoading={isLoading} 
-            loadError={loadError} 
-            streamers={streamers} 
-            onRetry={handleRetry} 
-          />
-        </>
-      )}
+          <div className={styles.actionButtonsContainer}>
+            <a 
+              href="/dig-deeper"
+              className={styles.digDeeperButtonLink}
+              aria-label="Go to Dig Deeper page to find small streamers"
+            >
+              <span className={styles.buttonText}>Dig Deeper</span>
+            </a>
+            
+            <button 
+              onClick={scrollToNomination}
+              className={styles.nominateButton}
+              aria-label="Go to nominate streamer section"
+            >
+              Nominate a Streamer
+            </button>
+          </div>
+          
+          <div className={styles.digDeeperDescription}>
+            <p>
+              Dig Deeper - Swipe right to favorite streamers, 
+              swipe left to skip.
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.streamersSection}>
+          <h2 className={styles.streamersTitle}>
+            Featured Streamers
+          </h2>
+          <p className={styles.streamersSubtitle}>
+          Find streamers, join the conversation, and vote for your favorites!
+          </p>
+          {!user && (
+            <div className={styles.gatedContentMessage}>
+              <h3>Want to see more amazing streamers?</h3>
+              <p>Create a free account to unlock our full catalog of talented streamers and join our community!</p>
+              <button className={styles.signUpButton} onClick={handleAuthPrompt}>
+                Sign Up Now
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.streamerGrid} ref={streamersGridRef}>
+          {isLoading ? (
+            <div className={styles.messageContainer}>
+              <p>Loading streamers...</p>
+            </div>
+          ) : loadError ? (
+            <div className={styles.messageContainer}>
+              <div className={styles.errorMessage}>
+                <h3>Oops! We couldn't load the streamers</h3>
+                <p>{loadError}</p>
+                <p>We're working on fixing this. Please try using a different browser or device.</p>
+                <div className={styles.errorDetails}>
+                  <p><strong>Troubleshooting Tips:</strong></p>
+                  <ul>
+                    <li>Make sure your internet connection is stable</li>
+                    <li>Check if you're using a VPN or proxy that might block access</li>
+                    <li>Try clearing your browser cache</li>
+                    <li>If you're using an ad blocker, try disabling it temporarily</li>
+                  </ul>
+                </div>
+                <div className={styles.buttonGroup}>
+                  <button 
+                    onClick={handleRetry} 
+                    className={styles.retryButton}
+                  >
+                    Retry
+                  </button>
+                </div>
+                <p className={styles.fallbackNote}>
+                  <small>We only display real data from Twitch. No data is shown if we can't connect.</small>
+                </p>
+              </div>
+            </div>
+          ) : sortedStreamers.length === 0 ? (
+            <div className={styles.messageContainer}>
+              <div className={styles.errorMessage}>
+                <h3>No streamers found</h3>
+                <p>We couldn't find any streamers matching your filters.</p>
+                <p>Try clearing your search or filters, or try again later.</p>
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCategoryFilter('all');
+                    setStreamersFilter('all');
+                    setSortOption('viewers-high');
+                    handleRetry();
+                  }}
+                  className={styles.retryButton}
+                >
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+          ) : (
+            sortedStreamers.map((streamer, index) => renderStreamerCard(streamer, index))
+          )}
+        </div>
+
+        <div className={styles.sectionDivider} />
+
+        <div className={styles.nominationSection} ref={nominationSectionRef}>
+          <h2 className={styles.nominationTitle}>
+            Nominate a Streamer
+          </h2>
+          <p className={styles.nominationSubtitle}>
+            Know an amazing streamer who should be part of our community? 
+            Nominate them by submitting their Twitch channel URL below.
+          </p>
+          <form onSubmit={handleNomination} className={styles.nominationForm}>
+            <input
+              type="text"
+              value={nominationUrl}
+              onChange={(e) => setNominationUrl(e.target.value)}
+              placeholder="Enter Twitch channel URL (e.g., https://twitch.tv/username)"
+              className={styles.nominationInput}
+              aria-label="Streamer URL"
+            />
+            <button
+              type="submit"
+              className={styles.nominationSubmit}
+              aria-label={user ? "Submit nomination" : "Login to nominate"}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  navigate('/signup');
+                }
+              }}
+            >
+              {user ? "Submit Nomination" : "Login or Signup to Nominate a Streamer"}
+            </button>
+            {nominationStatus && (
+              <div 
+                className={`${styles.nominationStatus} ${
+                  nominationStatus.includes('Error') || nominationStatus.includes('already') 
+                    ? styles.error 
+                    : styles.success
+                }`}
+                role="alert"
+              >
+                {nominationStatus}
+              </div>
+            )}
+          </form>
+        </div>
+
+        <DebugInfo 
+          isLoading={isLoading} 
+          loadError={loadError} 
+          streamers={streamers} 
+          onRetry={handleRetry} 
+        />
+      </>
     </div>
   );
 };
